@@ -1,0 +1,5 @@
+.venv/
+constitucion.txt
+log.json
+log.txt
+__pycache__/
