@@ -6,7 +6,7 @@ from src.models.relaciones_posteriores_model import RelacionesPosteriores
 from src.models.departamentos_model import Departamentos
 from src.models.ambitos_model import Ambitos
 from src.models.materias_model import Materias
-
+from src.documents.common import TreeBuilder
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
 
 from .base import Step
@@ -14,6 +14,8 @@ from .base import Step
 class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
         super().__init__(name)
+
+        self.content_tree = TreeBuilder()
         
     
     def process_metadata(self, metadata):
@@ -34,6 +36,7 @@ class DataProcessor(Step):
         estado_consolidacion = EstadoConsolidacion(EstadosConsolidacion.from_string(metadata.get("estado_consolidacion", None)))
         url_eli = metadata.get("url_eli", None)
         url_html_consolidada = metadata.get("url_html_consolidada", None)
+
 
         return Metadata(
             fecha_actualizacion=fecha_actualizacion,
@@ -72,6 +75,7 @@ class DataProcessor(Step):
     def process_content(self, content):
         blocks_tag = content.get("bloque", [])
         blocks = [self.process_block(block) for block in blocks_tag]
+        
 
         return blocks
 
@@ -81,6 +85,8 @@ class DataProcessor(Step):
         title = block.get("@titulo", None)
 
         versions = [self.process_version(version) for version in block.get("version", [])]
+        
+        self.content_tree.parse_versions(versions)
         
         block = Block(
             id=id,
@@ -97,18 +103,18 @@ class DataProcessor(Step):
         fecha_publicacion = version.get("@fecha_publicacion", None)
         fecha_vigencia = version.get("@fecha_vigencia", None)
 
-        # collect non-attribute elements dynamically (attributes start with '@')
         known_meta = {"@id_norma", "@fecha_publicacion", "@fecha_vigencia"}
         elements_by_tag = {}
+        processed_elements = []
         for k, v in version.items():
             if k in known_meta or k.startswith("@"):
                 continue
             items = v if isinstance(v, list) else [v]
             elements_by_tag[k] = items
+            processed_elements += [Element(element_type=ElementType(k), content=item) for item in items]
 
         # dispatch to handler methods named process_<tag> when present
-        processed_elements = [Element(element_type=ElementType(tag), content=item) for item in items for tag, items in elements_by_tag.items()]
-        
+        # processed_elements = [Element(element_type=ElementType(tag), content=item) for item in items for tag, items in elements_by_tag.items()]
         version =  Version(
             id_norma=id_norma,
             fecha_publicacion=fecha_publicacion,
@@ -116,6 +122,7 @@ class DataProcessor(Step):
             content=processed_elements
         )
 
+    
         return version
 
     def process(self, data):
@@ -124,8 +131,12 @@ class DataProcessor(Step):
         analysis = data.get("analisis", {})
         content = data.get("texto", [])
         
+
         processed_metadata = self.process_metadata(metadata)
         processed_analysis = self.process_analysis(analysis)
         processed_content = self.process_content(content)
+
+        # self.content_tree.print_tree(show_versions=False)
+
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)
