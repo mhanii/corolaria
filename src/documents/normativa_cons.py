@@ -122,17 +122,31 @@ class Node:
             previous_version=self
         )
         self.next_version = new_version
+        self.fecha_caducidad = fecha_vigencia
         return new_version
      
-    def get_version_at_date(self, date: datetime) -> 'Node':
+    def get_version_at_date(self, date: str) -> 'Node':
         """Get the version that was active at a specific date"""
         current = self
+
+        date = datetime.fromisoformat(date)
+        
+        fecha_vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
+        fecha_caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
+
         while current.next_version:
-            is_vigente = current.fecha_vigencia and current.fecha_vigencia <= date
-            is_caducado = current.fecha_caducidad and current.fecha_caducidad <= date
+            fecha_vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
+            fecha_caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
+            
+            is_vigente = fecha_vigencia and fecha_vigencia <= date
+            is_caducado = fecha_caducidad and fecha_caducidad <= date
             if is_vigente and not is_caducado:
                 break
             current = current.next_version
+
+        if fecha_vigencia >= date:
+            return None # Temp solution for newly introduced nodes
+        
         return current
     
     def get_all_versions(self) -> List['Node']:

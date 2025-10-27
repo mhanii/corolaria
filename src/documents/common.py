@@ -16,17 +16,18 @@ import difflib
 
 class TreeBuilder:
     LEVELS = [
-        (0, NodeType.LIBRO, re.compile(r'^LIBRO\s+(.+)', re.I)),
-        (1, NodeType.TITULO, re.compile(r'^TÍTULO\s+(.+)', re.I)),
-        (2, NodeType.CAPITULO, re.compile(r'^CAPÍTULO\s+(.+)', re.I)),
-        (3, NodeType.SECCION, re.compile(r'^Sección\s+(\d+\.ª)(?:\s*\.?\s*(.*))?', re.I)),
-        (4, NodeType.SUBSECCION, re.compile(r'^Subsección\s+(\d+ª)(?:\s*\.?\s*(.*))?', re.I)),
-        (5, NodeType.ARTICULO_UNICO, re.compile(r'^Artículo\s+único(?:\s*\.?\s*(.*))?', re.I)),
-        (5, NodeType.ARTICULO, re.compile(r'^Artículo\s+(\d+)')),
-        (6, NodeType.APARTADO_NUMERICO, re.compile(r'^(\d+)\.\s+(.+)')),
-        (7, NodeType.PARRAFO, re.compile(r'^\.\s+(.+)')),
-        (8, NodeType.APARTADO_ALFA, re.compile(r'^([a-z])\)\s+(.+)', re.I)),
-        (8, NodeType.ORDINAL, re.compile(r'^(\d+ª)\s*(.*)$')),
+        (   0,    NodeType.DISPOSICION, re.compile(r'^Disposición\s+(.+)', re.I)),
+        (   0,     NodeType.LIBRO, re.compile(r'^LIBRO\s+(.+)', re.I)),
+        (   1,     NodeType.TITULO, re.compile(r'^TÍTULO\s+(.+)', re.I)),
+        (   2,     NodeType.CAPITULO, re.compile(r'^CAPÍTULO\s+(.+)', re.I)),
+        (   3,     NodeType.SECCION, re.compile(r'^Sección\s+(\d+\.ª)(?:\s*\.?\s*(.*))?', re.I)),
+        (   4,     NodeType.SUBSECCION, re.compile(r'^Subsección\s+(\d+ª)(?:\s*\.?\s*(.*))?', re.I)),
+        (   5,     NodeType.ARTICULO_UNICO, re.compile(r'^Artículo\s+único(?:\s*\.?\s*(.*))?', re.I)),
+        (   5,     NodeType.ARTICULO, re.compile(r'^Artículo\s+(\d+)')),
+        (   6,     NodeType.APARTADO_NUMERICO, re.compile(r'^(\d+)\.\s+(.+)')),
+        (   7,     NodeType.PARRAFO, re.compile(r'^\.\s+(.+)')),
+        (   8,     NodeType.APARTADO_ALFA, re.compile(r'^([a-z])\)\s+(.+)', re.I)),
+        (   8,     NodeType.ORDINAL, re.compile(r'^(\d+\.+ª)\s*(.*)$')),
     ]
 
     def __init__(self, target_document_id: str):
@@ -72,6 +73,8 @@ class TreeBuilder:
                 path_parts.insert(0, f"{current.node_type.value}_{current.name}")
             current = current.parent
         return "/".join(path_parts) if path_parts else "root"
+    
+    
     
     def _find_node_by_path(self, path: str) -> Optional[Node]:
         """Find the latest version of a node by its path"""
@@ -207,14 +210,7 @@ class TreeBuilder:
                 fecha_vigencia=version.fecha_vigencia
             )
             
-            # Update parent's content to point to new version
-            parent_content = parent.content
-            try:
-                old_index = parent_content.index(existing_node)
-                parent_content[old_index] = new_version_node
-            except ValueError:
-                parent.add_child(new_version_node)
-            
+        
             # Update registry
             self._register_node(new_version_node)
             
@@ -236,8 +232,6 @@ class TreeBuilder:
         Parse a single version and integrate it into the tree.
         If this is not the first version, changes are tracked via ChangeEvent.
         """
-        # Reset stack to root for each version
-        self.stack = [self.root]
         
         for element in version.content:
             if element.element_type == ElementType.BLOCKQUOTE:
@@ -249,6 +243,7 @@ class TreeBuilder:
             if level is not None:
                 # Pop stack to appropriate level
                 while self.stack and self.stack[-1].level >= level:
+                    # print("Popping from stack:", self.stack[-1].get_full_name())
                     self.stack.pop()
 
                 # Create or update node
@@ -262,49 +257,19 @@ class TreeBuilder:
                     version_index=version_index,
                     change_event=change_event
                 )
-                
+                # print("Pushing to stack:", current_node.node_type)
                 self.stack.append(current_node)
+                # print("Stack", [n.get_full_name() for n in self.stack])
+
             else:
                 # Unstructured text - add to current node
                 if self.stack[-1] != self.root and text:
                     current_node = self.stack[-1]
+                    current_node.add_text(text)
                     
-                    # Check if adding this text would constitute a change
-                    old_content = self._extract_content_from_node(current_node)
-                    new_content = old_content + [text]
-                    
-                    has_changed, change_type = self._compare_node_content(
-                        current_node, 
-                        new_content
-                    )
-                    
-                    if has_changed and change_event:
-                        # Create new version with added text
-                        new_version = current_node.create_next_version(
-                            new_content=new_content,
-                            change_event_id=change_event.id,
-                            change_type=change_type,
-                            fecha_vigencia=version.fecha_vigencia
-                        )
-                        
-                        # Update parent reference
-                        parent = current_node.parent
-                        if parent:
-                            try:
-                                idx = parent.content.index(current_node)
-                                parent.content[idx] = new_version
-                            except ValueError:
-                                pass
-                        
-                        self._register_node(new_version)
-                        change_event.add_affected_node(new_version.path)
-                        
-                        # Update stack
-                        self.stack[-1] = new_version
-                    else:
-                        # Just add text to current node
-                        current_node.add_text(text)
-            
+                # print("Adding text to node:", self.stack[-1].get_full_name())
+
+
         return self.root
     
     def parse_versions(self, versions: List[Version]) -> Node:
@@ -375,13 +340,14 @@ class TreeBuilder:
             show_all_versions: Show ALL historical versions of each node
             target_date: Show tree state at specific date (ignored if show_all_versions=True)
         """
+        
         if node is None:
             node = self.root
             header = f'{node.get_full_name()}'
             if show_all_versions:
                 header += " [SHOWING ALL VERSIONS]"
             elif target_date:
-                header += f" [AS OF {target_date.strftime('%Y-%m-%d')}]"
+                header += f" [AS OF {datetime.fromisoformat(target_date).strftime('%Y-%m-%d')}]"
             print(header)
             
             children = [item for item in node.content if isinstance(item, Node)]
@@ -397,11 +363,15 @@ class TreeBuilder:
             versions_to_show = node.get_all_versions()
         elif target_date:
             versions_to_show = [node.get_version_at_date(target_date)]
+            # print ("Versions to show for node", node.get_full_name(), "at date", target_date, ":", [v.version_number for v in versions_to_show])
         else:
             versions_to_show = [node]
         
         # Print each version
         for version_idx, display_node in enumerate(versions_to_show):
+            if display_node is None:
+                continue
+            
             is_last_version = (version_idx == len(versions_to_show) - 1)
             
             # Adjust connector for multiple versions

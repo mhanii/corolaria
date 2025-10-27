@@ -130,6 +130,7 @@ class NodeType(str,Enum):
     APARTADO_NUMERICO = "apartado_numerico"
     PARRAFO = "parrafo"
     ORDINAL = "ordinal"
+    DISPOSICION = "disposicion"
 
 class ReferenciaType(str,Enum):
     ANTERIOR = "anterior"
