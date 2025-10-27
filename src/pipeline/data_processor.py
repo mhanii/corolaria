@@ -137,7 +137,7 @@ class DataProcessor(Step):
         processed_analysis = self.process_analysis(analysis)
         processed_content = self.process_content(content)
 
-        self.content_tree.print_tree(show_all_versions=False,target_date='19790101')
+        self.content_tree.print_tree(show_all_versions=True,target_date='20250101')
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)

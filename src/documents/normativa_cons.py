@@ -7,6 +7,7 @@ from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConso
 from src.models.relaciones_anteriores_model import RelacionesAnteriores
 from src.models.relaciones_posteriores_model import RelacionesPosteriores
 from .base import NodeType, ChangeType
+
 from enum import Enum
 import hashlib
 
@@ -64,14 +65,15 @@ class Node:
     level: int
 
     node_type: NodeType
+
+    version_index: int = 0 # 0 for original, 1..n for versions
+
     content: List[Union[str, 'Node']] = None
     parent: Optional['Node'] = None
 
 
     path: Optional[str] = None 
 
-    version_number: int = 0
-    is_original: bool = True
 
     fecha_vigencia: Optional[str] = None
     fecha_caducidad: Optional[str] = None
@@ -114,8 +116,7 @@ class Node:
             node_type=self.node_type,
             content=new_content,
             parent=self.parent,
-            version_number=self.version_number + 1,
-            is_original=False,
+            version_index=self.version_index + 1,
             fecha_vigencia=fecha_vigencia,
             created_by_change=change_event_id,
             change_type=change_type,
@@ -125,30 +126,31 @@ class Node:
         self.fecha_caducidad = fecha_vigencia
         return new_version
      
-    def get_version_at_date(self, date: str) -> 'Node':
-        """Get the version that was active at a specific date"""
-        current = self
-
-        date = datetime.fromisoformat(date)
+    def get_version_at_date(self, node: 'Node', date: str) -> Optional['Node']:
+        """Get the version of a node that was active at a specific date."""
+        date_dt = datetime.fromisoformat(date)
+        current = node
         
-        fecha_vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
-        fecha_caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
-
-        while current.next_version:
-            fecha_vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
-            fecha_caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
+        # Find the root version
+        while current.previous_version:
+            current = current.previous_version
+        
+        # Walk forward to find active version
+        while current:
+            vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
+            caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
             
-            is_vigente = fecha_vigencia and fecha_vigencia <= date
-            is_caducado = fecha_caducidad and fecha_caducidad <= date
-            if is_vigente and not is_caducado:
-                break
+            # Check if this version is valid at target date
+            if vigencia and vigencia <= date_dt:
+                # If no caducidad or caducidad is after target date, this is the one
+                if not caducidad or caducidad > date_dt:
+                    return current
+            
             current = current.next_version
-
-        if fecha_vigencia >= date:
-            return None # Temp solution for newly introduced nodes
         
-        return current
-    
+        # No valid version at this date (node didn't exist yet or already removed)
+        return None
+
     def get_all_versions(self) -> List['Node']:
         """Get all versions of this node"""
         versions = [self]
@@ -179,7 +181,7 @@ class Node:
         return f"{self.node_type} {self.name}"
     
     def __repr__(self):
-        version_info = f"v{self.version_number}" if not self.version_number > 0 else "original"
+        version_info = f"v{self.version_index}" if not self.version_index > 0 else "original"
         return f"Node({self.node_type}, name='{self.name}', {version_info})"
     
 

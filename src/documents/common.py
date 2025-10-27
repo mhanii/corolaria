@@ -37,7 +37,7 @@ class TreeBuilder:
             level=-1, 
             node_type=NodeType.ROOT, 
             id=0,
-            version_number=0,
+            version_index=0,
             path="root"
         )
         self.stack = [self.root]
@@ -142,86 +142,66 @@ class TreeBuilder:
         return False, None
 
     def _create_or_update_node(
-        self,
-        parent: Node,
-        level: int,
-        node_type: NodeType,
-        name: str,
-        content_text: Optional[str],
-        version: Version,
-        version_index: int,
-        change_event: Optional[ChangeEvent] = None
-    ) -> Node:
-        """
-        Create a new node or update existing one if content changed.
-        Returns the current version of the node.
-        """
-        # Build the path for this node
-        temp_node = Node(
-            id=-1,
-            name=name,
-            level=level,
-            node_type=node_type,
-            parent=parent,
-            version_number=0,
-            path=""
-        )
-        node_path = self._get_node_path(temp_node)
-        
-        # Check if node already exists
-        existing_node = self._find_node_by_path(node_path)
-        
-        # Prepare new content
-        new_content = [content_text] if content_text else []
-        
-        # Compare content
-        has_changed, change_type = self._compare_node_content(existing_node, new_content)
-        
-        if existing_node is None:
-            # Brand new node - create original version
-            new_node = Node(
-                id=self.next_node_id,
-                name=name,
-                level=level,
-                node_type=node_type,
-                content=new_content.copy(),
-                parent=parent,
-                version_number=0,
-                path=node_path,
-                fecha_vigencia=version.fecha_vigencia,
-                created_by_change=change_event.id if change_event else None,
-                change_type=ChangeType.ADDED if change_event else None
+            self,
+            parent: Node,
+            level: int,
+            node_type: NodeType,
+            name: str,
+            content_text: Optional[str],
+            version: Version,
+            version_index: int,
+            change_event: Optional[ChangeEvent] = None
+        ) -> Node:
+            """Create a new node or update existing one if content changed."""
+            temp_node = Node(
+                id=-1, name=name, level=level, node_type=node_type,version_index=-1,
+                parent=parent,  path=""
             )
-            self.next_node_id += 1
-            parent.add_child(new_node)
-            self._register_node(new_node)
+            node_path = self._get_node_path(temp_node)
+            existing_node = self._find_node_by_path(node_path)
+            new_content = [content_text] if content_text else []
+            has_changed, change_type = self._compare_node_content(existing_node, new_content)
             
-            if change_event:
-                change_event.add_affected_node(node_path)
+            if existing_node is None:
+                # Brand new node
+                new_node = Node(
+                    id=self.next_node_id,
+                    name=name,
+                    level=level,
+                    node_type=node_type,
+                    content=new_content.copy(),
+                    parent=parent,
+                    version_index = version_index,
+                    path=node_path,
+                    fecha_vigencia=version.fecha_vigencia,
+                    created_by_change=change_event.id if change_event else None,
+                    change_type=ChangeType.ADDED if change_event else None
+                )
+                self.next_node_id += 1
+                parent.add_child(new_node)
+                self._register_node(new_node)
+                
+                if change_event:
+                    change_event.add_affected_node(node_path)
+                
+                return new_node
+                
+            elif has_changed:
+                new_version_node = existing_node.create_next_version(
+                    new_content=new_content.copy(),
+                    change_event_id=change_event.id if change_event else None,
+                    change_type=change_type,
+                    fecha_vigencia=version.fecha_vigencia
+                )
+                self._register_node(new_version_node)
+                
+                if change_event:
+                    change_event.add_affected_node(node_path)
+                
+                return new_version_node
+            else:
+                return existing_node
             
-            return new_node
-            
-        elif has_changed:
-            # Content changed - create new version
-            new_version_node = existing_node.create_next_version(
-                new_content=new_content.copy(),
-                change_event_id=change_event.id if change_event else None,
-                change_type=change_type,
-                fecha_vigencia=version.fecha_vigencia
-            )
-            
-        
-            # Update registry
-            self._register_node(new_version_node)
-            
-            if change_event:
-                change_event.add_affected_node(node_path)
-            
-            return new_version_node
-        else:
-            # No change - return existing node
-            return existing_node
-
     def parse_version(
         self, 
         version: Version, 
@@ -321,31 +301,21 @@ class TreeBuilder:
         return self.root
 
     def print_tree(
-        self, 
-        node: Node = None, 
-        prefix: str = "", 
-        is_last: bool = True, 
-        show_versions: bool = False,
-        show_all_versions: bool = False,
-        target_date: Optional[datetime] = None
-    ):
-        """
-        Print the tree structure with proper box-drawing characters.
-        
-        Args:
-            node: Starting node (None = root)
-            prefix: Prefix for tree drawing
-            is_last: Whether this is the last child
-            show_versions: Show version metadata for current version
-            show_all_versions: Show ALL historical versions of each node
-            target_date: Show tree state at specific date (ignored if show_all_versions=True)
-        """
+            self, 
+            node: Node = None, 
+            prefix: str = "", 
+            is_last: bool = True, 
+            show_versions: bool = False,
+            show_all_versions: bool = False,
+            target_date: Optional[str] = None
+        ):
+        """Print the tree structure with proper formatting."""
         
         if node is None:
             node = self.root
             header = f'{node.get_full_name()}'
             if show_all_versions:
-                header += " [SHOWING ALL VERSIONS]"
+                header += " [ALL VERSIONS]"
             elif target_date:
                 header += f" [AS OF {datetime.fromisoformat(target_date).strftime('%Y-%m-%d')}]"
             print(header)
@@ -358,79 +328,68 @@ class TreeBuilder:
                 )
             return
         
-        # Determine which version(s) to display
+        # Determine which versions to display
         if show_all_versions:
             versions_to_show = node.get_all_versions()
         elif target_date:
-            versions_to_show = [node.get_version_at_date(target_date)]
-            # print ("Versions to show for node", node.get_full_name(), "at date", target_date, ":", [v.version_number for v in versions_to_show])
+            version_at_date = node.get_version_at_date(node, target_date)
+            versions_to_show = [version_at_date] if version_at_date else []
         else:
             versions_to_show = [node]
         
+        # Skip if no valid version at target date
+        if not versions_to_show or (target_date and not versions_to_show[0]):
+            return
+        
         # Print each version
         for version_idx, display_node in enumerate(versions_to_show):
-            if display_node is None:
-                continue
-            
             is_last_version = (version_idx == len(versions_to_show) - 1)
             
-            # Adjust connector for multiple versions
-            if show_all_versions and len(versions_to_show) > 1:
-                if version_idx == 0:
-                    connector = "└─ " if is_last else "├─ "
-                else:
-                    # Subsequent versions use a special connector
-                    connector = "   ╰─ v" + str(display_node.version_number) + " "
+            # Connector logic
+            if show_all_versions and version_idx > 0:
+                connector = f"   ╰─ v{display_node.version_index} "
             else:
                 connector = "└─ " if is_last else "├─ "
             
-            # Build version info
+            # Version info
             version_info = ""
             if show_versions or show_all_versions:
-                version_info = f" [v{display_node.version_number}"
+                parts = [f"v{display_node.version_index}"]
                 if display_node.change_type:
-                    version_info += f", {display_node.change_type.value}"
+                    parts.append(display_node.change_type.value)
                 if display_node.fecha_vigencia:
-                    vigencia_str = display_node.fecha_vigencia.strftime('%Y-%m-%d') if isinstance(display_node.fecha_vigencia, datetime) else str(display_node.fecha_vigencia)
-                    version_info += f", since: {vigencia_str}"
+                    vigencia = datetime.fromisoformat(display_node.fecha_vigencia) if isinstance(display_node.fecha_vigencia, str) else display_node.fecha_vigencia
+                    parts.append(f"from:{vigencia.strftime('%Y-%m-%d')}")
                 if display_node.fecha_caducidad:
-                    caducidad_str = display_node.fecha_caducidad.strftime('%Y-%m-%d') if isinstance(display_node.fecha_caducidad, datetime) else str(display_node.fecha_caducidad)
-                    version_info += f", until: {caducidad_str}"
-                version_info += "]"
+                    caducidad = datetime.fromisoformat(display_node.fecha_caducidad) if isinstance(display_node.fecha_caducidad, str) else display_node.fecha_caducidad
+                    parts.append(f"to:{caducidad.strftime('%Y-%m-%d')}")
+                version_info = f" [{', '.join(parts)}]"
             
             print(f"{prefix}{connector}{display_node.get_full_name()}{version_info}")
             
-            # Prepare prefix for children and content
+            # Prefix for children
             if show_all_versions and not is_last_version:
-                # More versions coming, use special prefix
                 extension = "   │  " if not is_last else "      "
             else:
                 extension = "   " if is_last else "│  "
             
             new_prefix = prefix + extension
             
-            # Print content for this version
-            items = display_node.content
-            for i, item in enumerate(items):
-                is_last_item = (i == len(items) - 1)
-                
-                if isinstance(item, Node):
-                    # Only recurse for children if this is the last/only version shown
-                    if show_all_versions:
-                        if is_last_version:
-                            self.print_tree(
-                                item, new_prefix, is_last_item, 
-                                show_versions, show_all_versions, target_date
-                            )
-                    else:
+            # Print children (only for last/current version)
+            if is_last_version or not show_all_versions:
+                items = display_node.content
+                for i, item in enumerate(items):
+                    is_last_item = (i == len(items) - 1)
+                    
+                    if isinstance(item, Node):
                         self.print_tree(
                             item, new_prefix, is_last_item, 
                             show_versions, show_all_versions, target_date
                         )
-                else:
-                    text_connector = "└─ " if is_last_item else "├─ "
-                    preview = item[:100] + "..." if len(item) > 100 else item
-                    print(f'{new_prefix}{text_connector}"{preview}"')
+                    else:
+                        text_connector = "└─ " if is_last_item else "├─ "
+                        preview = item[:80] + "..." if len(item) > 80 else item
+                        print(f'{new_prefix}{text_connector}"{preview}"')
 
     def get_change_summary(self) -> Dict[str, ChangeEvent]:
         """Get all change events tracked during parsing"""
@@ -450,4 +409,4 @@ class TreeBuilder:
                 if node:
                     print(f"    - {node_path}")
                     print(f"      Type: {node.change_type.value if node.change_type else 'N/A'}")
-                    print(f"      Version: {node.version_number}")
+                    print(f"      Version: {node.version_index}")
