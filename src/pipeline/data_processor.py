@@ -1,3 +1,4 @@
+from datetime import datetime
 from src.documents.normativa_cons import NormativaCons, Metadata, Analysis, Version, Block, Referencia,Element
 from src.models.rangos_model import Rangos
 from src.models.estados_consolidacion_model import EstadosConsolidacion
@@ -15,7 +16,7 @@ class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
         super().__init__(name)
 
-        self.content_tree = TreeBuilder()
+        self.content_tree = TreeBuilder("root")
         
     
     def process_metadata(self, metadata):
@@ -136,7 +137,7 @@ class DataProcessor(Step):
         processed_analysis = self.process_analysis(analysis)
         processed_content = self.process_content(content)
 
-        # self.content_tree.print_tree(show_versions=False)
+        self.content_tree.print_tree(show_all_versions=True,target_date=datetime(1988, 1, 1))
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)
