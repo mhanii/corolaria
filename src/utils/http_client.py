@@ -296,59 +296,89 @@ class BOEHTTPClient:
         
         Además, aplana contenedores específicos:
         <anteriores><anterior>...</anterior></anteriores> → [ {...}, {...} ]
+        
+        Y hace transparentes ciertos tags (como <span>):
+        <p>texto <span>dentro</span> más texto</p> → {"p": "texto dentro más texto"}
         """
-        list_fields = {"materia", "anterior", "posterior","bloque","version"}
+        list_fields = {"materia", "anterior", "posterior", "bloque", "version"}
         flatten_containers = {"materias", "anteriores", "posteriores"}
-
+        transparent_fields = {"span","sup","sub","strong"}
+        
         result = {}
-
+        
         # Añadir atributos
         if element.attrib:
             for key, value in element.attrib.items():
                 result[f"@{key}"] = value
-
+        
         # Procesar hijos
         children = list(element)
+        
         if children:
             child_dict = {}
+            text_parts = []
+            
+            # Recoger texto antes del primer hijo
+            if element.text and element.text.strip():
+                text_parts.append(element.text.strip())
+            
             for child in children:
                 tag = child.tag
                 child_data = self._xml_to_dict(child)
-
-                # Forzar listas en campos definidos
-                if tag in list_fields:
-                    child_dict.setdefault(tag, []).append(child_data)
+                
+                # 🔹 Manejar campos transparentes
+                if tag in transparent_fields:
+                    # Extraer el texto del span y agregarlo a text_parts
+                    if isinstance(child_data, str):
+                        text_parts.append(child_data)
+                    elif isinstance(child_data, dict) and "text" in child_data:
+                        text_parts.append(child_data["text"])
+                    elif isinstance(child_data, dict) and not any(k.startswith("@") for k in child_data.keys()):
+                        # Si el dict no tiene atributos, concatenar sus valores
+                        text_parts.append(str(child_data))
                 else:
-                    if tag in child_dict:
-                        if not isinstance(child_dict[tag], list):
-                            child_dict[tag] = [child_dict[tag]]
-                        child_dict[tag].append(child_data)
+                    # Forzar listas en campos definidos
+                    if tag in list_fields:
+                        child_dict.setdefault(tag, []).append(child_data)
                     else:
-                        child_dict[tag] = child_data
-
-            # Si hay texto además de hijos
-            if element.text and element.text.strip():
-                child_dict["text"] = element.text.strip()
-
+                        if tag in child_dict:
+                            if not isinstance(child_dict[tag], list):
+                                child_dict[tag] = [child_dict[tag]]
+                            child_dict[tag].append(child_data)
+                        else:
+                            child_dict[tag] = child_data
+                
+                # Recoger texto después de cada hijo (tail)
+                if child.tail and child.tail.strip():
+                    text_parts.append(child.tail.strip())
+            
+            # Si acumulamos texto de elementos transparentes
+            if text_parts:
+                combined_text = " ".join(text_parts)
+                if child_dict:
+                    child_dict["text"] = combined_text
+                else:
+                    # Si solo hay texto (todos los hijos eran transparentes)
+                    return combined_text
+            
             # 🔹 Aplanar contenedores específicos
             if element.tag in flatten_containers:
                 for lf in list_fields:
                     if lf in child_dict:
                         return child_dict[lf]
-
+            
             result.update(child_dict)
         else:
             # Elemento sin hijos: solo texto
             result = element.text.strip() if element.text else ""
-
+        
         # ✅ Solo normalizar si result es un dict
         if isinstance(result, dict):
             for field in list_fields:
                 if field in result and not isinstance(result[field], list):
                     result[field] = [result[field]]
-
+        
         return result
-
 
 
     # ========================================================================

@@ -107,6 +107,7 @@ class BlockType(str,Enum):
     NOTA_INICIAL = "nota_inicial"
     PRECEPTO = "precepto"
     ENCABEZADO = "encabezado"
+    CABECERA = "cabecera"
     FIRMA = "firma"
     PARTE_DISPOSITIVA = "parte_dispositiva"
     PARTE_FINAL = "parte_final"
@@ -129,8 +130,11 @@ class NodeType(str,Enum):
     APARTADO_ALFA = "apartado_alfa"
     APARTADO_NUMERICO = "apartado_numerico"
     PARRAFO = "parrafo"
-    ORDINAL = "ordinal"
+    ORDINAL_ALFA = "ordinal_alfa"
+    ORDINAL_NUMERICO = "ordinal_numerico"
     DISPOSICION = "disposicion"
+
+    DELETED = "deleted"  # For removed nodes
 
 class ReferenciaType(str,Enum):
     ANTERIOR = "anterior"
@@ -145,3 +149,7 @@ class ChangeType(str,Enum):
     ADDED = "added"
     REMOVED = "removed"
     REPLACED = "replaced"
+
+
+class NoteType(str,Enum):
+    CITATION = "cita_con_pleca"

@@ -8,6 +8,7 @@ from src.models.departamentos_model import Departamentos
 from src.models.ambitos_model import Ambitos
 from src.models.materias_model import Materias
 from src.documents.common import TreeBuilder
+from src.documents.tree_builder import EnhancedTreeBuilder
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
 
 from .base import Step
@@ -17,6 +18,7 @@ class DataProcessor(Step):
         super().__init__(name)
 
         self.content_tree = TreeBuilder("root")
+        self.prohibited_types = {"nota_inicial", "nota_final","nota", "firma", "indice", "portada"}
         
     
     def process_metadata(self, metadata):
@@ -82,9 +84,12 @@ class DataProcessor(Step):
 
     def process_block(self, block) -> Block:
         id = block.get("@id", None)
-        type = BlockType(block.get("@tipo", None))
+        type = BlockType(block.get("@tipo", None).lower())
         title = block.get("@titulo", None)
 
+        if type in self.prohibited_types:
+            return None
+        
         versions = [self.process_version(version) for version in block.get("version", [])]
         
         self.content_tree.parse_versions(versions)
@@ -136,8 +141,10 @@ class DataProcessor(Step):
         processed_metadata = self.process_metadata(metadata)
         processed_analysis = self.process_analysis(analysis)
         processed_content = self.process_content(content)
+        
+        
 
-        self.content_tree.print_tree(show_all_versions=True,target_date='20250101')
+        self.content_tree.print_tree(show_all_versions=True)
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)

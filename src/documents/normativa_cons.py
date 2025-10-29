@@ -6,7 +6,7 @@ from src.models.materias_model import Materias
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion,ElementType,BlockType,ReferenciaType
 from src.models.relaciones_anteriores_model import RelacionesAnteriores
 from src.models.relaciones_posteriores_model import RelacionesPosteriores
-from .base import NodeType, ChangeType
+from .base import NodeType, ChangeType, NoteType
 
 from enum import Enum
 import hashlib
@@ -301,3 +301,8 @@ class NormativaCons:
     blocks: List[Block]
 
 
+@dataclass
+class Citation:
+    text: str
+    note_type: NoteType
+    ref: str 
