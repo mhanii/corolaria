@@ -30,7 +30,6 @@ class TreeBuilder:
         (8, NodeType.APARTADO_ALFA, re.compile(r'^([a-z])\)\s+(.+)', re.I)),
         (8, NodeType.ORDINAL_ALFA, re.compile(r'^(\d+\.+ª)\s*(.*)$', re.I)),
         (8, NodeType.ORDINAL_NUMERICO, re.compile(r'^(\d+\.+º)\s*(.*)$', re.I)),
-        
     ]
 
     def __init__(self, target_document_id: str):
@@ -53,27 +52,70 @@ class TreeBuilder:
         
         # Counter for unique node IDs
         self.next_node_id = 1
+        
+        # Counter for paragraphs within a parent
+        self.paragraph_counter = 0
 
     def detect_level(self, text: str) -> Tuple[Optional[int], Optional[NodeType], Optional[str], Optional[str]]:
         """Detect the hierarchical level and type of a text line."""
+        
+        # First, check for all specific levels *except* PARRAFO
         for level, node_type, pattern in self.LEVELS:
+            if node_type == NodeType.PARRAFO:
+                continue
+                
             match = pattern.match(text)
             if match:
                 name = match.group(1)
                 extra_text = match.group(2) if match.lastindex and match.lastindex > 1 else None
                 return level, node_type, name, extra_text
+                
+        # If nothing else matched, check for PARRAFO
+        # (Assuming PARRAFO is level 7)
+        parrafo_level = 7
+        parrafo_type = NodeType.PARRAFO
+        parrafo_pattern = re.compile(r'^\s*(.+)')
+        
+        match = parrafo_pattern.match(text)
+        if match:
+            # It's a paragraph. The 'name' will be a number (from parse_version)
+            # The 'extra_text' is the full content.
+            return parrafo_level, parrafo_type, None, text
+            
         return None, None, None, text
 
     def _get_node_path(self, node: Node) -> str:
-        """Generate unique path for a node (e.g., 'TITULO_I/CAPITULO_II/Articulo_5')"""
+        """
+        Generate unique path for a node, applying the custom paragraph rule.
+        """
         if node.path:
             return node.path
             
         path_parts = []
         current = node
+
+        # ### YOUR CUSTOM PATH RULE ###
+        # If the node is a PARRAFO and its parent is NOT an Articulo/Root/Disposicion,
+        # then this paragraph's "path" is just its parent's path.
+        if current.node_type == NodeType.PARRAFO and current.parent:
+            parent_type = current.parent.node_type
+            if parent_type not in [
+                NodeType.ARTICULO, 
+                NodeType.ARTICULO_UNICO, 
+                NodeType.ROOT, 
+                NodeType.DISPOSICION
+            ]:
+                # Use the parent's path.
+                return self._get_node_path(current.parent)
+        # ### END RULE ###
+
         while current and current.node_type != NodeType.ROOT:
             if current.name:
-                path_parts.insert(0, f"{current.node_type.value}_{current.name}")
+                # Simple name sanitization for paths
+                name_str = str(current.name).strip().replace(" ", "_")
+                # Remove common punctuation from names for cleaner paths
+                name_str = re.sub(r'[\.ªº\)\']', '', name_str, flags=re.I) 
+                path_parts.insert(0, f"{current.node_type.value}_{name_str}")
             current = current.parent
         return "/".join(path_parts) if path_parts else "root"
     
@@ -130,13 +172,13 @@ class TreeBuilder:
         
         old_content = self._extract_content_from_node(old_node)
         
-        if not old_content and not new_content:
+        if old_content == new_content:
             return False, None
             
-        if not old_content:
+        if not old_content and new_content:
             return True, ChangeType.ADDED
             
-        if not new_content:
+        if old_content and not new_content:
             return True, ChangeType.REMOVED
             
         if old_content != new_content:
@@ -153,18 +195,62 @@ class TreeBuilder:
             content_text: Optional[str],
             version: Version,
             version_index: int,
-            change_event: Optional[ChangeEvent] = None
+            change_event: Optional[ChangeEvent] = None,
+            touched_paths_set: Optional[set] = None
         ) -> Node:
-            """Create a new node or update existing one if content changed."""
+            """
+            Create a new node or update existing one, merging paragraphs
+            under 'apartados' as needed.
+            """
+            
             temp_node = Node(
                 id=-1, name=name, level=level, node_type=node_type,version_index=-1,
                 parent=parent,  path=""
             )
-            node_path = self._get_node_path(temp_node)
+            node_path = self._get_node_path(temp_node) # Path with custom rule
+            
+            # ### MERGE LOGIC FOR PARAGRAPHS ###
+            # Check if the path rule made this node's path identical to its parent.
+            parent_path = self._get_node_path(parent)
+            if node_path == parent_path:
+                # This is a PARRAFO to be merged into its parent (e.g., an Apartado).
+                # We are "updating" the parent node by appending text.
+                existing_parent_node = self.node_registry[parent_path]
+                
+                new_parent_content = self._extract_content_from_node(existing_parent_node)
+                if content_text:
+                    new_parent_content.append(content_text)
+                    
+                has_changed, change_type = self._compare_node_content(existing_parent_node, new_parent_content)
+                
+                if touched_paths_set is not None:
+                    touched_paths_set.add(existing_parent_node.path)
+
+                if has_changed:
+                    # Create a new version of the PARENT
+                    new_version_node = existing_parent_node.create_next_version(
+                        new_content=new_parent_content,
+                        change_event_id=change_event.id if change_event else None,
+                        change_type=ChangeType.REPLACED,
+                        fecha_vigencia=version.fecha_vigencia
+                    )
+                    self._register_node(new_version_node)
+                    if change_event:
+                        change_event.add_affected_node(new_version_node.path)
+                    
+                    return new_version_node # Return the *updated parent*
+                else:
+                    return existing_parent_node # Return the *unchanged parent*
+            # ### END MERGE LOGIC ###
+
+            # --- Original logic for separate nodes ---
             existing_node = self._find_node_by_path(node_path)
             new_content = [content_text] if content_text else []
             has_changed, change_type = self._compare_node_content(existing_node, new_content)
             
+            if touched_paths_set is not None:
+                touched_paths_set.add(node_path)
+
             if existing_node is None:
                 # Brand new node
                 new_node = Node(
@@ -203,18 +289,21 @@ class TreeBuilder:
                 
                 return new_version_node
             else:
+                # Node exists and is identical
                 return existing_node
             
     def parse_version(
         self, 
         version: Version, 
         version_index: int,
-        change_event: Optional[ChangeEvent] = None
+        change_event: Optional[ChangeEvent] = None,
+        touched_paths_set: Optional[set] = None
     ) -> Node:
         """
         Parse a single version and integrate it into the tree.
-        If this is not the first version, changes are tracked via ChangeEvent.
         """
+        # This counter tracks paragraphs for the CURRENT parent
+        self.paragraph_counter = 0 
         
         for element in version.content:
             if element.element_type == ElementType.BLOCKQUOTE:
@@ -222,18 +311,29 @@ class TreeBuilder:
                 
             try:
                 text = element.content.strip() if element.content else ""
+                if not text:
+                    continue
+                    
                 level, node_type, name, extra_text = self.detect_level(text)
 
-                if name:
+                if name and node_type == NodeType.ARTICULO:
                    name = name.replace(" ","_") # normalize spaces in names
+
+                # Logic for paragraph counter
+                if node_type == NodeType.PARRAFO:
+                    self.paragraph_counter += 1
+                    name = self.paragraph_counter
+                elif level is not None:
+                    # It's a structural node, reset the counter
+                    self.paragraph_counter = 0
 
                 if level is not None:
                    
-                    if  node_type == NodeType.DISPOSICION: # confirm it is a disposicion
-                        if element.get("class", None) != "disposicion": # this in reality doens' work because element won't have a class
+                    if  node_type == NodeType.DISPOSICION:
+                        if element.get("class", None) != "disposicion":
                             continue
+                            
                     while self.stack and self.stack[-1].level >= level:
-                        # print("Popping from stack:", self.stack[-1].get_full_name())
                         self.stack.pop()
 
                     # Create or update node
@@ -245,37 +345,48 @@ class TreeBuilder:
                         content_text=extra_text,
                         version=version,
                         version_index=version_index,
-                        change_event=change_event
+                        change_event=change_event,
+                        touched_paths_set=touched_paths_set
                     )
-                    # print("Pushing to stack:", current_node.node_type)
                     self.stack.append(current_node)
-                    # print("Stack", [n.get_full_name() for n in self.stack])
 
                 else:
                     # Unstructured text - add to current node
+                    # This should now be handled by the PARRAFO logic,
+                    # but we keep it as a fallback.
                     if self.stack[-1] != self.root and text:
-                        current_node = self.stack[-1]
-                        current_node.add_text(text)
+                        self.paragraph_counter += 1
+                        current_node = self._create_or_update_node(
+                            parent=self.stack[-1],
+                            level=self.stack[-1].level + 1, # Fake level
+                            node_type=NodeType.PARRAFO, # Treat as paragraph
+                            name=self.paragraph_counter,
+                            content_text=text,
+                            version=version,
+                            version_index=version_index,
+                            change_event=change_event,
+                            touched_paths_set=touched_paths_set
+                        )
+                        # Don't append to stack, as it was merged
             except AttributeError as e:
                 if isinstance(element.content, dict):
                     class_name = element.content.get("@class", "unknown")
                     if class_name == NoteType.CITATION:
-                        print(f"Skipping citation note: {element.content}")
+                        # print(f"Skipping citation note: {element.content}")
+                        pass
                     else :
-                        raise Exception(f"Error processing element: {element.content}. Error: {e}")                # print("Adding text to node:", self.stack[-1].get_full_name())
+                        raise Exception(f"Error processing element: {element.content}. Error: {e}")
 
         return self.root
     
     def parse_versions(self, versions: List[Version]) -> Node:
         """
-        Parse multiple versions into the same tree.
-        First version creates the base structure, subsequent versions track changes.
+        Parse multiple versions, tracking additions, modifications,
+        and deletions (disconnected nodes).
         """
         if not versions:
             return self.root
         
-        # rest node registry
-        # self.node_registry = {"root": self.root}
         # Sort by fecha_vigencia to process in chronological order
         sorted_versions = sorted(
             versions, 
@@ -293,11 +404,10 @@ class TreeBuilder:
         for i in range(1, len(sorted_versions)):
             version = sorted_versions[i]
             
-            # print(f"\n{'='*80}")
-            # print(f"Parsing version {i}: {version.id_norma}")
-            # print(f"Fecha vigencia: {version.fecha_vigencia}")
-            # print(f"Node registry : \n{self.node_registry}")
-            # print('='*80)
+            print(f"\n{'='*80}")
+            print(f"Parsing version {i}: {version.id_norma}")
+            print(f"Fecha vigencia: {version.fecha_vigencia}")
+            print('='*80)
             
             # Create ChangeEvent for this version
             change_event = self._get_or_create_change_event(
@@ -306,11 +416,50 @@ class TreeBuilder:
                 description=f"Changes from {version.id_norma}"
             )
             
-            # Parse with change tracking
-            self.parse_version(version, version_index=i, change_event=change_event)
-    
+            # ### DELETION TRACKING LOGIC ###
+            
+            # 1. Get a snapshot of all node paths from the *previous* version
+            #    that are still considered "active" (not already removed).
+            nodes_from_previous_version = {
+                path: node for path, node in self.node_registry.items()
+                if node.version_index <= i - 1 and node.change_type != ChangeType.REMOVED
+            }
+            
+            # 2. Parse the new version. This set will be populated by
+            #    _create_or_update_node with all paths that are
+            #    added, modified, merged, or found to be identical.
+            touched_paths_in_current_version = set()
+            touched_paths_in_current_version.add("root") # Root always exists
 
-        
+            self.parse_version(
+                version, 
+                version_index=i, 
+                change_event=change_event,
+                touched_paths_set=touched_paths_in_current_version
+            )
+            
+            # 3. Find the "disconnected" (deleted) nodes
+            deleted_paths = set(nodes_from_previous_version.keys()) - touched_paths_in_current_version
+            
+            for path in deleted_paths:
+                old_node = nodes_from_previous_version[path]
+                # Check if it wasn't already marked as removed by a previous version
+                if self.node_registry[path].change_type == ChangeType.REMOVED:
+                    continue
+
+                print(f"  -> Disconnected (deleting) node: {path}")
+                
+                # Create a new "REMOVED" version for this node
+                deleted_node = old_node.create_next_version(
+                    new_content=[], # Content is gone
+                    change_event_id=change_event.id,
+                    change_type=ChangeType.REMOVED,
+                    fecha_vigencia=version.fecha_vigencia
+                )
+                self._register_node(deleted_node)
+                change_event.add_affected_node(path)
+            # ### END DELETION TRACKING ###
+    
         return self.root
 
     def print_tree(
@@ -348,8 +497,12 @@ class TreeBuilder:
             version_at_date = node.get_version_at_date(node, target_date)
             versions_to_show = [version_at_date] if version_at_date else []
         else:
-            versions_to_show = [node]
+            versions_to_show = [node] # Show only the latest version
         
+        # Filter out removed nodes unless showing all versions
+        if not show_all_versions:
+             versions_to_show = [v for v in versions_to_show if v and v.change_type != ChangeType.REMOVED]
+
         # Skip if no valid version at target date
         if not versions_to_show or (target_date and not versions_to_show[0]):
             return
@@ -371,11 +524,11 @@ class TreeBuilder:
                 if display_node.change_type:
                     parts.append(display_node.change_type.value)
                 if display_node.fecha_vigencia:
-                    vigencia = datetime.fromisoformat(display_node.fecha_vigencia) if isinstance(display_node.fecha_vigencia, str) else display_node.fecha_vigencia
-                    parts.append(f"from:{vigencia.strftime('%Y-%m-%d')}")
+                    vigencia = display_node.fecha_vigencia
+                    parts.append(f"from:{vigencia}")
                 if display_node.fecha_caducidad:
-                    caducidad = datetime.fromisoformat(display_node.fecha_caducidad) if isinstance(display_node.fecha_caducidad, str) else display_node.fecha_caducidad
-                    parts.append(f"to:{caducidad.strftime('%Y-%m-%d')}")
+                    caducidad = display_node.fecha_caducidad
+                    parts.append(f"to:{caducidad}")
                 version_info = f" [{', '.join(parts)}]"
             
             print(f"{prefix}{connector}{display_node.get_full_name()}{version_info}")
@@ -389,20 +542,26 @@ class TreeBuilder:
             new_prefix = prefix + extension
             
             # Print children (only for last/current version)
-            if is_last_version or not show_all_versions:
+            if (is_last_version or not show_all_versions) and display_node.change_type != ChangeType.REMOVED:
                 items = display_node.content
-                for i, item in enumerate(items):
-                    is_last_item = (i == len(items) - 1)
-                    
-                    if isinstance(item, Node):
-                        self.print_tree(
-                            item, new_prefix, is_last_item, 
-                            show_versions, show_all_versions, target_date
-                        )
-                    else:
-                        text_connector = "└─ " if is_last_item else "├─ "
-                        preview = item[:80] + "..." if len(item) > 80 else item
-                        print(f'{new_prefix}{text_connector}"{preview}"')
+                child_nodes = [item for item in items if isinstance(item, Node)]
+                text_items = [item for item in items if isinstance(item, str)]
+                
+                # Print text content first
+                for i, text_item in enumerate(text_items):
+                    is_last_item = (i == len(text_items) - 1) and (len(child_nodes) == 0)
+                    text_connector = "└─ " if is_last_item else "├─ "
+                    preview = text_item[:80] + "..." if len(text_item) > 80 else text_item
+                    print(f'{new_prefix}{text_connector}"{preview}"')
+
+                # Then print child nodes
+                for i, item in enumerate(child_nodes):
+                    is_last_item = (i == len(child_nodes) - 1)
+                    self.print_tree(
+                        item, new_prefix, is_last_item, 
+                        show_versions, show_all_versions, target_date
+                    )
+
 
     def get_change_summary(self) -> Dict[str, ChangeEvent]:
         """Get all change events tracked during parsing"""
@@ -415,9 +574,10 @@ class TreeBuilder:
         print('='*80)
         
         for change_id, change_event in self.change_events.items():
-            print(f"\n{change_event}")
+            print(f"\n{change_event.description} (Vigencia: {change_event.fecha_vigencia.strftime('%Y-%m-%d')})")
+            print(f"  Source: {change_event.source_document_id}")
             print(f"  Affected nodes:")
-            for node_path in change_event.affected_nodes:
+            for node_path in sorted(list(change_event.affected_nodes)):
                 node = self._find_node_by_path(node_path)
                 if node:
                     print(f"    - {node_path}")

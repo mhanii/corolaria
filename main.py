@@ -6,7 +6,7 @@ def main():
     pipeline = Doc2Graph(law_id)
     result = pipeline.run(None)  # Initial data is None
     # print(json.dumps(asdict(result)))  
-    # print(result)
+    print(result)
 
 if __name__ == "__main__":
     main()

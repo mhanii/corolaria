@@ -63,28 +63,13 @@ class Node:
     id: int
     name: str
     level: int
-
     node_type: NodeType
-
-    version_index: int = 0 # 0 for original, 1..n for versions
 
     content: List[Union[str, 'Node']] = None
     parent: Optional['Node'] = None
 
-
     path: Optional[str] = None 
-
-
-    fecha_vigencia: Optional[str] = None
-    fecha_caducidad: Optional[str] = None
     
-    # Version chain
-    next_version: Optional['Node'] = None
-    previous_version: Optional['Node'] = None
-    
-    # Link to change event (only if not original)
-    created_by_change: Optional[str] = None  # ChangeEvent ID
-    change_type: Optional[ChangeType] = None
 
     def __post_init__(self):
         if self.content is None:
@@ -100,65 +85,40 @@ class Node:
         """Add plain text to this node"""
         self.content.append(text)
 
-
-    def create_next_version(
-        self, 
-        new_content: List[Union[str, 'Node']],
-        change_event_id: str,
-        change_type: ChangeType,
-        fecha_vigencia: datetime
-    ) -> 'Node':
-        """Create a new version of this node"""
-        new_version = Node(
-            id=self.id,
-            name=self.name,
-            level=self.level,
-            node_type=self.node_type,
-            content=new_content,
-            parent=self.parent,
-            version_index=self.version_index + 1,
-            fecha_vigencia=fecha_vigencia,
-            created_by_change=change_event_id,
-            change_type=change_type,
-            previous_version=self
-        )
-        self.next_version = new_version
-        self.fecha_caducidad = fecha_vigencia
-        return new_version
      
-    def get_version_at_date(self, node: 'Node', date: str) -> Optional['Node']:
-        """Get the version of a node that was active at a specific date."""
-        date_dt = datetime.fromisoformat(date)
-        current = node
+    # def get_version_at_date(self, node: 'Node', date: str) -> Optional['Node']:
+    #     """Get the version of a node that was active at a specific date."""
+    #     date_dt = datetime.fromisoformat(date)
+    #     current = node
         
-        # Find the root version
-        while current.previous_version:
-            current = current.previous_version
+    #     # Find the root version
+    #     while current.previous_version:
+    #         current = current.previous_version
         
-        # Walk forward to find active version
-        while current:
-            vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
-            caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
+    #     # Walk forward to find active version
+    #     while current:
+    #         vigencia = datetime.fromisoformat(current.fecha_vigencia) if current.fecha_vigencia else None
+    #         caducidad = datetime.fromisoformat(current.fecha_caducidad) if current.fecha_caducidad else None
             
-            # Check if this version is valid at target date
-            if vigencia and vigencia <= date_dt:
-                # If no caducidad or caducidad is after target date, this is the one
-                if not caducidad or caducidad > date_dt:
-                    return current
+    #         # Check if this version is valid at target date
+    #         if vigencia and vigencia <= date_dt:
+    #             # If no caducidad or caducidad is after target date, this is the one
+    #             if not caducidad or caducidad > date_dt:
+    #                 return current
             
-            current = current.next_version
+    #         current = current.next_version
         
-        # No valid version at this date (node didn't exist yet or already removed)
-        return None
+    #     # No valid version at this date (node didn't exist yet or already removed)
+    #     return None
 
-    def get_all_versions(self) -> List['Node']:
-        """Get all versions of this node"""
-        versions = [self]
-        current = self
-        while current.next_version:
-            versions.append(current.next_version)
-            current = current.next_version
-        return versions
+    # def get_all_versions(self) -> List['Node']:
+    #     """Get all versions of this node"""
+    #     versions = [self]
+    #     current = self
+    #     while current.next_version:
+    #         versions.append(current.next_version)
+    #         current = current.next_version
+    #     return versions
     
     def get_hierarchy_path(self) -> List['Node']:
         """Get the path from root to this node"""
@@ -181,8 +141,7 @@ class Node:
         return f"{self.node_type} {self.name}"
     
     def __repr__(self):
-        version_info = f"v{self.version_index}" if not self.version_index > 0 else "original"
-        return f"Node({self.node_type}, name='{self.name}', {version_info})"
+        return f"Node({self.node_type}, name='{self.name}', {self.content})"
     
 
 

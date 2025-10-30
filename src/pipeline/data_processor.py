@@ -7,8 +7,8 @@ from src.models.relaciones_posteriores_model import RelacionesPosteriores
 from src.models.departamentos_model import Departamentos
 from src.models.ambitos_model import Ambitos
 from src.models.materias_model import Materias
-from src.documents.common import TreeBuilder
-from src.documents.tree_builder import EnhancedTreeBuilder
+from src.documents.tree_builder import TreeBuilder
+# from src.documents.tree_builder import EnhancedTreeBuilder
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
 
 from .base import Step
@@ -144,7 +144,7 @@ class DataProcessor(Step):
         
         
 
-        self.content_tree.print_tree(show_all_versions=True)
+        self.content_tree.print_tree()
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)

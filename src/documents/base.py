@@ -117,24 +117,7 @@ class BlockType(str,Enum):
     def __str__(self):
         return self.value
 
-class NodeType(str,Enum):
-    """Types of nodes in the document hierarchy"""
-    ROOT = "root"
-    LIBRO = "libro"
-    TITULO = "titulo"
-    CAPITULO = "capitulo"
-    SECCION = "seccion"
-    SUBSECCION = "subseccion"
-    ARTICULO = "articulo"
-    ARTICULO_UNICO = "articulo_unico"
-    APARTADO_ALFA = "apartado_alfa"
-    APARTADO_NUMERICO = "apartado_numerico"
-    PARRAFO = "parrafo"
-    ORDINAL_ALFA = "ordinal_alfa"
-    ORDINAL_NUMERICO = "ordinal_numerico"
-    DISPOSICION = "disposicion"
 
-    DELETED = "deleted"  # For removed nodes
 
 class ReferenciaType(str,Enum):
     ANTERIOR = "anterior"
