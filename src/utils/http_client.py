@@ -302,7 +302,7 @@ class BOEHTTPClient:
         """
         list_fields = {"materia", "anterior", "posterior", "bloque", "version"}
         flatten_containers = {"materias", "anteriores", "posteriores"}
-        transparent_fields = {"span","sup","sub","strong"}
+        transparent_fields = {"span","sup","sub","strong","em"}
         
         result = {}
         

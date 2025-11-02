@@ -8,10 +8,9 @@ from src.models.departamentos_model import Departamentos
 from src.models.ambitos_model import Ambitos
 from src.models.materias_model import Materias
 from src.documents.tree_builder import TreeBuilder
-# from src.documents.tree_builder import EnhancedTreeBuilder
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
-
 from .base import Step
+import re
 
 class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
@@ -20,7 +19,128 @@ class DataProcessor(Step):
         self.content_tree = TreeBuilder("root")
         self.prohibited_types = {"nota_inicial", "nota_final","nota", "firma", "indice", "portada"}
         
-    
+
+
+
+        
+    def preprocessing(self, content):
+        """
+        Preprocess content to distribute compound article block content to existing individual articles.
+        E.g., "Artículos 638 y 639" with "(Derogados)" finds existing Art. 638 and 639 blocks
+        and adds the derogation info to them.
+        """
+        patterns = [
+            # Match "Artículos X a Y" (range)
+            (
+                'range',
+                re.compile(r'^Artículos?\s+(\d+)\s+a\s+(\d+)(?:\s*\.)?$', re.I)
+            ),
+            # Match "Artículos X, Y, ... y Z" (list)
+            (
+                'list',
+                re.compile(r'^Artículos?\s+((?:\d+(?:\s*,\s*)?)+)\s+y\s+(\d+)(?:\s*\.)?$', re.I)
+            ),
+            # Match "Artículos X y Y" (simple pair)
+            (
+                'pair',
+                re.compile(r'^Artículos?\s+(\d+)\s+y\s+(\d+)(?:\s*\.)?$', re.I)
+            ),
+        ]
+        
+        blocks = content.get("bloque", [])
+        
+        # Build index of existing individual article blocks
+        article_index = {}  # {article_num: block_dict}
+        compound_blocks = []  # Blocks to remove after processing
+        
+        for block in blocks:
+            title = block.get("@titulo", "").strip()
+            
+            # Check if this is a single article block
+            single_match = re.match(r'^Artículo\s+(\d+)(?:\s+\w+)?(?:\s*\.)?$', title, re.I)
+            if single_match:
+                article_num = int(single_match.group(1))
+                article_index[article_num] = block
+        
+        # Now process compound blocks
+        for block in blocks:
+            title = block.get("@titulo", "").strip()
+            
+            for pattern_type, pattern in patterns:
+                match = pattern.match(title)
+                
+                if match:
+                    compound_blocks.append(block)
+                    article_nums = []
+                    
+                    if pattern_type == 'range':
+                        # Handle range: "Artículos 633 a 637"
+                        start = int(match.group(1))
+                        end = int(match.group(2))
+                        article_nums = list(range(start, end + 1))
+                        print(f"  📦 Found compound range: {title} → Articles {start} to {end}")
+                        
+                    elif pattern_type == 'list':
+                        # Handle list: "Artículos 638, 639 y 640"
+                        first_nums = match.group(1)
+                        last_num = match.group(2)
+                        article_nums = [int(n.strip()) for n in first_nums.split(',')]
+                        article_nums.append(int(last_num))
+                        print(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
+                        
+                    elif pattern_type == 'pair':
+                        # Handle pair: "Artículos 638 y 639"
+                        article_nums = [int(match.group(1)), int(match.group(2))]
+                        print(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
+                    
+                    # Distribute this compound block's content to individual articles
+                    self._distribute_to_articles(block, article_nums, article_index)
+                    break
+        
+        # Remove compound blocks from the list
+        content["bloque"] = [b for b in blocks if b not in compound_blocks]
+        
+        print(content)
+        return content
+
+
+    def _distribute_to_articles(self, compound_block: dict, article_nums: list, article_index: dict):
+        """
+        Distribute content from a compound block to existing individual article blocks.
+        
+        Args:
+            compound_block: The compound block (e.g., "Artículos 638 y 639")
+            article_nums: List of article numbers to distribute to
+            article_index: Dictionary mapping article numbers to their blocks
+        """
+        import copy
+        
+        # Get the versions from the compound block
+        compound_versions = compound_block.get("version", [])
+        
+        for article_num in article_nums:
+            if article_num not in article_index:
+                print(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
+                continue
+            
+            target_block = article_index[article_num]
+            
+            existing_versions = target_block.get("version", [])
+            
+            for compound_version in compound_versions:
+                version_copy = copy.deepcopy(compound_version)
+                
+                compound_p = version_copy.get("p", None)
+                if compound_p:
+                    if isinstance(compound_p, list) and len(compound_p) > 0:
+                        version_copy["p"][0] = f"Artículo {article_num}."
+                    elif isinstance(compound_p, str):
+                        version_copy["p"] = f"Artículo {article_num}."
+                
+                existing_versions.append(version_copy)
+                print(f"    ✓ Added new version to Article {article_num}")
+            
+            target_block["version"] = existing_versions
     def process_metadata(self, metadata):
         fecha_actualizacion = metadata.get("fecha_actualizacion", None)
         id = metadata.get("identificador", None)
@@ -140,11 +260,12 @@ class DataProcessor(Step):
 
         processed_metadata = self.process_metadata(metadata)
         processed_analysis = self.process_analysis(analysis)
-        processed_content = self.process_content(content)
-        
-        
 
-        self.content_tree.print_tree()
+        preprocessed_content = self.preprocessing(content=content)
+        processed_content = self.process_content(preprocessed_content)
+        
+        
+        self.content_tree.change_handler.print_summary(verbose=True)
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)

@@ -3,9 +3,11 @@ from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 from .node_factory.base import Node, NodeType, StructureNode, ArticleNode,ArticleElementNode
+from .change_handler import ChangeHandler
 from .node_factory.factory import NodeFactory
 from .base import ElementType, NoteType
 from .normativa_cons import Version
+from .utils.print_tree import print_tree
 import re
 
 
@@ -39,6 +41,7 @@ class TreeBuilder:
 
         self.stack = [self.root]
         self.node_factory = NodeFactory()
+        self.change_handler = ChangeHandler(self.target_document_id)
 
     def detect_level(self, text: str) -> Tuple[Optional[int], Optional[NodeType], Optional[str], Optional[str]]:
         """Detect the hierarchical level and type of a text line."""
@@ -51,90 +54,6 @@ class TreeBuilder:
         return None, None, None, text
         
 
-    def diff_versions(self, new: ArticleNode, old: ArticleNode):
-        print(f"\n\n{"^"*32}[ Comparing two nodes ]{"^"*32}\n")
-        print(f"{"="*40}[ NEW ]{"="*40}")  
-        self.print_tree(new)
-
-        print(f"{"="*40}[ OLD ]{"="*40}") 
-        self.print_tree(old)
-
-        # Link article versions
-        new.previous_version = old
-        old.next_version = new
-        
-        # Deduplicate ArticleElementNodes
-        self._merge_duplicate_elements(new, old)
-
-
-    def _merge_duplicate_elements(self, new_article: ArticleNode, old_article: ArticleNode):
-        """
-        Compare ArticleElementNodes between two article versions and merge duplicates.
-        Unchanged nodes in new_article will be replaced with references to old_article nodes.
-        """
-        # Build hash registry from old article
-        old_registry = {}
-        self._build_element_registry(old_article, old_registry)
-        
-        # Process new article and merge duplicates
-        self._replace_duplicates(new_article, old_registry)
-        
-        print(f"\n{"="*40}[ AFTER MERGE ]{"="*40}")
-        print(f"Deduplicated {len([n for n in old_registry.values() if n.other_parents])} element nodes")
-
-
-    def _build_element_registry(self, node: Node, registry: dict):
-        """Recursively build a hash registry of all ArticleElementNodes"""
-        if isinstance(node, ArticleElementNode):
-            node_hash = node.compute_hash()
-            registry[node_hash] = node
-        
-        # Recurse into child nodes
-        for item in node.content:
-            if isinstance(item, Node):
-                self._build_element_registry(item, registry)
-
-
-    def _replace_duplicates(self, node: Node, old_registry: dict):
-        """
-        Recursively find and replace duplicate ArticleElementNodes.
-        If a node in the new tree matches one in old_registry, replace it.
-        """
-        if not hasattr(node, 'content') or not node.content:
-            return
-        
-        new_content = []
-        
-        for item in node.content:
-            if isinstance(item, ArticleElementNode):
-                item_hash = item.compute_hash()
-                
-                # Check if this element already exists in old version
-                if item_hash in old_registry:
-                    # Found duplicate! Use the old node instead
-                    old_node = old_registry[item_hash]
-                    old_node.merge_with(item)  # Track the new parent
-                    new_content.append(old_node)  # Replace with old node reference
-                    print(f"  ✓ Merged: {item.node_type} {item.name}")
-                else:
-                    # This is a new/changed element
-                    new_content.append(item)
-                    print(f"  ✗ New/Changed: {item.node_type} {item.name}")
-                    # Still recurse in case it has children
-                    self._replace_duplicates(item, old_registry)
-            elif isinstance(item, Node):
-                # Other node types - just recurse
-                new_content.append(item)
-                self._replace_duplicates(item, old_registry)
-            else:
-                # Plain text
-                new_content.append(item)
-        
-        # Replace the content list
-        node.content = new_content
-
-
-        
 
     def parse_version(
         self, 
@@ -171,7 +90,7 @@ class TreeBuilder:
                     # extra_text in case of a paragraph is None. However, it is very important in case of APARTADOS
                     # we assign text to extra_text for compatibility 
                     
-                    if self.stack[-1].node_type != NodeType.ARTICULO:
+                    if self.stack[-1].node_type != NodeType.ARTICULO and self.stack[-1].node_type != NodeType.PARRAFO:
 
                         level, node_type, name, extra_text = None, None, None, text
                     else:
@@ -226,7 +145,7 @@ class TreeBuilder:
         
         sorted_versions = sorted(
             versions, 
-            key=lambda v: v.fecha_vigencia if v.fecha_vigencia else datetime.min
+            key=lambda v: v.fecha_vigencia if v.fecha_vigencia else '18000101'
         )
         
         node_type, node_old = self.parse_version(sorted_versions[0])
@@ -241,51 +160,14 @@ class TreeBuilder:
                 node_new.fecha_vigencia = sorted_versions[i].fecha_vigencia
                 node_old.fecha_caducidad = node_new.fecha_vigencia
 
-                self.diff_versions(node_new,node_old)
+                self.change_handler.diff_versions(node_new, node_old)
             node_old = node_new
         
+
+
+
         return self.root
 
-    def print_tree(
-            self, 
-            node: Node = None, 
-            prefix: str = "", 
-            is_last: bool = True, 
-            target_date: Optional[str] = None
-        ):
-        """Print the tree structure with proper formatting."""
-        
-        if node is None:
-            node = self.root
-            header = f'{node.get_full_name()}'
-
-            if target_date:
-                header += f" [AS OF {datetime.fromisoformat(target_date).strftime('%Y-%m-%d')}]"
-            print(header)
-            
-            children = [item for item in node.content if isinstance(item, Node)]
-            for i, child in enumerate(children):
-                self.print_tree(
-                    child, "", i == len(children) - 1, 
-                )
-            return
     
-        connector = "└─ " if is_last else "├─ "
-        extension = "   " if is_last else "│  "   
 
-        new_prefix = prefix + extension    
-        print(f"{prefix}{connector}{node.get_full_name()}")
-        
-        items = node.content
-        for i, item in enumerate(items):
-            is_last_item = (i == len(items) - 1)
-            
-            if isinstance(item, Node):
-                self.print_tree(
-                    item, new_prefix, is_last_item, 
-                    target_date
-                )
-            else:
-                text_connector = "└─ " if is_last_item else "├─ "
-                preview = item[:80] + "..." if len(item) > 80 else item
-                print(f'{new_prefix}{text_connector}"{preview}"')
+    
