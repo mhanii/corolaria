@@ -1,5 +1,5 @@
 from typing import Optional
-from src.documents.node_factory.base import Node
+from src.domain.models.common.node import Node
 from datetime import datetime
 
 def print_tree(

@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import List, Optional
 from datetime import datetime
-from src.models.ambitos_model import Ambitos
-from src.models.materias_model import Materias
-from src.models.departamentos_model import Departamentos
-from src.models.rangos_model import Rangos
-from src.models.estados_consolidacion_model import EstadosConsolidacion
-from src.models.relaciones_anteriores_model import RelacionesAnteriores
-from src.models.relaciones_posteriores_model import RelacionesPosteriores
+from src.domain.value_objects.ambitos_model import Ambitos
+from src.domain.value_objects.materias_model import Materias
+from src.domain.value_objects.departamentos_model import Departamentos
+from src.domain.value_objects.rangos_model import Rangos
+from src.domain.value_objects.estados_consolidacion_model import EstadosConsolidacion
+from src.domain.value_objects.relaciones_anteriores_model import RelacionesAnteriores
+from src.domain.value_objects.relaciones_posteriores_model import RelacionesPosteriores
 from enum import Enum
 from typing import Optional
 

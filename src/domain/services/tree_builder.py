@@ -2,11 +2,11 @@ from typing import List, Optional, Union,Dict, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
-from .node_factory.base import Node, NodeType, StructureNode, ArticleNode,ArticleElementNode
+from src.domain.models.common.node import Node, NodeType, StructureNode, ArticleNode,ArticleElementNode
 from .change_handler import ChangeHandler
 from .node_factory.factory import NodeFactory
-from .base import ElementType, NoteType
-from .normativa_cons import Version
+from src.domain.models.common.base import ElementType, NoteType
+from src.domain.models.normativa import Version
 from .utils.print_tree import print_tree
 import re
 

@@ -1,5 +1,5 @@
 from .base import Step
-from src.utils.http_client import BOEHTTPClient
+from src.infrastructure.http.http_client import BOEHTTPClient
 import asyncio
 import concurrent.futures
 

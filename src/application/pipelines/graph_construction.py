@@ -1,6 +1,6 @@
 from .base import Step, Pipeline
-from .data_retriever import DataRetriever
-from .data_processor import DataProcessor
+from .data_ingestion import DataRetriever
+from .data_processing import DataProcessor
 
 class Doc2Graph(Pipeline):
     def __init__(self, law_id: str):

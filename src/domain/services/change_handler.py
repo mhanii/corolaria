@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import hashlib
 from typing import Optional, List
-from .node_factory.base import ArticleNode, ArticleElementNode, Node
+from src.domain.models.common.node import ArticleNode, ArticleElementNode, Node
 from datetime import datetime
 from .utils.print_tree import print_tree
 

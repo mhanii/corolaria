@@ -1,16 +1,27 @@
-from datetime import datetime
-from src.documents.normativa_cons import NormativaCons, Metadata, Analysis, Version, Block, Referencia,Element
-from src.models.rangos_model import Rangos
-from src.models.estados_consolidacion_model import EstadosConsolidacion
-from src.models.relaciones_anteriores_model import RelacionesAnteriores
-from src.models.relaciones_posteriores_model import RelacionesPosteriores
-from src.models.departamentos_model import Departamentos
-from src.models.ambitos_model import Ambitos
-from src.models.materias_model import Materias
-from src.documents.tree_builder import TreeBuilder
-from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
+from src.domain.models.common.metadata import Metadata
+from src.domain.models.common.analysis import Analysis
+from src.domain.models.common.block import Block
+from src.domain.models.common.version import Version
+from src.domain.models.common.element import Element
+from src.domain.models.common.referencia import Referencia
+
+from src.domain.value_objects.rangos_model import Rangos
+from src.domain.value_objects.estados_consolidacion_model import EstadosConsolidacion
+from src.domain.value_objects.relaciones_anteriores_model import RelacionesAnteriores
+from src.domain.value_objects.relaciones_posteriores_model import RelacionesPosteriores
+from src.domain.value_objects.departamentos_model import Departamentos
+from src.domain.value_objects.ambitos_model import Ambitos
+from src.domain.value_objects.materias_model import Materias
+
+from src.domain.services.tree_builder import TreeBuilder
+from src.domain.models.common.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
+
+from src.domain.models.normativa import NormativaCons
+
 from .base import Step
 import re
+
+
 
 class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
