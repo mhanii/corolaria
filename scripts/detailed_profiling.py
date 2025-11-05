@@ -83,7 +83,7 @@ def main():
     with open('cprofile_stats.txt', 'w') as f:
         stats = pstats.Stats(profiler, stream=f)
         stats.sort_stats('cumulative')
-        stats.print_stats()
+        stats.print_stats('src')
 
 if __name__ == "__main__":
     main()
