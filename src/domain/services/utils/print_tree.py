@@ -1,6 +1,7 @@
 from typing import Optional
 from src.domain.models.common.node import Node
 from datetime import datetime
+from src.utils.logger import output_logger
 
 def print_tree(
             node: Node = None, 
@@ -15,7 +16,7 @@ def print_tree(
         extension = "   " if is_last else "│  "   
 
         new_prefix = prefix + extension    
-        print(f"{prefix}{connector}{node.get_full_name()}")
+        output_logger.info(f"{prefix}{connector}{node.get_full_name()}")
         
         items = node.content
         for i, item in enumerate(items):
@@ -29,6 +30,6 @@ def print_tree(
             else:
                 text_connector = "└─ " if is_last_item else "├─ "
                 preview = item[:80] + "..." if len(item) > 80 else item
-                print(f'{new_prefix}{text_connector}"{preview}"')
+                output_logger.info(f'{new_prefix}{text_connector}"{preview}"')
 
 

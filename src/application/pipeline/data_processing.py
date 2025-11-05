@@ -20,6 +20,7 @@ from src.domain.models.normativa import NormativaCons
 from src.domain.services.utils.print_tree import print_tree
 from .base import Step
 import re
+from src.utils.logger import output_logger
 
 
 
@@ -89,7 +90,7 @@ class DataProcessor(Step):
                         start = int(match.group(1))
                         end = int(match.group(2))
                         article_nums = list(range(start, end + 1))
-                        # print(f"  📦 Found compound range: {title} → Articles {start} to {end}")
+                        output_logger.info(f"  📦 Found compound range: {title} → Articles {start} to {end}")
                         
                     elif pattern_type == 'list':
                         # Handle list: "Artículos 638, 639 y 640"
@@ -97,12 +98,12 @@ class DataProcessor(Step):
                         last_num = match.group(2)
                         article_nums = [int(n.strip()) for n in first_nums.split(',')]
                         article_nums.append(int(last_num))
-                        # print(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
+                        output_logger.info(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
                         
                     elif pattern_type == 'pair':
                         # Handle pair: "Artículos 638 y 639"
                         article_nums = [int(match.group(1)), int(match.group(2))]
-                        # print(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
+                        output_logger.info(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
                     
                     # Distribute this compound block's content to individual articles
                     self._distribute_to_articles(block, article_nums, article_index)
@@ -130,7 +131,7 @@ class DataProcessor(Step):
         
         for article_num in article_nums:
             if article_num not in article_index:
-                print(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
+                output_logger.warning(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
                 continue
             
             target_block = article_index[article_num]
@@ -148,7 +149,7 @@ class DataProcessor(Step):
                         version_copy["p"] = f"Artículo {article_num}."
                 
                 existing_versions.append(version_copy)
-                print(f"    ✓ Added new version to Article {article_num}")
+                output_logger.info(f"    ✓ Added new version to Article {article_num}")
             
             target_block["version"] = existing_versions
 
