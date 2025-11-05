@@ -1,0 +1,40 @@
+# infrastructure/graphdb/connection.py
+import neo4j
+from neo4j import GraphDatabase
+from typing import Optional
+import os
+
+class Neo4jConnection:
+    def __init__(self, uri: str, user: str, password: str):
+        self._driver = GraphDatabase.driver(uri, auth=(user, password))
+    
+    def close(self):
+        if self._driver:
+            self._driver.close()
+    
+    def execute_query(self, query: str, parameters: dict = None):
+        record = self._driver.execute_query(
+        query,
+        # optional routing parameter, as write is default
+        # routing_=neo4j.RoutingControl.WRITE,  # or just "w",
+        database_="neo4j",
+        result_transformer_=neo4j.Result.single,
+        age=15,
+    )
+        return record
+    
+    def execute_write(self, query: str, parameters: dict = None):
+
+
+        record = self._driver.execute_query(
+        query,
+        parameters or {},
+
+        # optional routing parameter, as write is default
+        # routing_=neo4j.RoutingControl.WRITE,  # or just "w",
+        database_="neo4j",
+        result_transformer_=neo4j.Result.single,
+        age=15,
+    )
+        return record
+

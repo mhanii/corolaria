@@ -108,11 +108,11 @@ class ChangeHandler:
         return self.change_events[change_id]
 
     def diff_versions(self, new: ArticleNode, old: ArticleNode):
-        print(f"\n\n{'^'*32}[ Comparing two nodes ]{'^'*32}\n")
-        print(f"{'='*40}[ NEW ]{'='*40}")  
-        print_tree(node=new)
-        print(f"{'='*40}[ OLD ]{'='*40}") 
-        print_tree(node=old)
+        # print(f"\n\n{'^'*32}[ Comparing two nodes ]{'^'*32}\n")
+        # print(f"{'='*40}[ NEW ]{'='*40}")  
+        # print_tree(node=new)
+        # print(f"{'='*40}[ OLD ]{'='*40}") 
+        # print_tree(node=old)
 
         new.previous_version = old
         old.next_version = new
@@ -125,7 +125,7 @@ class ChangeHandler:
         change_event = self._create_or_get_change_event(source_doc)
         self._detect_changes(old, new, change_event)
 
-        print(f"\nDetected {len(change_event.affected_nodes)} affected nodes for {change_event.id}\n")
+        # print(f"\nDetected {len(change_event.affected_nodes)} affected nodes for {change_event.id}\n")
 
     # ------------------------------------------------------------------------
     # Deduplication (same as before)
@@ -135,8 +135,8 @@ class ChangeHandler:
         self._build_element_registry(old_article, old_registry)
         self._replace_duplicates(new_article, old_registry)
 
-        print(f"\n{'='*40}[ AFTER MERGE ]{'='*40}")
-        print(f"Deduplicated {len([n for n in old_registry.values() if n.other_parents])} element nodes")
+        # print(f"\n{'='*40}[ AFTER MERGE ]{'='*40}")
+        # print(f"Deduplicated {len([n for n in old_registry.values() if n.other_parents])} element nodes")
 
     def _build_element_registry(self, node: Node, registry: dict):
         if isinstance(node, ArticleElementNode):
@@ -157,10 +157,10 @@ class ChangeHandler:
                     old_node = old_registry[item_hash]
                     old_node.merge_with(item)
                     new_content.append(old_node)
-                    print(f"  ✓ Merged: {item.node_type} {item.name}")
+                    # print(f"  ✓ Merged: {item.node_type} {item.name}")
                 else:
                     new_content.append(item)
-                    print(f"  ✗ New/Changed: {item.node_type} {item.name}")
+                    # print(f"  ✗ New/Changed: {item.node_type} {item.name}")
                     self._replace_duplicates(item, old_registry)
             elif isinstance(item, Node):
                 new_content.append(item)
@@ -182,13 +182,13 @@ class ChangeHandler:
         # Case 1 — New node didn't exist before
         if not old:
             change_event.add_affected_node(current_path)
-            print(f"🟢 Added: {current_path}")
+            # print(f"🟢 Added: {current_path}")
             return
 
         # Case 2 — Node type or name changed
         if old.node_type != new.node_type or old.name != new.name:
             change_event.add_affected_node(current_path)
-            print(f"🟡 Modified structure: {current_path}")
+            # print(f"🟡 Modified structure: {current_path}")
 
         # Case 3 — Compare content (only for element nodes)
         if isinstance(new, ArticleElementNode):
@@ -196,7 +196,7 @@ class ChangeHandler:
             new_texts = [t.strip() for t in new.content if isinstance(t, str)]
             if old_texts != new_texts:
                 change_event.add_affected_node(current_path)
-                print(f"🟠 Text changed in {current_path}")
+                # print(f"🟠 Text changed in {current_path}")
 
         # Case 4 — Recurse into children
         old_children = [c for c in old.content if isinstance(c, Node)]
@@ -211,7 +211,7 @@ class ChangeHandler:
             if not any(c.name == o_child.name and c.node_type == o_child.node_type for c in new_children):
                 removed_path = f"{current_path}/{o_child.node_type}:{o_child.name}"
                 change_event.add_affected_node(removed_path)
-                print(f"🔴 Removed: {removed_path}")
+                # print(f"🔴 Removed: {removed_path}")
 
     def print_summary(self, verbose: bool = False):
         """

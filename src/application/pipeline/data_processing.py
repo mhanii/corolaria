@@ -17,7 +17,7 @@ from src.domain.services.tree_builder import TreeBuilder
 from src.domain.models.common.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
 
 from src.domain.models.normativa import NormativaCons
-
+from src.domain.services.utils.print_tree import print_tree
 from .base import Step
 import re
 
@@ -89,7 +89,7 @@ class DataProcessor(Step):
                         start = int(match.group(1))
                         end = int(match.group(2))
                         article_nums = list(range(start, end + 1))
-                        print(f"  📦 Found compound range: {title} → Articles {start} to {end}")
+                        # print(f"  📦 Found compound range: {title} → Articles {start} to {end}")
                         
                     elif pattern_type == 'list':
                         # Handle list: "Artículos 638, 639 y 640"
@@ -97,12 +97,12 @@ class DataProcessor(Step):
                         last_num = match.group(2)
                         article_nums = [int(n.strip()) for n in first_nums.split(',')]
                         article_nums.append(int(last_num))
-                        print(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
+                        # print(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
                         
                     elif pattern_type == 'pair':
                         # Handle pair: "Artículos 638 y 639"
                         article_nums = [int(match.group(1)), int(match.group(2))]
-                        print(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
+                        # print(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
                     
                     # Distribute this compound block's content to individual articles
                     self._distribute_to_articles(block, article_nums, article_index)
@@ -111,7 +111,6 @@ class DataProcessor(Step):
         # Remove compound blocks from the list
         content["bloque"] = [b for b in blocks if b not in compound_blocks]
         
-        print(content)
         return content
 
 
@@ -152,6 +151,7 @@ class DataProcessor(Step):
                 print(f"    ✓ Added new version to Article {article_num}")
             
             target_block["version"] = existing_versions
+
     def process_metadata(self, metadata):
         fecha_actualizacion = metadata.get("fecha_actualizacion", None)
         id = metadata.get("identificador", None)
@@ -207,33 +207,22 @@ class DataProcessor(Step):
         )
     
     def process_content(self, content):
-        blocks_tag = content.get("bloque", [])
-        blocks = [self.process_block(block) for block in blocks_tag]
-        
+        blocks = content.get("bloque", [])
 
-        return blocks
+        for block in blocks:
+            id = block.get("@id", None)
+            type = BlockType(block.get("@tipo", None).lower())
+            title = block.get("@titulo", None)
 
-    def process_block(self, block) -> Block:
-        id = block.get("@id", None)
-        type = BlockType(block.get("@tipo", None).lower())
-        title = block.get("@titulo", None)
-
-        if type in self.prohibited_types:
-            return None
-        
-        versions = [self.process_version(version) for version in block.get("version", [])]
-        
-        self.content_tree.parse_versions(versions)
-        
-        block = Block(
-            id=id,
-            type=type,
-            title=title,
-            versions=versions
-        )
+            if type in self.prohibited_types:
+                return None
+            
+            versions = [self.process_version(version) for version in block.get("version", [])]
+            
+            self.content_tree.parse_versions(versions)
 
 
-        return block
+
     
     def process_version(self, version) -> Version:
         id_norma = version.get("@id_norma", None)
@@ -273,10 +262,12 @@ class DataProcessor(Step):
         processed_analysis = self.process_analysis(analysis)
 
         preprocessed_content = self.preprocessing(content=content)
-        processed_content = self.process_content(preprocessed_content)
+        
+        self.process_content(preprocessed_content)
         
         
         self.content_tree.change_handler.print_summary(verbose=True)
-
-        # Further processing can be done here for analysis and blocks
-        return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)
+        print_tree(self.content_tree.root)
+        normativa = NormativaCons(id=processed_metadata.id,metadata=processed_metadata,analysis=processed_analysis,content_tree=self.content_tree.root)
+        change_events = self.content_tree.change_handler.change_events
+        return normativa, change_events

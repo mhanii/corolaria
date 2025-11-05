@@ -108,25 +108,13 @@ class Version:
     content: List[Element]
 
 
-@dataclass
-class Block:
-    id: str
-    type: BlockType
-    title: Optional[str]
-    versions: List[Version]
-
-    # def __str__(self):
-    #     return f"""
-    #     Block(id={self.id}, type={self.type}, title={self.title},
-    #     versions={self.versions})"""
-
 
 @dataclass
 class NormativaCons:
     id: str
     metadata: Metadata
     analysis: Analysis
-    blocks: List[Block]
+    content_tree: Node # The root node
 
 
 @dataclass

@@ -32,7 +32,8 @@ class Node:
     level: int
     node_type: NodeType
 
-    content: List[Union[str, 'Node']] = None
+    content: List[Union['Node']] = None
+    text: str = ""
     parent: Optional['Node'] = None
 
     path: Optional[str] = None 
@@ -50,7 +51,7 @@ class Node:
     
     def add_text(self, text: str):
         """Add plain text to this node"""
-        self.content.append(text)
+        self.text += text
 
      
     # def get_version_at_date(self, node: 'Node', date: str) -> Optional['Node']:
