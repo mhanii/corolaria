@@ -2,15 +2,13 @@ from typing import List, Optional, Union,Dict, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
-from .node_factory.base import Node, NodeType, StructureNode, ArticleNode,ArticleElementNode
+from src.domain.models.common.node import Node, NodeType, StructureNode, ArticleNode,ArticleElementNode
 from .change_handler import ChangeHandler
 from .node_factory.factory import NodeFactory
-from .base import ElementType, NoteType
-from .normativa_cons import Version
+from src.domain.models.common.base import ElementType, NoteType
+from src.domain.models.normativa import Version
+from .utils.print_tree import print_tree
 import re
-import logging
-
-output_logger = logging.getLogger("output_logger")
 
 
 
@@ -88,10 +86,11 @@ class TreeBuilder:
                    name = name.replace(" ","_") # normalize spaces in names
 
                 if node_type == NodeType.PARRAFO:
-
+                    # = OLD =
                     # extra_text in case of a paragraph is None. However, it is very important in case of APARTADOS
                     # we assign text to extra_text for compatibility 
                     
+                    # = New = (only the comment changed lol)
                     if self.stack[-1].node_type != NodeType.ARTICULO and self.stack[-1].node_type != NodeType.PARRAFO:
 
                         level, node_type, name, extra_text = None, None, None, text
@@ -102,9 +101,9 @@ class TreeBuilder:
 
                     
                 if level is not None:
-                    if  node_type == NodeType.DISPOSICION: # confirm it is a disposicion
-                        if element.get("class", None) != "disposicion": # this in reality doens' work because element won't have a class
-                            continue
+                    # if  node_type == NodeType.DISPOSICION: # confirm it is a disposicion
+                    #     if element.get("class", None) != "disposicion": # this in reality doens' work because element won't have a class
+                    #         continue
                     while self.stack and self.stack[-1].level >= level:
                         self.stack.pop()
 
@@ -113,10 +112,11 @@ class TreeBuilder:
                         level=level,
                         node_type=node_type,
                         name=name,
-                        content=[extra_text] if extra_text else [],
+                        content= [],
                     )
                     self.stack.append(current_node)
-
+                    if extra_text:
+                        current_node.add_text(extra_text)
                 else:
                     # Unstructured text - add to current node
                     if self.stack[-1] != self.root and text:
@@ -127,7 +127,7 @@ class TreeBuilder:
                 if isinstance(element.content, dict):
                     class_name = element.content.get("@class", "unknown")
                     if class_name == NoteType.CITATION:
-                        output_logger.info(f"Skipping citation note: {element.content}")
+                        print(f"Skipping citation note: {element.content}")
                     else :
                         raise Exception(f"Error processing element: {element.content}. Error: {e}")
 

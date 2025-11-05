@@ -1,67 +1,40 @@
-import cProfile
-import pstats
-import os
 import sys
-import logging
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from memory_profiler import profile
 import psutil
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import time
 from main import main
 
-output_logger = logging.getLogger("output_logger")
+@profile(precision=4, stream=open('profiling_results.txt', 'w+'))
+def run_pipeline():
+    """
+    Runs the main pipeline and profiles its memory and CPU usage.
+    """
+    start_time = time.time()
+    process = psutil.Process()
 
-# Create a file stream for the memory profiler
-log_file = open("output/memory_profile.log", "w+")
+    # Initial CPU and memory usage
+    initial_cpu = process.cpu_percent(interval=None)
+    initial_mem = process.memory_info().rss / 1024 / 1024  # in MB
 
-@profile(stream=log_file)
-def main_profile():
+    # Run the main function
     main()
 
-def profile_pipeline():
-    # Create output directory if it doesn't exist
-    os.makedirs("output", exist_ok=True)
+    # Final CPU and memory usage
+    final_cpu = process.cpu_percent(interval=None)
+    final_mem = process.memory_info().rss / 1024 / 1024  # in MB
 
-    # --- Time Profiling ---
-    profiler = cProfile.Profile()
-    profiler.enable()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
-    # --- CPU Profiling (Initial) ---
-    cpu_before = psutil.cpu_percent(interval=None)
-
-    main_profile()
-
-    # --- CPU Profiling (Final) ---
-    cpu_after = psutil.cpu_percent(interval=None)
-
-    profiler.disable()
-
-    # --- Save All Stats to a File ---
-    stats_file = "output/profile_stats.txt"
-    with open(stats_file, "w") as f:
-        # Time stats
-        f.write("--- Execution Time (cProfile) ---\n")
-        ps = pstats.Stats(profiler, stream=f)
-        ps.sort_stats("cumulative")
-        ps.print_stats()
-
-        # CPU stats
-        f.write("\n\n--- CPU Usage (psutil) ---\n")
-        f.write(f"CPU Usage Before: {cpu_before}%\n")
-        f.write(f"CPU Usage After: {cpu_after}%\n")
-
-        # Memory stats
-        f.write("\n\n--- Memory Usage (memory-profiler) ---\n")
-        log_file.seek(0)
-        f.write(log_file.read())
-
-    log_file.close()
-
-    # Clean up the separate memory log file
-    os.remove("output/memory_profile.log")
-
-    output_logger.info(f"Profiling stats saved to {stats_file}")
+    with open('profiling_results.txt', 'a') as f:
+        f.write(f"\\n--- Performance Stats ---\\n")
+        f.write(f"Execution Time: {elapsed_time:.2f} seconds\\n")
+        f.write(f"Initial CPU Usage: {initial_cpu}%\\n")
+        f.write(f"Final CPU Usage: {final_cpu}%\\n")
+        f.write(f"Initial Memory Usage: {initial_mem:.2f} MB\\n")
+        f.write(f"Final Memory Usage: {final_mem:.2f} MB\\n")
 
 if __name__ == "__main__":
-    profile_pipeline()
+    run_pipeline()

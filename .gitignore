@@ -1,5 +1,6 @@
 .venv/
-constitucion.txt
-log.json
-log.txt
+output/
+.env
 __pycache__/
+*.log
+profiling_results.txt

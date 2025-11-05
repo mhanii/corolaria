@@ -1,19 +1,28 @@
-from datetime import datetime
-from src.documents.normativa_cons import NormativaCons, Metadata, Analysis, Version, Block, Referencia,Element
-from src.models.rangos_model import Rangos
-from src.models.estados_consolidacion_model import EstadosConsolidacion
-from src.models.relaciones_anteriores_model import RelacionesAnteriores
-from src.models.relaciones_posteriores_model import RelacionesPosteriores
-from src.models.departamentos_model import Departamentos
-from src.models.ambitos_model import Ambitos
-from src.models.materias_model import Materias
-from src.documents.tree_builder import TreeBuilder
-from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
+from src.domain.models.common.metadata import Metadata
+from src.domain.models.common.analysis import Analysis
+from src.domain.models.common.block import Block
+from src.domain.models.common.version import Version
+from src.domain.models.common.element import Element
+from src.domain.models.common.referencia import Referencia
+
+from src.domain.value_objects.rangos_model import Rangos
+from src.domain.value_objects.estados_consolidacion_model import EstadosConsolidacion
+from src.domain.value_objects.relaciones_anteriores_model import RelacionesAnteriores
+from src.domain.value_objects.relaciones_posteriores_model import RelacionesPosteriores
+from src.domain.value_objects.departamentos_model import Departamentos
+from src.domain.value_objects.ambitos_model import Ambitos
+from src.domain.value_objects.materias_model import Materias
+
+from src.domain.services.tree_builder import TreeBuilder
+from src.domain.models.common.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
+
+from src.domain.models.normativa import NormativaCons
+from src.domain.services.utils.print_tree import print_tree
 from .base import Step
 import re
-import logging
+from src.utils.logger import output_logger
 
-output_logger = logging.getLogger("output_logger")
+
 
 class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
@@ -103,7 +112,6 @@ class DataProcessor(Step):
         # Remove compound blocks from the list
         content["bloque"] = [b for b in blocks if b not in compound_blocks]
         
-        output_logger.info(content)
         return content
 
 
@@ -123,7 +131,7 @@ class DataProcessor(Step):
         
         for article_num in article_nums:
             if article_num not in article_index:
-                output_logger.info(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
+                output_logger.warning(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
                 continue
             
             target_block = article_index[article_num]
@@ -144,6 +152,7 @@ class DataProcessor(Step):
                 output_logger.info(f"    ✓ Added new version to Article {article_num}")
             
             target_block["version"] = existing_versions
+
     def process_metadata(self, metadata):
         fecha_actualizacion = metadata.get("fecha_actualizacion", None)
         id = metadata.get("identificador", None)
@@ -199,33 +208,22 @@ class DataProcessor(Step):
         )
     
     def process_content(self, content):
-        blocks_tag = content.get("bloque", [])
-        blocks = [self.process_block(block) for block in blocks_tag]
-        
+        blocks = content.get("bloque", [])
 
-        return blocks
+        for block in blocks:
+            id = block.get("@id", None)
+            type = BlockType(block.get("@tipo", None).lower())
+            title = block.get("@titulo", None)
 
-    def process_block(self, block) -> Block:
-        id = block.get("@id", None)
-        type = BlockType(block.get("@tipo", None).lower())
-        title = block.get("@titulo", None)
+            if type in self.prohibited_types:
+                return None
 
-        if type in self.prohibited_types:
-            return None
-        
-        versions = [self.process_version(version) for version in block.get("version", [])]
-        
-        self.content_tree.parse_versions(versions)
-        
-        block = Block(
-            id=id,
-            type=type,
-            title=title,
-            versions=versions
-        )
+            versions = [self.process_version(version) for version in block.get("version", [])]
+
+            self.content_tree.parse_versions(versions)
 
 
-        return block
+
     
     def process_version(self, version) -> Version:
         id_norma = version.get("@id_norma", None)
@@ -265,10 +263,12 @@ class DataProcessor(Step):
         processed_analysis = self.process_analysis(analysis)
 
         preprocessed_content = self.preprocessing(content=content)
-        processed_content = self.process_content(preprocessed_content)
 
-        # Further processing can be done here for analysis and blocks
-        return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)
+        self.process_content(preprocessed_content)
 
-    def print_summary(self, verbose=True):
-        self.content_tree.change_handler.print_summary(verbose=verbose)
+
+        self.content_tree.change_handler.print_summary(verbose=True)
+        print_tree(self.content_tree.root)
+        normativa = NormativaCons(id=processed_metadata.id,metadata=processed_metadata,analysis=processed_analysis,content_tree=self.content_tree.root)
+        change_events = self.content_tree.change_handler.change_events
+        return normativa, change_events

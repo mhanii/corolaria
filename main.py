@@ -1,26 +1,17 @@
-from src.pipeline.doc2graph import Doc2Graph
+from time import perf_counter
+from src.application.pipeline.doc2graph import Doc2Graph
 from dataclasses import dataclass, asdict
 import json
-import logging
-from src.utils.logger import setup_loggers
-from src.pipeline.data_processor import DataProcessor
-
-output_logger = logging.getLogger("output_logger")
-
+from src.utils.logger import step_logger
 def main():
-    setup_loggers()
-    law_id = "BOE-A-1978-31229"  # Example law ID
+    law_id = "BOE-A-1995-25444"  # Example law ID
     pipeline = Doc2Graph(law_id)
-    result = pipeline.run(None)  # Initial data is None
-
-    # Find the DataProcessor step to access the content_tree
-    for step in pipeline.steps:
-        if isinstance(step, DataProcessor):
-            step.print_summary(verbose=True)
-            break
-
-    # print(json.dumps(asdict(result)))  
+    start = perf_counter()
+    result = pipeline.run(None)
+    end = perf_counter()
+    elapsed_s = end - start
     # print(result)
+    step_logger.info(f"Total execution time: {elapsed_s:.2f} seconds")
 
 if __name__ == "__main__":
     main()

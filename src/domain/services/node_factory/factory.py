@@ -1,4 +1,4 @@
-from .base import NodeType,Node,StructureNode,ArticleElementNode,ArticleNode
+from src.domain.models.common.node import NodeType,Node,StructureNode,ArticleElementNode,ArticleNode
 
 
 class NodeFactory:
