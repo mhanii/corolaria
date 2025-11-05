@@ -4,6 +4,9 @@ from typing import Optional, List
 from .node_factory.base import ArticleNode, ArticleElementNode, Node
 from datetime import datetime
 from .utils.print_tree import print_tree
+import logging
+
+output_logger = logging.getLogger("output_logger")
 
 @dataclass
 class ChangeEvent:
@@ -57,22 +60,22 @@ class ChangeEvent:
         Imprime un resumen en lenguaje natural de este evento de cambio.
         Ideal para inspección humana o indexación semántica (RAG).
         """
-        print("\n" + "="*80)
-        print(f"📜 Resumen del Evento de Cambio: {self.id}")
-        print(f"🗂 Documento afectado (destino): {self.target_document_id}")
-        print(f"🪶 Documento origen del cambio: {self.source_document_id}")
+        output_logger.info("\n" + "="*80)
+        output_logger.info(f"📜 Resumen del Evento de Cambio: {self.id}")
+        output_logger.info(f"🗂 Documento afectado (destino): {self.target_document_id}")
+        output_logger.info(f"🪶 Documento origen del cambio: {self.source_document_id}")
         if self.description:
-            print(f"📝 Descripción: {self.description}")
-        print(f"🧩 Nodos afectados: {len(self.affected_nodes)}")
+            output_logger.info(f"📝 Descripción: {self.description}")
+        output_logger.info(f"🧩 Nodos afectados: {len(self.affected_nodes)}")
 
         if verbose and self.affected_nodes:
-            print("\nDetalle de los nodos afectados:")
+            output_logger.info("\nDetalle de los nodos afectados:")
             for node_path in self.affected_nodes:
                 partes = node_path.split('/')
                 indent = "  " * (len(partes) - 1)
-                print(f"{indent}- {node_path}")
+                output_logger.info(f"{indent}- {node_path}")
 
-        print("="*80 + "\n")
+        output_logger.info("="*80 + "\n")
 
         # También devolver texto para uso en embeddings o RAG
         return (
@@ -108,10 +111,10 @@ class ChangeHandler:
         return self.change_events[change_id]
 
     def diff_versions(self, new: ArticleNode, old: ArticleNode):
-        print(f"\n\n{'^'*32}[ Comparing two nodes ]{'^'*32}\n")
-        print(f"{'='*40}[ NEW ]{'='*40}")  
+        output_logger.info(f"\n\n{'^'*32}[ Comparing two nodes ]{'^'*32}\n")
+        output_logger.info(f"{'='*40}[ NEW ]{'='*40}")
         print_tree(node=new)
-        print(f"{'='*40}[ OLD ]{'='*40}") 
+        output_logger.info(f"{'='*40}[ OLD ]{'='*40}")
         print_tree(node=old)
 
         new.previous_version = old
@@ -125,7 +128,7 @@ class ChangeHandler:
         change_event = self._create_or_get_change_event(source_doc)
         self._detect_changes(old, new, change_event)
 
-        print(f"\nDetected {len(change_event.affected_nodes)} affected nodes for {change_event.id}\n")
+        output_logger.info(f"\nDetected {len(change_event.affected_nodes)} affected nodes for {change_event.id}\n")
 
     # ------------------------------------------------------------------------
     # Deduplication (same as before)
@@ -135,8 +138,8 @@ class ChangeHandler:
         self._build_element_registry(old_article, old_registry)
         self._replace_duplicates(new_article, old_registry)
 
-        print(f"\n{'='*40}[ AFTER MERGE ]{'='*40}")
-        print(f"Deduplicated {len([n for n in old_registry.values() if n.other_parents])} element nodes")
+        output_logger.info(f"\n{'='*40}[ AFTER MERGE ]{'='*40}")
+        output_logger.info(f"Deduplicated {len([n for n in old_registry.values() if n.other_parents])} element nodes")
 
     def _build_element_registry(self, node: Node, registry: dict):
         if isinstance(node, ArticleElementNode):
@@ -157,10 +160,10 @@ class ChangeHandler:
                     old_node = old_registry[item_hash]
                     old_node.merge_with(item)
                     new_content.append(old_node)
-                    print(f"  ✓ Merged: {item.node_type} {item.name}")
+                    output_logger.info(f"  ✓ Merged: {item.node_type} {item.name}")
                 else:
                     new_content.append(item)
-                    print(f"  ✗ New/Changed: {item.node_type} {item.name}")
+                    output_logger.info(f"  ✗ New/Changed: {item.node_type} {item.name}")
                     self._replace_duplicates(item, old_registry)
             elif isinstance(item, Node):
                 new_content.append(item)
@@ -182,13 +185,13 @@ class ChangeHandler:
         # Case 1 — New node didn't exist before
         if not old:
             change_event.add_affected_node(current_path)
-            print(f"🟢 Added: {current_path}")
+            output_logger.info(f"🟢 Added: {current_path}")
             return
 
         # Case 2 — Node type or name changed
         if old.node_type != new.node_type or old.name != new.name:
             change_event.add_affected_node(current_path)
-            print(f"🟡 Modified structure: {current_path}")
+            output_logger.info(f"🟡 Modified structure: {current_path}")
 
         # Case 3 — Compare content (only for element nodes)
         if isinstance(new, ArticleElementNode):
@@ -196,7 +199,7 @@ class ChangeHandler:
             new_texts = [t.strip() for t in new.content if isinstance(t, str)]
             if old_texts != new_texts:
                 change_event.add_affected_node(current_path)
-                print(f"🟠 Text changed in {current_path}")
+                output_logger.info(f"🟠 Text changed in {current_path}")
 
         # Case 4 — Recurse into children
         old_children = [c for c in old.content if isinstance(c, Node)]
@@ -211,33 +214,33 @@ class ChangeHandler:
             if not any(c.name == o_child.name and c.node_type == o_child.node_type for c in new_children):
                 removed_path = f"{current_path}/{o_child.node_type}:{o_child.name}"
                 change_event.add_affected_node(removed_path)
-                print(f"🔴 Removed: {removed_path}")
+                output_logger.info(f"🔴 Removed: {removed_path}")
 
     def print_summary(self, verbose: bool = False):
         """
         Imprime un resumen general de todos los eventos de cambio detectados 
         para el documento destino.
         """
-        print("\n" + "#"*90)
-        print(f"📘 Resumen de Cambios del Documento Destino: {self.target_document}")
-        print("#"*90)
+        output_logger.info("\n" + "#"*90)
+        output_logger.info(f"📘 Resumen de Cambios del Documento Destino: {self.target_document}")
+        output_logger.info("#"*90)
 
         if not self.change_events:
-            print("No se han detectado ni registrado cambios aún.\n")
+            output_logger.info("No se han detectado ni registrado cambios aún.\n")
             return
 
         for change_id, event in self.change_events.items():
-            print(f"\n🔹 Evento {change_id[:12]}:")
-            print(f"   ↳ Documento origen: {event.source_document_id}")
-            print(f"   ↳ Nodos afectados: {len(event.affected_nodes)}")
+            output_logger.info(f"\n🔹 Evento {change_id[:12]}:")
+            output_logger.info(f"   ↳ Documento origen: {event.source_document_id}")
+            output_logger.info(f"   ↳ Nodos afectados: {len(event.affected_nodes)}")
             if event.description:
-                print(f"   ↳ Descripción: {event.description}")
+                output_logger.info(f"   ↳ Descripción: {event.description}")
 
             if verbose:
                 for node in event.affected_nodes:
-                    print(f"     - {node}")
+                    output_logger.info(f"     - {node}")
 
-        print("\n" + "#"*90 + "\n")
+        output_logger.info("\n" + "#"*90 + "\n")
 
         # Devuelve un texto combinado en lenguaje natural para embeddings o RAG
         resumen_combinado = "\n".join([

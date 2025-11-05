@@ -8,6 +8,9 @@ from .base import ElementType, NodeType, ChangeType, NoteType
 from .normativa_cons import Element, Node, ChangeEvent
 from typing import Dict, Tuple
 import difflib
+import logging
+
+output_logger = logging.getLogger("output_logger")
 
 
 
@@ -394,20 +397,20 @@ class TreeBuilder:
         )
         
         # Parse first version (base structure, no ChangeEvent)
-        print(f"\n{'='*80}")
-        print(f"Parsing BASE version: {sorted_versions[0].id_norma}")
-        print(f"Fecha vigencia: {sorted_versions[0].fecha_vigencia}")
-        print('='*80)
+        output_logger.info(f"\n{'='*80}")
+        output_logger.info(f"Parsing BASE version: {sorted_versions[0].id_norma}")
+        output_logger.info(f"Fecha vigencia: {sorted_versions[0].fecha_vigencia}")
+        output_logger.info('='*80)
         self.parse_version(sorted_versions[0], version_index=0, change_event=None)
         
         # Parse subsequent versions with change tracking
         for i in range(1, len(sorted_versions)):
             version = sorted_versions[i]
             
-            print(f"\n{'='*80}")
-            print(f"Parsing version {i}: {version.id_norma}")
-            print(f"Fecha vigencia: {version.fecha_vigencia}")
-            print('='*80)
+            output_logger.info(f"\n{'='*80}")
+            output_logger.info(f"Parsing version {i}: {version.id_norma}")
+            output_logger.info(f"Fecha vigencia: {version.fecha_vigencia}")
+            output_logger.info('='*80)
             
             # Create ChangeEvent for this version
             change_event = self._get_or_create_change_event(
@@ -447,7 +450,7 @@ class TreeBuilder:
                 if self.node_registry[path].change_type == ChangeType.REMOVED:
                     continue
 
-                print(f"  -> Disconnected (deleting) node: {path}")
+                output_logger.info(f"  -> Disconnected (deleting) node: {path}")
                 
                 # Create a new "REMOVED" version for this node
                 deleted_node = old_node.create_next_version(
@@ -480,7 +483,7 @@ class TreeBuilder:
                 header += " [ALL VERSIONS]"
             elif target_date:
                 header += f" [AS OF {datetime.fromisoformat(target_date).strftime('%Y-%m-%d')}]"
-            print(header)
+            output_logger.info(header)
             
             children = [item for item in node.content if isinstance(item, Node)]
             for i, child in enumerate(children):
@@ -531,7 +534,7 @@ class TreeBuilder:
                     parts.append(f"to:{caducidad}")
                 version_info = f" [{', '.join(parts)}]"
             
-            print(f"{prefix}{connector}{display_node.get_full_name()}{version_info}")
+            output_logger.info(f"{prefix}{connector}{display_node.get_full_name()}{version_info}")
             
             # Prefix for children
             if show_all_versions and not is_last_version:
@@ -552,7 +555,7 @@ class TreeBuilder:
                     is_last_item = (i == len(text_items) - 1) and (len(child_nodes) == 0)
                     text_connector = "└─ " if is_last_item else "├─ "
                     preview = text_item[:80] + "..." if len(text_item) > 80 else text_item
-                    print(f'{new_prefix}{text_connector}"{preview}"')
+                    output_logger.info(f'{new_prefix}{text_connector}"{preview}"')
 
                 # Then print child nodes
                 for i, item in enumerate(child_nodes):
@@ -569,17 +572,17 @@ class TreeBuilder:
     
     def print_change_summary(self):
         """Print a summary of all changes"""
-        print(f"\n{'='*80}")
-        print(f"CHANGE SUMMARY for {self.target_document_id}")
-        print('='*80)
+        output_logger.info(f"\n{'='*80}")
+        output_logger.info(f"CHANGE SUMMARY for {self.target_document_id}")
+        output_logger.info('='*80)
         
         for change_id, change_event in self.change_events.items():
-            print(f"\n{change_event.description} (Vigencia: {change_event.fecha_vigencia.strftime('%Y-%m-%d')})")
-            print(f"  Source: {change_event.source_document_id}")
-            print(f"  Affected nodes:")
+            output_logger.info(f"\n{change_event.description} (Vigencia: {change_event.fecha_vigencia.strftime('%Y-%m-%d')})")
+            output_logger.info(f"  Source: {change_event.source_document_id}")
+            output_logger.info(f"  Affected nodes:")
             for node_path in sorted(list(change_event.affected_nodes)):
                 node = self._find_node_by_path(node_path)
                 if node:
-                    print(f"    - {node_path}")
-                    print(f"      Type: {node.change_type.value if node.change_type else 'N/A'}")
-                    print(f"      Version: {node.version_index}")
+                    output_logger.info(f"    - {node_path}")
+                    output_logger.info(f"      Type: {node.change_type.value if node.change_type else 'N/A'}")
+                    output_logger.info(f"      Version: {node.version_index}")

@@ -7,8 +7,10 @@ from .change_handler import ChangeHandler
 from .node_factory.factory import NodeFactory
 from .base import ElementType, NoteType
 from .normativa_cons import Version
-from .utils.print_tree import print_tree
 import re
+import logging
+
+output_logger = logging.getLogger("output_logger")
 
 
 
@@ -125,7 +127,7 @@ class TreeBuilder:
                 if isinstance(element.content, dict):
                     class_name = element.content.get("@class", "unknown")
                     if class_name == NoteType.CITATION:
-                        print(f"Skipping citation note: {element.content}")
+                        output_logger.info(f"Skipping citation note: {element.content}")
                     else :
                         raise Exception(f"Error processing element: {element.content}. Error: {e}")
 

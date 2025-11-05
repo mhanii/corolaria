@@ -11,6 +11,9 @@ from src.documents.tree_builder import TreeBuilder
 from src.documents.base import Ambito, Materia, Departamento, Rango, EstadoConsolidacion, ReferenciaType, BlockType,ElementType
 from .base import Step
 import re
+import logging
+
+output_logger = logging.getLogger("output_logger")
 
 class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
@@ -78,7 +81,7 @@ class DataProcessor(Step):
                         start = int(match.group(1))
                         end = int(match.group(2))
                         article_nums = list(range(start, end + 1))
-                        print(f"  📦 Found compound range: {title} → Articles {start} to {end}")
+                        output_logger.info(f"  📦 Found compound range: {title} → Articles {start} to {end}")
                         
                     elif pattern_type == 'list':
                         # Handle list: "Artículos 638, 639 y 640"
@@ -86,12 +89,12 @@ class DataProcessor(Step):
                         last_num = match.group(2)
                         article_nums = [int(n.strip()) for n in first_nums.split(',')]
                         article_nums.append(int(last_num))
-                        print(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
+                        output_logger.info(f"  📦 Found compound list: {title} → Articles {', '.join(map(str, article_nums))}")
                         
                     elif pattern_type == 'pair':
                         # Handle pair: "Artículos 638 y 639"
                         article_nums = [int(match.group(1)), int(match.group(2))]
-                        print(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
+                        output_logger.info(f"  📦 Found compound pair: {title} → Articles {', '.join(map(str, article_nums))}")
                     
                     # Distribute this compound block's content to individual articles
                     self._distribute_to_articles(block, article_nums, article_index)
@@ -100,7 +103,7 @@ class DataProcessor(Step):
         # Remove compound blocks from the list
         content["bloque"] = [b for b in blocks if b not in compound_blocks]
         
-        print(content)
+        output_logger.info(content)
         return content
 
 
@@ -120,7 +123,7 @@ class DataProcessor(Step):
         
         for article_num in article_nums:
             if article_num not in article_index:
-                print(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
+                output_logger.info(f"  ⚠️  Warning: Article {article_num} not found in existing blocks!")
                 continue
             
             target_block = article_index[article_num]
@@ -138,7 +141,7 @@ class DataProcessor(Step):
                         version_copy["p"] = f"Artículo {article_num}."
                 
                 existing_versions.append(version_copy)
-                print(f"    ✓ Added new version to Article {article_num}")
+                output_logger.info(f"    ✓ Added new version to Article {article_num}")
             
             target_block["version"] = existing_versions
     def process_metadata(self, metadata):
@@ -263,9 +266,9 @@ class DataProcessor(Step):
 
         preprocessed_content = self.preprocessing(content=content)
         processed_content = self.process_content(preprocessed_content)
-        
-        
-        self.content_tree.change_handler.print_summary(verbose=True)
 
         # Further processing can be done here for analysis and blocks
         return NormativaCons(id=processed_metadata.id,metadata=metadata,analysis=processed_analysis,blocks=processed_content)
+
+    def print_summary(self, verbose=True):
+        self.content_tree.change_handler.print_summary(verbose=verbose)
