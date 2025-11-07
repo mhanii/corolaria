@@ -135,8 +135,9 @@ class ArticleElementNode(Node):
     
     def compute_hash(self) -> int:
         """Compute hash based on node type, name, and text content"""
-        text_content = tuple(
-            item.strip() for item in self.content 
+        # Include this node's text plus any string children (stripped) in the hash
+        text_content = (self.text,) + tuple(
+            item.strip() for item in self.content
             if isinstance(item, str)
         )
         return hash((self.node_type, self.name, text_content))

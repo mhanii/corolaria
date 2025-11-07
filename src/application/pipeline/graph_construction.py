@@ -10,6 +10,7 @@ from src.infrastructure.graphdb.adapter import Neo4jAdapter
 from .base import Step
 from dotenv import load_dotenv
 import os
+from src.utils.logger import step_logger
 
 class GraphConstruction(Step):
     def __init__(self, name: str, *args): 
@@ -47,9 +48,14 @@ class GraphConstruction(Step):
 
         # print(normativa)
         if normativa:
-            return self.process_normativa(normativa=normativa,change_events=change_events)
+            try:
+                return self.process_normativa(normativa=normativa,change_events=change_events)
+            except Exception as e:
+                step_logger.warning(f"Error in GraphConstruction step: {e}")
+                return None
         else:
-            raise Exception("Normativa es empty")
+            step_logger.warning("Normativa is empty")
+            return None
 
     def close(self):
         self.connection.close()

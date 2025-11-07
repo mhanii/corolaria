@@ -2,3 +2,7 @@
 output/
 .env
 __pycache__/
+*.log
+profiling_results.txt
+cprofile_stats.txt
+detailed_profiling_results.txt
