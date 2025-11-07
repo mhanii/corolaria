@@ -54,10 +54,10 @@ def run_profiling():
     Applies the profiling wrapper to each step in the pipeline and runs it.
     """
     # Clean up previous results
-    if os.path.exists('detailed_profiling_results.txt'):
-        os.remove('detailed_profiling_results.txt')
-    if os.path.exists('cprofile_stats.txt'):
-        os.remove('cprofile_stats.txt')
+    if os.path.exists('stats/detailed_profiling_results.txt'):
+        os.remove('stats/detailed_profiling_results.txt')
+    if os.path.exists('stats/cprofile_stats.txt'):
+        os.remove('stats/cprofile_stats.txt')
 
     law_id = "BOE-A-1995-25444"  # Example law ID
     pipeline = Doc2Graph(law_id)
@@ -80,7 +80,7 @@ def main():
 
     profiler.disable()
 
-    with open('cprofile_stats.txt', 'w') as f:
+    with open('stats/cprofile_stats.txt', 'w') as f:
         stats = pstats.Stats(profiler, stream=f)
         stats.sort_stats('cumulative')
         stats.print_stats('src')

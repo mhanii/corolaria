@@ -115,6 +115,7 @@ class TreeBuilder:
                         content= [],
                     )
                     self.stack.append(current_node)
+
                     if extra_text:
                         current_node.add_text(extra_text)
                 else:

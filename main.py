@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 import json
 from src.utils.logger import step_logger
 def main():
-    law_id = "BOE-A-1995-25444"  # Example law ID
+    law_id = "BOE-A-1978-31229"  # Example law ID
     pipeline = Doc2Graph(law_id)
     start = perf_counter()
     result = pipeline.run(None)

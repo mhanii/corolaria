@@ -216,7 +216,7 @@ class DataProcessor(Step):
             title = block.get("@titulo", None)
 
             if type in self.prohibited_types:
-                return None
+                continue
             
             versions = [self.process_version(version) for version in block.get("version", [])]
             

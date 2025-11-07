@@ -111,9 +111,9 @@ class ChangeHandler:
     def diff_versions(self, new: ArticleNode, old: ArticleNode):
         output_logger.info(f"\n\n{'^'*32}[ Comparing two nodes ]{'^'*32}\n")
         output_logger.info(f"{'='*40}[ NEW ]{'='*40}")
-        # print_tree(node=new)
+        print_tree(node=new)
         output_logger.info(f"{'='*40}[ OLD ]{'='*40}")
-        # print_tree(node=old)
+        print_tree(node=old)
 
         new.previous_version = old
         old.next_version = new
