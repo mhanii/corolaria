@@ -18,11 +18,15 @@ class Pipeline:
         data = initial_input
         step_logger.info("Pipeline started.")
         for step in self.steps:
-            step_logger.info(f"Step '{step.name}' started.")
-            # Pass the results dict to each step for custom input mapping
-            data = step.process(data)
-            self.results[step.name] = data
-            step_logger.info(f"Step '{step.name}' finished.")
+            try:
+                step_logger.info(f"Step '{step.name}' started.")
+                # Pass the results dict to each step for custom input mapping
+                data = step.process(data)
+                self.results[step.name] = data
+                step_logger.info(f"Step '{step.name}' finished.")
+            except Exception as e:
+                step_logger.error(f"Pipeline failed at step '{step.name}': {str(e)}", exc_info=True)
+                raise e
         step_logger.info("Pipeline finished.")
         return data
 

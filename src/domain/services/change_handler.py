@@ -115,8 +115,7 @@ class ChangeHandler:
         output_logger.info(f"{'='*40}[ OLD ]{'='*40}")
         print_tree(node=old)
 
-        new.previous_version = old
-        old.next_version = new
+
 
         # Deduplicate ArticleElementNodes first
         self._merge_duplicate_elements(new, old)
