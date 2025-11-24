@@ -20,3 +20,7 @@ typing_extensions==4.15.0
 urllib3==2.5.0
 memory-profiler
 psutil
+sentence-transformers
+google-cloud-aiplatform
+qdrant-client
+google-genai

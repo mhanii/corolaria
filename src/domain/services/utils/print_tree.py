@@ -22,6 +22,7 @@ def print_tree(
         for i, item in enumerate(items):
             is_last_item = (i == len(items) - 1)
             
+            
             if isinstance(item, Node):
                 print_tree(
                     item, new_prefix, is_last_item, 
