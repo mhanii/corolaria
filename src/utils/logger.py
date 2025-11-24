@@ -5,11 +5,17 @@ def setup_loggers():
     # Create step_logger
     step_logger = logging.getLogger('step_logger')
     step_logger.setLevel(logging.INFO)
+    
+    # File Handler
     step_handler = logging.FileHandler('output/events.log')
-    step_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    step_formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
     step_handler.setFormatter(step_formatter)
     step_logger.addHandler(step_handler)
 
+    # Console Handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(step_formatter)
+    step_logger.addHandler(console_handler)
 
     current_time = datetime.now()
     # Create output_logger

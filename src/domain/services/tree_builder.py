@@ -163,7 +163,11 @@ class TreeBuilder:
                 node_new.fecha_vigencia = sorted_versions[i].fecha_vigencia
                 node_old.fecha_caducidad = node_new.fecha_vigencia
 
+                node_new.previous_version = node_old
+                node_old.next_version = node_new
+
                 self.change_handler.diff_versions(node_new, node_old)
+
             node_old = node_new
         
 

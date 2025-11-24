@@ -128,6 +128,8 @@ class ArticleNode(Node):
     
     next_version: Optional[Node] = None
     previous_version: Optional[Node] = None
+    
+    embedding: Optional[List[float]] = None
 
 @dataclass
 class ArticleElementNode(Node):
