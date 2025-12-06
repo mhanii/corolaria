@@ -5,6 +5,7 @@ from src.domain.models.normativa import NormativaCons
 from src.domain.models.common.node import Node, NodeType, ArticleNode
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.domain.interfaces.embedding_cache import EmbeddingCache
+from src.domain.services.article_text_builder import ArticleTextBuilder
 from src.utils.logger import step_logger, output_logger
 
 class EmbeddingGenerator(Step):
@@ -12,6 +13,7 @@ class EmbeddingGenerator(Step):
         super().__init__(name)
         self.provider = provider
         self.cache = cache
+        self.text_builder = ArticleTextBuilder()
 
     def process(self, data):
         """
@@ -39,7 +41,8 @@ class EmbeddingGenerator(Step):
         cache_hits = 0
         
         for article in articles:
-            context_text = self._build_context_string(normativa, article)
+            # Use centralized text builder for consistency
+            context_text = self.text_builder.build_context_string(normativa, article)
             output_logger.info(f"\n--- [EmbeddingGenerator] Processing Article {article.id} ---\n{context_text}\n")
             
             # Check cache
@@ -197,3 +200,9 @@ class EmbeddingGenerator(Step):
         full_text = f"{doc_info}\n{context_line}\n{article_line}\n{state_line}\nContenido:\n{content_text}"
         
         return full_text
+
+    # Note: _build_context_string has been moved to ArticleTextBuilder for consistency.
+    # This method is kept temporarily for backwards compatibility but delegates to the builder.
+    def _build_context_string(self, normativa: NormativaCons, article: ArticleNode) -> str:
+        """Deprecated: Use self.text_builder.build_context_string() instead."""
+        return self.text_builder.build_context_string(normativa, article)
