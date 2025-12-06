@@ -53,10 +53,12 @@ class VectorSearchStrategy(RetrievalStrategy):
         # Transform to SearchResult objects
         search_results = []
         for result in raw_results:
+
+            article_text = self.adapter.get_article_rich_text(result.get("article_id", ""))
             search_result = SearchResult(
                 article_id=result.get("article_id", ""),
                 article_number=result.get("article_number", ""),
-                article_text=result.get("article_text", ""),
+                article_text=article_text,
                 normativa_title=result.get("normativa_title", ""),
                 normativa_id=result.get("normativa_id", ""),
                 score=float(result.get("score", 0.0)),
@@ -69,4 +71,5 @@ class VectorSearchStrategy(RetrievalStrategy):
             )
             search_results.append(search_result)
         
+
         return search_results

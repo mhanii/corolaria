@@ -114,6 +114,8 @@ class TreeBuilder:
                         name=name,
                         content= [],
                     )
+                    # Compute and set path during tree construction
+                    current_node.path = self._compute_path(current_node)
                     self.stack.append(current_node)
 
                     if extra_text:
@@ -174,6 +176,41 @@ class TreeBuilder:
 
 
         return self.root
+
+    def _compute_path(self, node: Node) -> str:
+        """
+        Compute a human-readable hierarchy path for a node.
+        
+        Format: "Título I, Capítulo II, Sección 1.ª"
+        Only includes structural ancestors, not ROOT or the node itself if it's an article.
+        
+        Args:
+            node: The node to compute path for
+            
+        Returns:
+            Formatted path string
+        """
+        from src.domain.models.common.node import NodeType
+        
+        # Get hierarchy path from node
+        hierarchy = node.get_hierarchy_path()
+        
+        # Filter out ROOT and article-level types
+        excluded_types = {NodeType.ROOT, NodeType.ARTICULO, NodeType.ARTICULO_UNICO, 
+                         NodeType.PARRAFO, NodeType.APARTADO_NUMERICO, NodeType.APARTADO_ALFA,
+                         NodeType.ORDINAL_ALFA, NodeType.ORDINAL_NUMERICO}
+        context_nodes = [n for n in hierarchy if n.node_type not in excluded_types]
+        
+        if not context_nodes:
+            return ""
+        
+        # Format each structural element
+        formatted = []
+        for n in context_nodes:
+            type_name = n.node_type.value.capitalize()
+            formatted.append(f"{type_name} {n.name}")
+        
+        return ", ".join(formatted)
 
     
 

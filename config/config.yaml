@@ -1,0 +1,29 @@
+# Coloraria Configuration
+# All parameters externalized for easy tuning
+
+llm:
+  provider: "gemini"  # gemini | openai | anthropic
+  model: "gemini-2.5-flash"  # or gemini-2.5-pro for more capability
+  temperature: 1
+  max_tokens: 10240
+
+retrieval:
+  top_k: 10
+  strategy: "vector"
+  index_name: "article_embeddings"
+  min_score: 0.0  # No minimum score filter by default
+
+citations:
+  format: "[{index}]"
+  include_in_response: true
+  max_citations: 20
+
+conversation:
+  max_history_messages: 10  # Keep last N messages for context
+  max_context_tokens: 40000  # Approximate token limit for context
+
+version_context:
+  # How many next versions to include recursively (0 = none, -1 = all)
+  next_version_depth: -1  # Get all subsequent versions
+  # How many previous versions to include (0 = none)
+  previous_version_depth: 1  # Get only immediate previous version

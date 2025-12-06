@@ -1,0 +1,220 @@
+"""
+FastAPI dependencies for dependency injection.
+Manages Neo4j connections, embedding providers, LLM providers, and chat services.
+"""
+import os
+from typing import Generator, Optional
+from functools import lru_cache
+
+from dotenv import load_dotenv
+from src.infrastructure.graphdb.connection import Neo4jConnection
+from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.ai.embeddings.factory import EmbeddingFactory
+from src.domain.interfaces.embedding_provider import EmbeddingProvider
+from src.domain.value_objects.embedding_config import EmbeddingConfig
+
+# Load environment variables
+load_dotenv()
+
+
+class AppConfig:
+    """Application configuration from environment variables."""
+    
+    def __init__(self):
+        self.neo4j_uri = os.getenv("NEO4J_URI")
+        self.neo4j_user = os.getenv("NEO4J_USER")
+        self.neo4j_password = os.getenv("NEO4J_PASSWORD")
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        
+        # Embedding configuration
+        self.embedding_model = "models/gemini-embedding-001"
+        self.embedding_dimensions = 768
+        self.embedding_task_type = "RETRIEVAL_QUERY"  # For queries, not documents
+        
+        # LLM configuration (from env or defaults)
+        self.llm_provider = os.getenv("LLM_PROVIDER", "gemini")
+        self.llm_model = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+        self.llm_temperature = float(os.getenv("LLM_TEMPERATURE", "0.3"))
+        self.llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+        
+        # Retrieval configuration
+        self.retrieval_top_k = int(os.getenv("RETRIEVAL_TOP_K", "5"))
+        self.retrieval_index_name = os.getenv("RETRIEVAL_INDEX_NAME", "article_embeddings")
+        
+        # Conversation configuration
+        self.max_history_messages = int(os.getenv("MAX_HISTORY_MESSAGES", "10"))
+        self.conversation_ttl_hours = int(os.getenv("CONVERSATION_TTL_HOURS", "24"))
+        
+        # Validate required config
+        if not all([self.neo4j_uri, self.neo4j_user, self.neo4j_password]):
+            raise ValueError("Missing required Neo4j configuration in environment variables")
+        
+        if not self.google_api_key:
+            raise ValueError("Missing GOOGLE_API_KEY in environment variables")
+
+
+@lru_cache()
+def get_config() -> AppConfig:
+    """
+    Get application configuration (cached singleton).
+    
+    Returns:
+        AppConfig instance
+    """
+    return AppConfig()
+
+
+def get_neo4j_connection() -> Generator[Neo4jConnection, None, None]:
+    """
+    Dependency that provides Neo4j connection.
+    Creates a new connection for each request and closes it when done.
+    
+    Yields:
+        Neo4jConnection instance
+    """
+    config = get_config()
+    connection = Neo4jConnection(
+        uri=config.neo4j_uri,
+        user=config.neo4j_user,
+        password=config.neo4j_password
+    )
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+def get_neo4j_adapter(
+    connection: Neo4jConnection = None
+) -> Neo4jAdapter:
+    """
+    Dependency that provides Neo4j adapter.
+    
+    Args:
+        connection: Neo4j connection (injected by FastAPI)
+    
+    Returns:
+        Neo4jAdapter instance
+    """
+    if connection is None:
+        # Fallback for manual usage
+        config = get_config()
+        connection = Neo4jConnection(
+            uri=config.neo4j_uri,
+            user=config.neo4j_user,
+            password=config.neo4j_password
+        )
+    
+    return Neo4jAdapter(connection)
+
+
+@lru_cache()
+def get_embedding_provider() -> EmbeddingProvider:
+    """
+    Dependency that provides embedding provider (cached singleton).
+    Uses Gemini embeddings optimized for query retrieval.
+    
+    Returns:
+        EmbeddingProvider instance
+    """
+    config = get_config()
+    
+    embedding_provider = EmbeddingFactory.create(
+        provider="gemini",
+        model=config.embedding_model,
+        dimensions=config.embedding_dimensions,
+        task_type=config.embedding_task_type
+    )
+    
+    return embedding_provider
+
+
+# ========== Chat-related Dependencies ==========
+
+# Lazy imports for chat components
+_llm_provider = None
+_conversation_service = None
+
+
+def get_llm_provider():
+    """
+    Dependency that provides LLM provider (cached singleton).
+    Uses Gemini by default, configurable via LLM_PROVIDER env var.
+    
+    Returns:
+        LLMProvider instance
+    """
+    global _llm_provider
+    
+    if _llm_provider is None:
+        from src.ai.llm.factory import LLMFactory
+        config = get_config()
+        
+        _llm_provider = LLMFactory.create(
+            provider=config.llm_provider,
+            model=config.llm_model,
+            temperature=config.llm_temperature,
+            max_tokens=config.llm_max_tokens
+        )
+    
+    return _llm_provider
+
+
+def get_conversation_service():
+    """
+    Dependency that provides conversation service (cached singleton).
+    
+    Returns:
+        ConversationService instance
+    """
+    global _conversation_service
+    
+    if _conversation_service is None:
+        from src.domain.services.conversation_service import ConversationService
+        config = get_config()
+        
+        _conversation_service = ConversationService(
+            max_history_messages=config.max_history_messages,
+            conversation_ttl_hours=config.conversation_ttl_hours
+        )
+    
+    return _conversation_service
+
+
+from fastapi import Depends
+
+# ... (rest of imports)
+
+# ... (previous code)
+
+def get_chat_service(
+    connection: Neo4jConnection = Depends(get_neo4j_connection)
+):
+    """
+    Dependency that provides chat service.
+    Creates a new instance per request with shared singletons.
+    
+    Args:
+        connection: Neo4j connection (injected by FastAPI)
+    
+    Returns:
+        ChatService instance
+    """
+    from src.domain.services.chat_service import ChatService
+    from src.ai.citations.citation_engine import CitationEngine
+    from src.ai.prompts.prompt_builder import PromptBuilder
+    
+    config = get_config()
+    adapter = Neo4jAdapter(connection)
+    
+    return ChatService(
+        llm_provider=get_llm_provider(),
+        neo4j_adapter=adapter,
+        embedding_provider=get_embedding_provider(),
+        conversation_service=get_conversation_service(),
+        citation_engine=CitationEngine(),
+        prompt_builder=PromptBuilder(),
+        retrieval_top_k=config.retrieval_top_k,
+        index_name=config.retrieval_index_name
+    )
+

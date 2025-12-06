@@ -43,10 +43,10 @@ class SearchResult:
         if not self.article_text:
             return ""
         
-        if len(self.article_text) <= max_length:
-            return self.article_text
+
+        return self.article_text
         
-        return self.article_text[:max_length] + "..."
+        # return self.article_text[:max_length] + "..."
     
     def __str__(self) -> str:
         """String representation for debugging."""

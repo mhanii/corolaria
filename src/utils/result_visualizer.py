@@ -55,28 +55,29 @@ class ResultVisualizer:
         for idx, result in enumerate(results, 1):
             # Result header
             score_color = ResultVisualizer._get_score_color(result.score)
-            print(f"{c['BOLD']}[{idx}] {c['BLUE']}Article {result.article_number}{c['ENDC']} "
+            print(f"{c['BOLD']}[{idx}]"
                   f"| Score: {score_color}{result.score:.4f}{c['ENDC']}")
             
+            print(f"{c['BLUE']}Article {result.article_number}{c['ENDC']}") 
+            
             # Normativa
-            print(f"    {c['CYAN']}Normativa:{c['ENDC']} {result.normativa_title}")
-            print(f"    {c['CYAN']}ID:{c['ENDC']} {result.normativa_id}")
+            print(f"{c['CYAN']}Normativa:{c['ENDC']} {result.normativa_title}")
+            print(f"{c['CYAN']}ID:{c['ENDC']} {result.normativa_id}")
             
             # Context path
             context = result.get_context_path_string()
-            print(f"    {c['CYAN']}Context:{c['ENDC']} {context}")
+            print(f"{c['CYAN']}Context:{c['ENDC']} {context}")
             
             # Article preview
             preview = result.get_preview(max_preview)
-            if preview:
-                print(f"    {c['CYAN']}Text:{c['ENDC']}")
-                # Indent the preview
-                for line in preview.split('\n'):
-                    print(f"        {line}")
+            print(f"{c['CYAN']}Text:{c['ENDC']}")
+            # Indent the preview
+            for line in preview.split('\n'):
+                print(f"        {line}")
             
             # Metadata (optional)
-            if show_metadata and result.metadata:
-                print(f"    {c['YELLOW']}Metadata:{c['ENDC']} {result.metadata}")
+            if result.metadata:
+                print(f"{c['YELLOW']}Metadata:{c['ENDC']} {result.metadata}")
             
             print()  # Blank line between results
         

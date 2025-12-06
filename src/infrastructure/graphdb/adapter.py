@@ -65,40 +65,96 @@ class Neo4jAdapter:
         }}}}
         """
         self.conn.execute_write(query, {})
+
+    # ========== Batch Operations ==========
+    
+    def batch_merge_nodes(self, nodes_data: list) -> None:
+        """
+        Create/merge multiple nodes using APOC for optimal performance.
+        Supports dynamic labels via apoc.merge.node.
+        
+        Args:
+            nodes_data: List of dicts with 'labels' (list of str) and 'props' (dict)
+                       Example: [{"labels": ["articulo"], "props": {"id": 1, "name": "Art 1", ...}}]
+        """
+        if not nodes_data:
+            return
+        
+        # APOC merge.node: dynamic labels, merge on id, set all properties
+        query = """
+        UNWIND $batch AS row
+        CALL apoc.merge.node(row.labels, {id: row.props.id}, row.props) YIELD node
+        RETURN count(node) as count
+        """
+        self.conn.execute_batch(query, nodes_data)
+    
+    def batch_merge_relationships(self, relationships_data: list) -> None:
+        """
+        Create/merge multiple relationships using APOC for optimal performance.
+        Supports dynamic relationship types via apoc.merge.relationship.
+        
+        Args:
+            relationships_data: List of dicts with 'from_id', 'to_id', 'rel_type', 'props' (optional)
+        """
+        if not relationships_data:
+            return
+        
+        # APOC merge.relationship: dynamic rel type with merge semantics
+        query = """
+        UNWIND $batch AS row
+        MATCH (a {id: row.from_id})
+        MATCH (b {id: row.to_id})
+        CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
+        RETURN count(rel) as count
+        """
+        self.conn.execute_batch(query, relationships_data)
+
     
     # ========== Retrieval Methods ==========
     
     def vector_search(self, query_embedding: List[float], top_k: int = 10, 
-                     label: str = "Article", index_name: str = "article_embeddings") -> List[Dict[str, Any]]:
+                     label: str = "articulo", index_name: str = "article_embeddings") -> List[Dict[str, Any]]:
         """
         Perform vector similarity search using Neo4j's vector index.
         
         Args:
             query_embedding: The embedding vector to search for
             top_k: Number of results to return
-            label: Node label to search (default: Article)
+            label: Node label to search (default: articulo)
             index_name: Name of the vector index to use
             
         Returns:
-            List of dicts containing article data and similarity scores
+            List of dicts containing article data, similarity scores, dates, and version IDs.
+            Article text is pre-computed (stored as full_text), no N+1 queries needed.
         """
         query = f"""
-        CALL db.index.vector.queryNodes($index_name, $top_k, $query_vector)
-        YIELD node, score
-        MATCH (node)-[:PART_OF*]->(parent)
-        WITH node, score, collect(parent) as hierarchy
-        MATCH (node)<-[:HAS_CONTENT|PART_OF*]-(normativa:Normativa)
-        RETURN 
-            node.id as article_id,
-            node.name as article_number,
-            node.text as article_text,
-            node.embedding as embedding,
-            score,
-            normativa.titulo as normativa_title,
-            normativa.id as normativa_id,
-            [h in hierarchy | {{type: labels(h)[0], name: h.name}}] as context_path
-        ORDER BY score DESC
-        """
+            CALL db.index.vector.queryNodes($index_name, $top_k, $query_vector)
+            YIELD node, score
+            MATCH (node)-[:PART_OF*]->(parent)
+            WITH node, score, collect(parent) as hierarchy
+            MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+            
+            // Check for version relationships
+            OPTIONAL MATCH (node)<-[:NEXT_VERSION]-(prev_version)
+            OPTIONAL MATCH (node)-[:NEXT_VERSION]->(next_version)
+            
+            RETURN 
+                node.id as article_id,
+                node.name as article_number,
+                node.full_text as article_text,
+                node.path as article_path,
+                node.embedding as embedding,
+                node.fecha_vigencia as fecha_vigencia,
+                node.fecha_caducidad as fecha_caducidad,
+                normativa.fecha_publicacion as fecha_publicacion,
+                prev_version.id as previous_version_id,
+                next_version.id as next_version_id,
+                score,
+                normativa.titulo as normativa_title,
+                normativa.id as normativa_id,
+                [h in hierarchy | {{type: labels(h)[0], name: h.name}}] as context_path
+            ORDER BY score DESC
+            """
         
         # Neo4j's execute_query doesn't support YIELD well, need to use driver session
         with self.conn._driver.session() as session:
@@ -110,7 +166,7 @@ class Neo4jAdapter:
             return [dict(record) for record in result]
     
     def keyword_search(self, keywords: str, top_k: int = 10, 
-                      label: str = "Article") -> List[Dict[str, Any]]:
+                      label: str = "articulo") -> List[Dict[str, Any]]:
         """
         Perform keyword search on article text and name.
         Uses case-insensitive pattern matching.
@@ -121,19 +177,20 @@ class Neo4jAdapter:
             label: Node label to search
             
         Returns:
-            List of dicts containing matching articles
+            List of dicts containing matching articles with pre-computed full_text
         """
         query = f"""
         MATCH (node:{label})
-        WHERE toLower(node.text) CONTAINS toLower($keywords) 
+        WHERE toLower(node.full_text) CONTAINS toLower($keywords) 
            OR toLower(node.name) CONTAINS toLower($keywords)
         MATCH (node)-[:PART_OF*]->(parent)
         WITH node, collect(parent) as hierarchy
-        MATCH (node)<-[:HAS_CONTENT|PART_OF*]-(normativa:Normativa)
+        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
         RETURN 
             node.id as article_id,
             node.name as article_number,
-            node.text as article_text,
+            node.full_text as article_text,
+            node.path as article_path,
             node.embedding as embedding,
             normativa.titulo as normativa_title,
             normativa.id as normativa_id,
@@ -145,7 +202,7 @@ class Neo4jAdapter:
             result = session.run(query, {"keywords": keywords, "top_k": top_k})
             return [dict(record) for record in result]
     
-    def get_article_with_context(self, article_id: str, context_window: int = 2) -> Dict[str, Any]:
+    def get_article_with_context(self, article_id: int, context_window: int = 2) -> Optional[Dict[str, Any]]:
         """
         Get an article along with surrounding articles (context windowing).
         Fetches N articles before and after the target article.
@@ -158,13 +215,13 @@ class Neo4jAdapter:
             Dict with target article and context articles
         """
         query = """
-        MATCH (target:Article {id: $article_id})
+        MATCH (target:articulo {id: $article_id})
         MATCH (target)-[:PART_OF*]->(parent)
         WITH target, collect(parent) as hierarchy
-        MATCH (target)<-[:HAS_CONTENT|PART_OF*]-(normativa:Normativa)
+        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
         
         // Get articles in the same parent structure
-        MATCH (sibling:Article)-[:PART_OF]->(commonParent)
+        MATCH (sibling:articulo)-[:PART_OF]->(commonParent)
         WHERE (target)-[:PART_OF]->(commonParent)
         
         WITH target, normativa, hierarchy, collect(DISTINCT sibling) as siblings
@@ -186,7 +243,7 @@ class Neo4jAdapter:
             return dict(record) if record else None
     
     def get_articles_by_structure(self, structure_id: str, 
-                                 structure_type: str = "Título") -> List[Dict[str, Any]]:
+                                 structure_type: str = "Título") -> List[Dict[str, Any]]: # might need updating
         """
         Get all articles within a specific structural element (Title, Chapter, Book).
         
@@ -199,8 +256,8 @@ class Neo4jAdapter:
         """
         query = f"""
         MATCH (structure:{structure_type} {{id: $structure_id}})
-        MATCH (article:Article)-[:PART_OF*]->(structure)
-        MATCH (article)<-[:HAS_CONTENT|PART_OF*]-(normativa:Normativa)
+        MATCH (article:articulo)-[:PART_OF*]->(structure)
+        MATCH (article)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
         MATCH (article)-[:PART_OF*]->(parent)
         WITH article, normativa, collect(parent) as hierarchy
         RETURN 
@@ -218,7 +275,7 @@ class Neo4jAdapter:
             result = session.run(query, {"structure_id": structure_id})
             return [dict(record) for record in result]
     
-    def get_article_versions(self, article_id: str) -> List[Dict[str, Any]]:
+    def get_article_versions(self, article_id: int) -> List[Dict[str, Any]]:
         """
         Get all versions of an article (historical versions via NEXT_VERSION relationships).
         
@@ -229,7 +286,7 @@ class Neo4jAdapter:
             List of all versions ordered chronologically
         """
         query = """
-        MATCH (article:Article {id: $article_id})
+        MATCH (article:articulo {id: $article_id})
         
         // Get all previous versions
         OPTIONAL MATCH path1 = (article)-[:PREVIOUS_VERSION*]->(older)
@@ -243,7 +300,7 @@ class Neo4jAdapter:
         WITH previous_versions + [article] + next_versions as all_versions
         UNWIND all_versions as version
         
-        MATCH (version)<-[:HAS_CONTENT|PART_OF*]-(normativa:Normativa)
+        MATCH (version)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
         MATCH (version)-[:PART_OF*]->(parent)
         WITH version, normativa, collect(parent) as hierarchy
         
@@ -263,7 +320,7 @@ class Neo4jAdapter:
             result = session.run(query, {"article_id": article_id})
             return [dict(record) for record in result]
     
-    def get_articles_by_subject(self, materia_id: str) -> List[Dict[str, Any]]:
+    def get_articles_by_subject(self, materia_id: str) -> List[Dict[str, Any]]: # might need updaing
         """
         Get all articles related to a specific subject matter (Materia).
         
@@ -277,7 +334,7 @@ class Neo4jAdapter:
         MATCH (materia:Materia {id: $materia_id})
         MATCH (normativa:Normativa)-[:ABOUT]->(materia)
         MATCH (normativa)-[:HAS_CONTENT]->(content)
-        MATCH (article:Article)-[:PART_OF*]->(content)
+        MATCH (article:articulo)-[:PART_OF*]->(content)
         MATCH (article)-[:PART_OF*]->(parent)
         WITH article, normativa, collect(parent) as hierarchy
         RETURN 
@@ -294,3 +351,167 @@ class Neo4jAdapter:
         with self.conn._driver.session() as session:
             result = session.run(query, {"materia_id": materia_id})
             return [dict(record) for record in result]
+
+
+    def get_article_rich_text(self, article_id: int) -> Optional[str]:
+        """
+        Get article text with proper formatting and indentation based on nesting depth.
+        
+        Args:
+            article_id: ID of the article node
+            
+        Returns:
+            Formatted article text with indentation for nested elements
+        """
+        query = """
+        MATCH (parent:articulo {id: $article_id})
+        MATCH path = (child)-[:PART_OF*]->(parent)
+        WITH child, length(path) as depth
+        RETURN 
+            child.id AS node_id,
+            child.name AS node_name,
+            child.text AS node_text,
+            labels(child) AS node_labels,
+            depth
+        ORDER BY child.id
+        """
+
+        text = ""
+        INDENT = "  "  # Two spaces per indentation level
+
+        with self.conn._driver.session() as session:
+            result = session.run(query, {"article_id": article_id})
+            for node in result:
+                node_labels = node["node_labels"]
+                node_name = node["node_name"]
+                node_text = node["node_text"]
+                depth = node["depth"]
+                
+                # Calculate indentation (depth 1 = no indent, depth 2+ = indent)
+                indent = INDENT * (depth - 1) if depth > 1 else ""
+                
+                if node_labels == ["parrafo"]:
+                    text += indent + node_text + "\n"
+                elif node_labels == ["apartado_numerico"]:
+                    text += indent + node_name + ". " + node_text + "\n"
+                elif node_labels == ["apartado_alfa"]:
+                    text += indent + node_name + ") " + node_text + "\n"
+                elif node_labels == ["ordinal_alfa"]:
+                    text += indent + node_name + node_text + "\n"
+                elif node_labels == ["ordinal_numerico"]:
+                    text += indent + node_name + node_text + "\n"
+
+            return text.strip() if text else None
+
+    def get_article_by_id(self, node_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a single article by its node ID with full metadata.
+        
+        Args:
+            node_id: ID of the article node
+            
+        Returns:
+            Dict with article data, dates, and version links
+        """
+        query = """
+        MATCH (node:articulo {id: $node_id})
+        MATCH (node)-[:PART_OF*]->(parent)
+        WITH node, collect(parent) as hierarchy
+        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        
+        // Check for version relationships
+        OPTIONAL MATCH (node)<-[:NEXT_VERSION]-(prev_version)
+        OPTIONAL MATCH (node)-[:NEXT_VERSION]->(next_version)
+        
+        RETURN 
+            node.id as node_id,
+            node.name as article_number,
+            node.full_text as article_text,
+            node.path as article_path,
+            node.fecha_vigencia as fecha_vigencia,
+            node.fecha_caducidad as fecha_caducidad,
+            normativa.fecha_publicacion as fecha_publicacion,
+            prev_version.id as previous_version_id,
+            next_version.id as next_version_id,
+            normativa.titulo as normativa_title,
+            normativa.id as normativa_id,
+            [h in hierarchy | {type: labels(h)[0], name: h.name}] as context_path
+        """
+        
+        with self.conn._driver.session() as session:
+            result = session.run(query, {"node_id": node_id})
+            record = result.single()
+            return dict(record) if record else None
+
+    def get_version_text(self, node_id: int) -> Optional[str]:
+        """
+        Get the full text of an article by node ID.
+        Used for fetching version context in RAG.
+        
+        Args:
+            node_id: ID of the article node
+            
+        Returns:
+            The article's full_text or None if not found
+        """
+        query = """
+        MATCH (node:articulo {id: $node_id})
+        RETURN node.full_text as text
+        """
+        
+        with self.conn._driver.session() as session:
+            result = session.run(query, {"node_id": node_id})
+            record = result.single()
+            return record["text"] if record else None
+
+    def get_all_next_versions(self, node_id: int) -> List[Dict[str, Any]]:
+        """
+        Recursively get all subsequent versions of an article.
+        
+        Args:
+            node_id: ID of the starting article node
+            
+        Returns:
+            List of version data ordered chronologically (oldest first)
+        """
+        query = """
+        MATCH (start:articulo {id: $node_id})
+        MATCH path = (start)-[:NEXT_VERSION*]->(version)
+        RETURN 
+            version.id as node_id,
+            version.name as article_number,
+            version.full_text as article_text,
+            version.fecha_vigencia as fecha_vigencia,
+            version.fecha_caducidad as fecha_caducidad
+        ORDER BY version.fecha_vigencia
+        """
+        
+        with self.conn._driver.session() as session:
+            result = session.run(query, {"node_id": node_id})
+            return [dict(record) for record in result]
+
+    def get_previous_version(self, node_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get the immediate previous version of an article.
+        
+        Args:
+            node_id: ID of the article node
+            
+        Returns:
+            Previous version data or None if not found
+        """
+        query = """
+        MATCH (node:articulo {id: $node_id})
+        MATCH (node)<-[:NEXT_VERSION]-(prev)
+        RETURN 
+            prev.id as node_id,
+            prev.name as article_number,
+            prev.full_text as article_text,
+            prev.fecha_vigencia as fecha_vigencia,
+            prev.fecha_caducidad as fecha_caducidad
+        """
+        
+        with self.conn._driver.session() as session:
+            result = session.run(query, {"node_id": node_id})
+            record = result.single()
+            return dict(record) if record else None
