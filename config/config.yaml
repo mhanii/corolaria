@@ -5,7 +5,7 @@ llm:
   provider: "gemini"  # gemini | openai | anthropic
   model: "gemini-2.5-flash"  # or gemini-2.5-pro for more capability
   temperature: 1
-  max_tokens: 10240
+  max_tokens: 10240000
 
 retrieval:
   top_k: 10
@@ -27,3 +27,13 @@ version_context:
   next_version_depth: -1  # Get all subsequent versions
   # How many previous versions to include (0 = none)
   previous_version_depth: 1  # Get only immediate previous version
+
+# Observability Configuration
+observability:
+  phoenix_enabled: true  # Enable Arize Phoenix tracing
+  phoenix_endpoint: "http://localhost:6006"  # Phoenix base endpoint (OTLP traces sent to /v1/traces)
+  project_name: "coloraria-rag"  # Project name in Phoenix UI
+
+# Workflow Configuration
+workflow:
+  use_langgraph: true  # Use LangGraph for chat workflow orchestration

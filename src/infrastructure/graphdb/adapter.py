@@ -127,14 +127,19 @@ class Neo4jAdapter:
             List of dicts containing article data, similarity scores, dates, and version IDs.
             Article text is pre-computed (stored as full_text), no N+1 queries needed.
         """
+        # Optimized single-query approach:
+        # - Uses pre-computed node.path instead of dynamic hierarchy traversal
+        # - Uses WITH DISTINCT to avoid row explosion from multiple paths
+        # - Collects normativa info to handle multiple matches gracefully
         query = f"""
             CALL db.index.vector.queryNodes($index_name, $top_k, $query_vector)
             YIELD node, score
-            MATCH (node)-[:PART_OF*]->(parent)
-            WITH node, score, collect(parent) as hierarchy
-            MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
             
-            // Check for version relationships
+            // Use bounded traversal to find normativa, collect to avoid row explosion
+            OPTIONAL MATCH (node)-[:PART_OF*1..10]->(normativa:Normativa)
+            WITH DISTINCT node, score, head(collect(normativa)) as normativa
+            
+            // Version relationships (direct, efficient)
             OPTIONAL MATCH (node)<-[:NEXT_VERSION]-(prev_version)
             OPTIONAL MATCH (node)-[:NEXT_VERSION]->(next_version)
             
@@ -143,7 +148,6 @@ class Neo4jAdapter:
                 node.name as article_number,
                 node.full_text as article_text,
                 node.path as article_path,
-                node.embedding as embedding,
                 node.fecha_vigencia as fecha_vigencia,
                 node.fecha_caducidad as fecha_caducidad,
                 normativa.fecha_publicacion as fecha_publicacion,
@@ -151,19 +155,21 @@ class Neo4jAdapter:
                 next_version.id as next_version_id,
                 score,
                 normativa.titulo as normativa_title,
-                normativa.id as normativa_id,
-                [h in hierarchy | {{type: labels(h)[0], name: h.name}}] as context_path
+                normativa.id as normativa_id
             ORDER BY score DESC
-            """
+        """
         
-        # Neo4j's execute_query doesn't support YIELD well, need to use driver session
+        results = []
         with self.conn._driver.session() as session:
             result = session.run(query, {
                 "index_name": index_name,
                 "top_k": top_k,
                 "query_vector": query_embedding
             })
-            return [dict(record) for record in result]
+            for record in result:
+                results.append(dict(record))
+                    
+        return results
     
     def keyword_search(self, keywords: str, top_k: int = 10, 
                       label: str = "articulo") -> List[Dict[str, Any]]:
@@ -185,7 +191,7 @@ class Neo4jAdapter:
            OR toLower(node.name) CONTAINS toLower($keywords)
         MATCH (node)-[:PART_OF*]->(parent)
         WITH node, collect(parent) as hierarchy
-        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        MATCH (node)-[:PART_OF*]->(normativa:Normativa)
         RETURN 
             node.id as article_id,
             node.name as article_number,
@@ -218,7 +224,7 @@ class Neo4jAdapter:
         MATCH (target:articulo {id: $article_id})
         MATCH (target)-[:PART_OF*]->(parent)
         WITH target, collect(parent) as hierarchy
-        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        MATCH (node)-[:PART_OF*]->(normativa:Normativa)
         
         // Get articles in the same parent structure
         MATCH (sibling:articulo)-[:PART_OF]->(commonParent)
@@ -257,7 +263,7 @@ class Neo4jAdapter:
         query = f"""
         MATCH (structure:{structure_type} {{id: $structure_id}})
         MATCH (article:articulo)-[:PART_OF*]->(structure)
-        MATCH (article)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        MATCH (article)-[:PART_OF*]->(normativa:Normativa)
         MATCH (article)-[:PART_OF*]->(parent)
         WITH article, normativa, collect(parent) as hierarchy
         RETURN 
@@ -300,7 +306,7 @@ class Neo4jAdapter:
         WITH previous_versions + [article] + next_versions as all_versions
         UNWIND all_versions as version
         
-        MATCH (version)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        MATCH (version)-[:PART_OF*]->(normativa:Normativa)
         MATCH (version)-[:PART_OF*]->(parent)
         WITH version, normativa, collect(parent) as hierarchy
         
@@ -333,8 +339,10 @@ class Neo4jAdapter:
         query = """
         MATCH (materia:Materia {id: $materia_id})
         MATCH (normativa:Normativa)-[:ABOUT]->(materia)
-        MATCH (normativa)-[:HAS_CONTENT]->(content)
-        MATCH (article:articulo)-[:PART_OF*]->(content)
+        // Traversing down from Normativa is tricky without HAS_CONTENT root, so utilize PART_OF upwards from articles?
+        // But we want ALL articles for a subject (normativa).
+        // Since Normativa is now the root of hierarchy:
+        MATCH (article:articulo)-[:PART_OF*]->(normativa)
         MATCH (article)-[:PART_OF*]->(parent)
         WITH article, normativa, collect(parent) as hierarchy
         RETURN 
@@ -417,7 +425,7 @@ class Neo4jAdapter:
         MATCH (node:articulo {id: $node_id})
         MATCH (node)-[:PART_OF*]->(parent)
         WITH node, collect(parent) as hierarchy
-        MATCH (node)-[:PART_OF*]->(r:root)<-[:HAS_CONTENT]-(normativa:Normativa)
+        MATCH (node)-[:PART_OF*]->(normativa:Normativa)
         
         // Check for version relationships
         OPTIONAL MATCH (node)<-[:NEXT_VERSION]-(prev_version)

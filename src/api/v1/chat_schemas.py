@@ -1,8 +1,15 @@
 """
 Pydantic schemas for Chat API v1 request and response models.
 """
+from enum import Enum
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+
+
+class CollectorType(str, Enum):
+    """Available context collector types for RAG retrieval."""
+    RAG = "rag"
+    QRAG = "qrag"
 
 
 class ChatRequest(BaseModel):
@@ -24,13 +31,18 @@ class ChatRequest(BaseModel):
         le=20,
         description="Number of sources to retrieve (1-20)"
     )
+    collector_type: Optional[CollectorType] = Field(
+        default=None,
+        description="Context collector type: 'rag' (default) or 'qrag' (query-optimized). Only applies to first message."
+    )
     
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "¿Qué establece la Constitución sobre la igualdad?",
                 "conversation_id": None,
-                "top_k": 5
+                "top_k": 5,
+                "collector_type": None
             }
         }
 

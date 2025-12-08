@@ -36,7 +36,7 @@ class LLMProvider(ABC):
     Supports both synchronous and streaming generation.
     """
     
-    def __init__(self, model: str, temperature: float = 0.3, max_tokens: int = 1024):
+    def __init__(self, model: str, temperature: float = 0.3, max_tokens: int = 8192):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens

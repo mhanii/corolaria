@@ -57,13 +57,8 @@ class NormativaRepository:
         if rango_node:
             self.adapter.merge_relationship(from_id=doc_id, to_id=rango_node["id"], rel_type="HAS_RANK")
 
-        content_tree_root = self.save_content_tree(normativa.content_tree, normativa_id=doc_id)
-        if content_tree_root:
-            self.adapter.merge_relationship(
-                from_id=doc_id,
-                to_id=content_tree_root["id"],
-                rel_type="HAS_CONTENT"
-            )
+        self.save_content_tree(normativa.content_tree, normativa_id=doc_id)
+        # Root node is no longer persisted, children link directly to doc_id via PART_OF
 
         return doc_id
     
@@ -96,32 +91,33 @@ class NormativaRepository:
             return
         
         # Build node properties
-        props = {
-            "id": node.id,
-            "name": node.name,
-            "text": node.text
-        }
-        
-        # Add ArticleNode-specific metadata
-        if isinstance(node, ArticleNode):
-            if node.embedding:
-                props["embedding"] = node.embedding
-            if node.introduced_by:
-                props["introduced_by"] = node.introduced_by
-            if node.fecha_vigencia:
-                props["fecha_vigencia"] = node.fecha_vigencia
-            if node.fecha_caducidad:
-                props["fecha_caducidad"] = node.fecha_caducidad
-            # Pre-compute full text for efficient retrieval (no N+1 queries)
-            props["full_text"] = self.text_builder.build_full_text(node)
-            # Store hierarchy path for context display
-            props["path"] = node.path or self.text_builder.build_hierarchy_path(node)
-        
-        # Add to nodes batch
-        nodes_data.append({
-            "labels": [node.node_type],
-            "props": props
-        })
+        if node.node_type != NodeType.ROOT:
+            props = {
+                "id": node.id,
+                "name": node.name,
+                "text": node.text
+            }
+            
+            # Add ArticleNode-specific metadata
+            if isinstance(node, ArticleNode):
+                if node.embedding:
+                    props["embedding"] = node.embedding
+                if node.introduced_by:
+                    props["introduced_by"] = node.introduced_by
+                if node.fecha_vigencia:
+                    props["fecha_vigencia"] = node.fecha_vigencia
+                if node.fecha_caducidad:
+                    props["fecha_caducidad"] = node.fecha_caducidad
+                # Pre-compute full text for efficient retrieval (no N+1 queries)
+                props["full_text"] = self.text_builder.build_full_text(node)
+                # Store hierarchy path for context display
+                props["path"] = node.path or self.text_builder.build_hierarchy_path(node)
+            
+            # Add to nodes batch
+            nodes_data.append({
+                "labels": [node.node_type],
+                "props": props
+            })
         
         # Process children
         for item in node.content:
@@ -131,13 +127,24 @@ class NormativaRepository:
             child = item
             self._collect_tree_data(child, nodes_data, relationships_data, normativa_id)
             
-            # PART_OF relationship
-            relationships_data.append({
-                "from_id": child.id,
-                "to_id": node.id,
-                "rel_type": "PART_OF",
-                "props": {}
-            })
+            # Database Relationship Logic
+            if node.node_type == NodeType.ROOT:
+                # Top-level nodes (children of ROOT) link directly to Normativa
+                if normativa_id:
+                    relationships_data.append({
+                        "from_id": child.id,
+                        "to_id": normativa_id,
+                        "rel_type": "PART_OF",
+                        "props": {}
+                    })
+            else:
+                # Variable hierarchy levels link to their parent
+                relationships_data.append({
+                    "from_id": child.id,
+                    "to_id": node.id,
+                    "rel_type": "PART_OF",
+                    "props": {}
+                })
         
         # Add ArticleNode version relationships
         if isinstance(node, ArticleNode):
