@@ -1,17 +1,35 @@
-from time import perf_counter
-from src.application.pipeline.doc2graph import Doc2Graph
-from dataclasses import dataclass, asdict
-import json
-from src.utils.logger import step_logger
+"""
+Coloraria Ingestion - Main Entry Point.
+
+This is a convenience wrapper for the ingestion service.
+For full CLI options, use: python -m src.ingestion.main --help
+"""
+
+from src.ingestion.main import run_ingestion, ingestion_lifecycle
+from src.ingestion.result import IngestionStatus
+
+
 def main():
-    law_id = "BOE-A-1978-31229"  # Example law ID
-    pipeline = Doc2Graph(law_id)
-    start = perf_counter()
-    result = pipeline.run(None)
-    end = perf_counter()
-    elapsed_s = end - start
-    # print(result)
-    step_logger.info(f"Total execution time: {elapsed_s:.2f} seconds")
+    """Run the ingestion pipeline for the default law."""
+    law_id = "BOE-A-1978-31229"  # Spanish Constitution
+    
+    with ingestion_lifecycle():
+        result = run_ingestion(law_id)
+        
+        if result.status == IngestionStatus.SUCCESS:
+            print(f"\n✓ Ingestion successful for {law_id}")
+            print(f"  Duration: {result.duration_seconds:.2f}s")
+            print(f"  Nodes created: {result.nodes_created}")
+        elif result.status == IngestionStatus.ROLLED_BACK:
+            print(f"\n⚠ Ingestion failed and was rolled back")
+            print(f"  Failed step: {result.failed_step}")
+            print(f"  Error: {result.error_message}")
+        else:
+            print(f"\n✗ Ingestion failed: {result.error_message}")
+            return 1
+    
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    exit(main())

@@ -41,20 +41,20 @@ class DataProcessor(Step):
         and adds the derogation info to them.
         """
         patterns = [
-            # Match "Artículos X a Y" (range)
+            # Match "Artículos X a Y" or "Arts. X a Y" (range)
             (
                 'range',
-                re.compile(r'^Artículos?\s+(\d+)\s+a\s+(\d+)(?:\s*\.)?$', re.I)
+                re.compile(r'^(?:Artículos?|Arts?\.)\s+(\d+)(?:º|°)?\s+a\s+(\d+)(?:º|°)?\.?$', re.I)
             ),
-            # Match "Artículos X, Y, ... y Z" (list)
+            # Match "Artículos X, Y, ... y Z" or "Arts. X, Y, ... y Z" (list)
             (
                 'list',
-                re.compile(r'^Artículos?\s+((?:\d+(?:\s*,\s*)?)+)\s+y\s+(\d+)(?:\s*\.)?$', re.I)
+                re.compile(r'^(?:Artículos?|Arts?\.)\s+((?:\d+(?:º|°)?(?:\s*,\s*)?)+)\s+y\s+(\d+)(?:º|°)?\.?$', re.I)
             ),
-            # Match "Artículos X y Y" (simple pair)
+            # Match "Artículos X y Y" or "Arts. X y Y" (simple pair)
             (
                 'pair',
-                re.compile(r'^Artículos?\s+(\d+)\s+y\s+(\d+)(?:\s*\.)?$', re.I)
+                re.compile(r'^(?:Artículos?|Arts?\.)\s+(\d+)(?:º|°)?\s+y\s+(\d+)(?:º|°)?\.?$', re.I)
             ),
         ]
         
@@ -68,7 +68,7 @@ class DataProcessor(Step):
             title = block.get("@titulo", "").strip()
             
             # Check if this is a single article block
-            single_match = re.match(r'^Artículo\s+(\d+)(?:\s+\w+)?(?:\s*\.)?$', title, re.I)
+            single_match = re.match(r'^(?:Artículo|Art\.)\s+(\d+)(?:º|°)?(?:\s+\w+)?\.?$', title, re.I)
             if single_match:
                 article_num = int(single_match.group(1))
                 article_index[article_num] = block
@@ -258,6 +258,13 @@ class DataProcessor(Step):
         return version
 
     def process(self, data):
+        # Import tracing (optional)
+        try:
+            from opentelemetry import trace
+            _tracer = trace.get_tracer("data_processor")
+        except ImportError:
+            _tracer = None
+        
         data = data.get("data", {})
         metadata = data.get("metadatos", {})
         analysis = data.get("analisis", {})
@@ -279,4 +286,29 @@ class DataProcessor(Step):
         print_tree(self.content_tree.root)
         normativa = NormativaCons(id=processed_metadata.id,metadata=processed_metadata,analysis=processed_analysis,content_tree=self.content_tree.root)
         change_events = self.content_tree.change_handler.change_events
+        
+        # Add tracing attributes
+        if _tracer:
+            current_span = trace.get_current_span()
+            if current_span and current_span.is_recording():
+                current_span.set_attribute("processor.normativa_id", normativa.id)
+                current_span.set_attribute("processor.normativa_title", processed_metadata.titulo or "Unknown")
+                current_span.set_attribute("processor.materias_count", len(processed_analysis.materias))
+                current_span.set_attribute("processor.change_events_count", len(change_events))
+                # Count articles in tree
+                article_count = self._count_articles(normativa.content_tree)
+                current_span.set_attribute("processor.articles_count", article_count)
+        
         return normativa, change_events
+    
+    def _count_articles(self, node) -> int:
+        """Count ArticleNode instances in the tree."""
+        from src.domain.models.common.node import ArticleNode, Node
+        count = 0
+        if isinstance(node, ArticleNode):
+            count = 1
+        if hasattr(node, 'content') and node.content:
+            for child in node.content:
+                if isinstance(child, Node):
+                    count += self._count_articles(child)
+        return count

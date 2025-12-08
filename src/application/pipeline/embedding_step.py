@@ -14,6 +14,15 @@ class EmbeddingGenerator(Step):
         self.provider = provider
         self.cache = cache
         self.text_builder = ArticleTextBuilder()
+        
+        # Import tracing (optional)
+        try:
+            from opentelemetry import trace
+            self._tracer = trace.get_tracer("embedding_generator")
+            self._trace = trace
+        except ImportError:
+            self._tracer = None
+            self._trace = None
 
     def process(self, data):
         """
@@ -26,6 +35,13 @@ class EmbeddingGenerator(Step):
             return data
 
         step_logger.info(f"Generating embeddings using model: {self.provider.model}")
+        
+        # Add tracing input attributes
+        if self._tracer:
+            current_span = self._trace.get_current_span()
+            if current_span and current_span.is_recording():
+                current_span.set_attribute("embedding.model", self.provider.model)
+                current_span.set_attribute("embedding.normativa_id", normativa.id)
         
         # Traverse the tree and collect articles
         articles = self._collect_articles(normativa.content_tree)
@@ -59,11 +75,14 @@ class EmbeddingGenerator(Step):
                 articles_to_embed.append(article)
 
         step_logger.info(f"Cache hits: {cache_hits}. Articles to embed: {len(articles_to_embed)}")
+        
+        embeddings_generated = 0
 
         # Generate embeddings for misses
         if articles_to_embed:
             try:
                 embeddings = self.provider.get_embeddings(texts_to_embed)
+                embeddings_generated = len(embeddings)
                 
                 # Assign embeddings back to nodes and update cache
                 for article, text, embedding in zip(articles_to_embed, texts_to_embed, embeddings):
@@ -82,6 +101,15 @@ class EmbeddingGenerator(Step):
                 step_logger.error(f"Error generating embeddings: {e}")
                 # We might want to raise or return None depending on strictness. 
                 # For now, we log and proceed (articles will have None embedding).
+
+        # Add tracing output attributes
+        if self._tracer:
+            current_span = self._trace.get_current_span()
+            if current_span and current_span.is_recording():
+                current_span.set_attribute("embedding.total_articles", len(articles))
+                current_span.set_attribute("embedding.cache_hits", cache_hits)
+                current_span.set_attribute("embedding.embeddings_generated", embeddings_generated)
+                current_span.set_attribute("embedding.cache_hit_rate", f"{cache_hits/len(articles)*100:.1f}%" if articles else "N/A")
 
         return data
 
