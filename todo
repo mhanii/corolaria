@@ -1,0 +1,7 @@
+dic 8
+
+Fix bad phoenix tracing
+    - it tracks the embedding not the context collecter.
+
+Fix run type
+    - when an old chat is opened and a message is sent there, it returns to RAGcollector even if it was a different type
