@@ -15,7 +15,7 @@ class LLMFactory:
         provider: str = "gemini",
         model: Optional[str] = None,
         temperature: float = 0.3,
-        max_tokens: int = 1024,
+        max_tokens: int = 8192,
         **kwargs
     ) -> LLMProvider:
         """

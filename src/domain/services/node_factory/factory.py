@@ -10,7 +10,7 @@ class NodeFactory:
     
         self.article_element_registery = map
         
-    def create_node(self, parent: Node, node_type:NodeType, name: str, level:int, content:str =None) -> Node:
+    def create_node(self, parent: Node, node_type:NodeType, name: str, level:int, content:str =None, prefix:str=None) -> Node:
         if node_type in self.structure_names:
             cls = StructureNode
         elif node_type in self.article_names:
@@ -20,8 +20,11 @@ class NodeFactory:
         else:
             cls = Node
 
+        # Generate unique ID content
+        node_id = f"{prefix}_{self.next_node_id}" if prefix else self.next_node_id
+
         node = cls(
-            id  = self.next_node_id,
+            id  = node_id,
             parent=parent,
             node_type=node_type,
             name=name,

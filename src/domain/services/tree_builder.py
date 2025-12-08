@@ -35,7 +35,7 @@ class TreeBuilder:
             name="Content", 
             level=-1, 
             node_type=NodeType.ROOT, 
-            id=0,
+            id=f"{target_document_id}_0",
             path="root"
         )
 
@@ -113,6 +113,7 @@ class TreeBuilder:
                         node_type=node_type,
                         name=name,
                         content= [],
+                        prefix=self.target_document_id
                     )
                     # Compute and set path during tree construction
                     current_node.path = self._compute_path(current_node)

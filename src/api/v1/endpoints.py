@@ -182,10 +182,8 @@ async def semantic_search(
         article_results: List[ArticleResult] = []
         for result in raw_results:
             # article_id MUST be int from Neo4j - enforce strict typing
-            article_id: int = result.get("article_id")
-            if not isinstance(article_id, int):
-                step_logger.error(f"[API] Type error: article_id must be int, got {type(article_id).__name__}: {article_id}")
-                raise TypeError(f"article_id must be int, got {type(article_id).__name__}")
+            # article_id can be str or int (now supporting scoped string IDs)
+            article_id = result.get("article_id")
             
             # Article text is now pre-computed and stored as full_text in Neo4j
             # No additional query needed (eliminates N+1 problem)
@@ -194,9 +192,9 @@ async def semantic_search(
             # Article path is pre-computed during ingestion
             article_path = result.get("article_path") or ""
             
-            # Format context path for human-readable Spanish display (fallback if path not set)
-            raw_context_path = result.get("context_path", [])
-            formatted_context = article_path or format_context_path(raw_context_path)
+            # Format context path for human-readable Spanish display
+            # Note: context_path is no longer returned from adapter; article_path is pre-computed
+            formatted_context = article_path
             
             # Create Pydantic model with type conversions for API layer
             article_results.append(ArticleResult(
@@ -214,7 +212,7 @@ async def semantic_search(
                 # Version IDs (convert to str if present)
                 previous_version_id=str(result.get("previous_version_id")) if result.get("previous_version_id") else None,
                 next_version_id=str(result.get("next_version_id")) if result.get("next_version_id") else None,
-                context_path=raw_context_path,  # Keep raw for compatibility
+                context_path=[],  # Structured hierarchy no longer returned; use article_path string instead
                 metadata={
                     "has_embedding": result.get("embedding") is not None,
                     "query": request.query,

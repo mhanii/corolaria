@@ -27,7 +27,7 @@ class NodeType(str,Enum):
 @dataclass
 class Node:
     """Base node for hierarchical document structure"""
-    id: int
+    id: Union[str, int]
     name: str
     level: int
     node_type: NodeType

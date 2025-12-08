@@ -194,13 +194,22 @@ def get_chat_service(
     Dependency that provides chat service.
     Creates a new instance per request with shared singletons.
     
+    Uses LangGraph-based service if USE_LANGGRAPH=true env var is set (default).
+    Set USE_LANGGRAPH=false to use the original ChatService.
+    
     Args:
         connection: Neo4j connection (injected by FastAPI)
     
     Returns:
-        ChatService instance
+        ChatService or LangGraphChatService instance
     """
-    from src.domain.services.chat_service import ChatService
+    use_langgraph = os.getenv("USE_LANGGRAPH", "true").lower() == "true"
+    
+    if use_langgraph:
+        from src.domain.services.langgraph_chat_service import LangGraphChatService as ChatService
+    else:
+        from src.domain.services.chat_service import ChatService
+    
     from src.ai.citations.citation_engine import CitationEngine
     from src.ai.prompts.prompt_builder import PromptBuilder
     
@@ -218,3 +227,138 @@ def get_chat_service(
         index_name=config.retrieval_index_name
     )
 
+
+def get_context_collector(
+    collector_type: str = "rag",
+    neo4j_adapter: Neo4jAdapter = None,
+    embedding_provider = None,
+    llm_provider = None,
+    index_name: str = "article_embeddings"
+):
+    """
+    Factory function to create context collectors based on type.
+    
+    Args:
+        collector_type: Type of collector ("rag" or "qrag")
+        neo4j_adapter: Neo4j adapter instance
+        embedding_provider: Embedding provider instance
+        llm_provider: LLM provider (required for qrag)
+        index_name: Vector index name
+        
+    Returns:
+        ContextCollector instance
+    """
+    from src.ai.context_collectors import RAGCollector, QRAGCollector
+    
+    if collector_type == "qrag":
+        if not llm_provider:
+            llm_provider = get_llm_provider()
+        return QRAGCollector(
+            neo4j_adapter=neo4j_adapter,
+            embedding_provider=embedding_provider,
+            llm_provider=llm_provider,
+            index_name=index_name
+        )
+    else:
+        return RAGCollector(
+            neo4j_adapter=neo4j_adapter,
+            embedding_provider=embedding_provider,
+            index_name=index_name
+        )
+
+
+def get_chat_service_with_collector(
+    connection: Neo4jConnection = Depends(get_neo4j_connection),
+    collector_type: str = "rag"
+):
+    """
+    Dependency that provides chat service with specified collector type.
+    Creates a new instance per request with SQLite conversation repository.
+    
+    Args:
+        connection: Neo4j connection (injected by FastAPI)
+        collector_type: Context collector type ("rag" or "qrag")
+    
+    Returns:
+        LangGraphChatService instance with specified collector
+    """
+    from src.domain.services.langgraph_chat_service import LangGraphChatService
+    from src.ai.citations.citation_engine import CitationEngine
+    from src.ai.prompts.prompt_builder import PromptBuilder
+    from src.infrastructure.sqlite.base import init_database
+    from src.infrastructure.sqlite.conversation_repository import ConversationRepository
+    from src.infrastructure.sqlite.checkpointer import get_checkpointer
+    
+    config = get_config()
+    adapter = Neo4jAdapter(connection)
+    
+    # Initialize SQLite and get repositories
+    sqlite_conn = init_database()
+    conversation_repo = ConversationRepository(sqlite_conn)
+    
+    # Get SQLite checkpointer for LangGraph state persistence
+    checkpointer = get_checkpointer()
+    
+    # Create the appropriate context collector
+    context_collector = get_context_collector(
+        collector_type=collector_type,
+        neo4j_adapter=adapter,
+        embedding_provider=get_embedding_provider(),
+        llm_provider=get_llm_provider(),
+        index_name=config.retrieval_index_name
+    )
+    
+    return LangGraphChatService(
+        llm_provider=get_llm_provider(),
+        context_collector=context_collector,
+        conversation_repository=conversation_repo,
+        citation_engine=CitationEngine(),
+        prompt_builder=PromptBuilder(),
+        retrieval_top_k=config.retrieval_top_k,
+        checkpointer=checkpointer
+    )
+
+
+def get_chat_service_with_user(
+    connection: Neo4jConnection = Depends(get_neo4j_connection)
+):
+    """
+    Dependency that provides chat service with SQLite-backed persistence.
+    Creates a new instance per request with SQLite conversation repository.
+    
+    Uses LangGraph-based service with SQLite checkpointing for graph state persistence.
+    
+    Args:
+        connection: Neo4j connection (injected by FastAPI)
+    
+    Returns:
+        LangGraphChatService instance with SQLite persistence
+    """
+    from src.domain.services.langgraph_chat_service import LangGraphChatService
+    from src.ai.citations.citation_engine import CitationEngine
+    from src.ai.prompts.prompt_builder import PromptBuilder
+    from src.infrastructure.sqlite.base import init_database
+    from src.infrastructure.sqlite.conversation_repository import ConversationRepository
+    from src.infrastructure.sqlite.checkpointer import get_checkpointer
+    
+    config = get_config()
+    adapter = Neo4jAdapter(connection)
+    
+    # Initialize SQLite and get repositories
+    sqlite_conn = init_database()
+    conversation_repo = ConversationRepository(sqlite_conn)
+    
+    # Get SQLite checkpointer for LangGraph state persistence
+    checkpointer = get_checkpointer()
+    
+    return LangGraphChatService(
+        llm_provider=get_llm_provider(),
+        neo4j_adapter=adapter,
+        embedding_provider=get_embedding_provider(),
+        conversation_repository=conversation_repo,
+        citation_engine=CitationEngine(),
+        prompt_builder=PromptBuilder(),
+        retrieval_top_k=config.retrieval_top_k,
+        index_name=config.retrieval_index_name,
+        checkpointer=checkpointer
+    )

@@ -1,6 +1,7 @@
 """
 FastAPI main application for Coloraria API.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -9,7 +10,22 @@ from fastapi.exceptions import RequestValidationError
 from src.api.v1 import endpoints as v1_endpoints
 from src.api.v1 import chat_endpoints as v1_chat
 from src.api.v1 import article_endpoints as v1_article
+from src.api.v1 import auth_endpoints as v1_auth
 from src.utils.logger import step_logger
+from src.observability import setup_phoenix_tracing, shutdown_phoenix_tracing
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - setup and teardown."""
+    # Startup
+    step_logger.info("[API] Starting up Coloraria API...")
+    setup_phoenix_tracing(project_name="coloraria-rag")
+    yield
+    # Shutdown
+    step_logger.info("[API] Shutting down Coloraria API...")
+    shutdown_phoenix_tracing()
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -18,7 +34,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -105,6 +122,13 @@ app.include_router(
     tags=["Article v1"]
 )
 
+# Include v1 auth router
+app.include_router(
+    v1_auth.router,
+    prefix="/api/v1",
+    tags=["Authentication"]
+)
+
 
 # Root endpoint
 @app.get(
@@ -127,8 +151,11 @@ async def root():
         "documentation": "/docs",
         "endpoints": {
             "health": "/health",
+            "login": "/api/v1/auth/login",
+            "me": "/api/v1/auth/me",
             "semantic_search": "/api/v1/search/semantic",
             "chat": "/api/v1/chat",
+            "conversations": "/api/v1/conversations",
             "chat_history": "/api/v1/chat/{conversation_id}",
             "article": "/api/v1/article/{node_id}",
             "article_versions": "/api/v1/article/{node_id}/versions"

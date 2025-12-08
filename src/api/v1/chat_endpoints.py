@@ -1,7 +1,9 @@
 """
 Chat API v1 endpoints.
 RESTful endpoints for AI chatbot with RAG-based citations.
+Protected by JWT authentication with token-based rate limiting.
 """
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.api.v1.chat_schemas import (
@@ -10,21 +12,108 @@ from src.api.v1.chat_schemas import (
     CitationResponse,
     ConversationResponse,
     ConversationMessageResponse,
-    DeleteResponse
+    DeleteResponse,
+    CollectorType
 )
+from src.api.v1.auth import get_current_user_from_token, TokenPayload
+from src.infrastructure.sqlite.base import init_database
+from src.infrastructure.sqlite.user_repository import UserRepository
+from src.infrastructure.sqlite.conversation_repository import ConversationRepository
 from src.api.v1.dependencies import (
-    get_neo4j_connection,
-    get_embedding_provider,
-    get_chat_service,
-    get_conversation_service
+    get_chat_service_with_user,
+    get_chat_service_with_collector,
+    get_neo4j_connection
 )
-from src.domain.services.chat_service import ChatService
-from src.domain.services.conversation_service import ConversationService
+from src.infrastructure.graphdb.connection import Neo4jConnection
 from src.utils.logger import step_logger
 
 # Create router for chat endpoints
 router = APIRouter()
 
+
+def get_repositories():
+    """Get SQLite repositories."""
+    connection = init_database()
+    return {
+        "user": UserRepository(connection),
+        "conversation": ConversationRepository(connection)
+    }
+
+
+# ============ Conversation List Endpoint ============
+
+class ConversationListItem:
+    """Schema for conversation list item."""
+    pass
+
+
+from pydantic import BaseModel, Field
+
+
+class ConversationSummary(BaseModel):
+    """Summary of a conversation for listing."""
+    id: str = Field(..., description="Conversation ID")
+    created_at: str = Field(..., description="Creation timestamp")
+    updated_at: str = Field(..., description="Last update timestamp")
+    message_count: int = Field(..., description="Number of messages")
+    preview: str = Field(default=None, description="Preview of first message")
+
+
+class ConversationListResponse(BaseModel):
+    """Response for conversation list."""
+    conversations: List[ConversationSummary] = Field(..., description="List of conversations")
+    total: int = Field(..., description="Total number of conversations")
+
+
+@router.get(
+    "/conversations",
+    response_model=ConversationListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List Conversations",
+    description="Get all conversations for the authenticated user",
+    responses={
+        200: {
+            "description": "List of conversations",
+            "model": ConversationListResponse
+        },
+        401: {
+            "description": "Not authenticated"
+        }
+    }
+)
+async def list_conversations(
+    token: TokenPayload = Depends(get_current_user_from_token)
+) -> ConversationListResponse:
+    """
+    List all conversations for the current user.
+    
+    Args:
+        token: JWT token payload (injected)
+        
+    Returns:
+        List of conversation summaries
+    """
+    step_logger.info(f"[ChatAPI] Listing conversations for user: {token.username}")
+    
+    repos = get_repositories()
+    conversations = repos["conversation"].list_conversations(token.user_id)
+    
+    return ConversationListResponse(
+        conversations=[
+            ConversationSummary(
+                id=c["id"],
+                created_at=c["created_at"],
+                updated_at=c["updated_at"],
+                message_count=c["message_count"],
+                preview=c["preview"]
+            )
+            for c in conversations
+        ],
+        total=len(conversations)
+    )
+
+
+# ============ Chat Endpoint ============
 
 @router.post(
     "/chat",
@@ -40,6 +129,12 @@ router = APIRouter()
         400: {
             "description": "Invalid request (e.g., empty message)"
         },
+        401: {
+            "description": "Not authenticated"
+        },
+        402: {
+            "description": "Insufficient tokens"
+        },
         500: {
             "description": "Internal server error (LLM or retrieval failure)"
         }
@@ -47,32 +142,75 @@ router = APIRouter()
 )
 async def chat(
     request: ChatRequest,
-    chat_service: ChatService = Depends(get_chat_service)
+    token: TokenPayload = Depends(get_current_user_from_token),
+    connection: Neo4jConnection = Depends(get_neo4j_connection)
 ) -> ChatResponse:
     """
     Process a chat message and return AI response with citations.
     
     This endpoint:
-    1. Retrieves relevant legal articles using semantic search
-    2. Generates response using LLM with context
-    3. Returns response with inline citations [1], [2], etc.
+    1. Verifies user has available tokens
+    2. Retrieves relevant legal articles using semantic search
+    3. Generates response using LLM with context
+    4. Returns response with inline citations [1], [2], etc.
+    5. Deducts token from user's balance
     
     Args:
         request: Chat request with message and optional conversation_id
-        chat_service: Chat service (injected)
+        token: JWT token payload (injected)
+        connection: Neo4j connection (injected)
     
     Returns:
         ChatResponse with AI response and source citations
     """
-    step_logger.info(f"[ChatAPI] Received chat request: message='{request.message[:50]}...'")
+    step_logger.info(f"[ChatAPI] Received chat request from {token.username}: '{request.message[:50]}...'")
+    
+    repos = get_repositories()
+    
+    # Check token balance
+    balance = repos["user"].get_token_balance(token.user_id)
+    if balance <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "error": "InsufficientTokens",
+                "message": "You have no remaining API tokens. Please contact an administrator."
+            }
+        )
+    
+    # Verify conversation ownership if continuing existing conversation
+    if request.conversation_id:
+        owner = repos["conversation"].get_conversation_user_id(request.conversation_id)
+        if owner and owner != token.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": "ConversationNotFound",
+                    "message": f"Conversation '{request.conversation_id}' not found"
+                }
+            )
+    
+    # Determine collector type (only for first message of new conversations)
+    # For follow-up messages, collector_type is ignored (use default RAG)
+    collector_type = "rag"  # default
+    if not request.conversation_id and request.collector_type:
+        collector_type = request.collector_type.value
+        step_logger.info(f"[ChatAPI] Using collector type: {collector_type}")
+    
+    # Create chat service with appropriate collector
+    chat_service = get_chat_service_with_collector(connection, collector_type)
     
     try:
         # Process chat through service
         result = await chat_service.achat(
             query=request.message,
             conversation_id=request.conversation_id,
-            top_k=request.top_k
+            top_k=request.top_k,
+            user_id=token.user_id
         )
+        
+        # Consume token
+        repos["user"].consume_tokens(token.user_id, 1)
         
         # Convert citations to response format
         citation_responses = [
@@ -119,6 +257,9 @@ async def chat(
             "description": "Conversation history",
             "model": ConversationResponse
         },
+        401: {
+            "description": "Not authenticated"
+        },
         404: {
             "description": "Conversation not found"
         }
@@ -126,28 +267,29 @@ async def chat(
 )
 async def get_conversation(
     conversation_id: str,
-    conversation_service: ConversationService = Depends(get_conversation_service)
+    token: TokenPayload = Depends(get_current_user_from_token)
 ) -> ConversationResponse:
     """
     Get conversation history by ID.
     
     Args:
         conversation_id: Unique conversation identifier
-        conversation_service: Conversation service (injected)
+        token: JWT token payload (injected)
     
     Returns:
         ConversationResponse with message history
     """
     step_logger.info(f"[ChatAPI] Getting conversation: {conversation_id}")
     
-    conversation = conversation_service.get_conversation(conversation_id)
+    repos = get_repositories()
+    conversation = repos["conversation"].get_conversation(conversation_id, token.user_id)
     
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "error": "ConversationNotFound",
-                "message": f"Conversation '{conversation_id}' not found or expired"
+                "message": f"Conversation '{conversation_id}' not found"
             }
         )
     
@@ -192,6 +334,9 @@ async def get_conversation(
             "description": "Conversation deleted successfully",
             "model": DeleteResponse
         },
+        401: {
+            "description": "Not authenticated"
+        },
         404: {
             "description": "Conversation not found"
         }
@@ -199,21 +344,22 @@ async def get_conversation(
 )
 async def delete_conversation(
     conversation_id: str,
-    conversation_service: ConversationService = Depends(get_conversation_service)
+    token: TokenPayload = Depends(get_current_user_from_token)
 ) -> DeleteResponse:
     """
     Delete a conversation.
     
     Args:
         conversation_id: Unique conversation identifier
-        conversation_service: Conversation service (injected)
+        token: JWT token payload (injected)
     
     Returns:
         DeleteResponse with success status
     """
     step_logger.info(f"[ChatAPI] Deleting conversation: {conversation_id}")
     
-    success = conversation_service.delete_conversation(conversation_id)
+    repos = get_repositories()
+    success = repos["conversation"].delete_conversation(conversation_id, token.user_id)
     
     if not success:
         raise HTTPException(
@@ -241,6 +387,9 @@ async def delete_conversation(
             "description": "Conversation cleared successfully",
             "model": DeleteResponse
         },
+        401: {
+            "description": "Not authenticated"
+        },
         404: {
             "description": "Conversation not found"
         }
@@ -248,21 +397,22 @@ async def delete_conversation(
 )
 async def clear_conversation(
     conversation_id: str,
-    conversation_service: ConversationService = Depends(get_conversation_service)
+    token: TokenPayload = Depends(get_current_user_from_token)
 ) -> DeleteResponse:
     """
     Clear all messages from a conversation.
     
     Args:
         conversation_id: Unique conversation identifier
-        conversation_service: Conversation service (injected)
+        token: JWT token payload (injected)
     
     Returns:
         DeleteResponse with success status
     """
     step_logger.info(f"[ChatAPI] Clearing conversation: {conversation_id}")
     
-    success = conversation_service.clear_conversation(conversation_id)
+    repos = get_repositories()
+    success = repos["conversation"].clear_conversation(conversation_id, token.user_id)
     
     if not success:
         raise HTTPException(

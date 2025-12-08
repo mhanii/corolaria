@@ -28,7 +28,6 @@ class DataProcessor(Step):
     def __init__(self, name: str, *args): # For now you must specify the id.
         super().__init__(name)
 
-        self.content_tree = TreeBuilder("root")
         self.prohibited_types = {"nota_inicial", "nota_final","nota", "firma", "indice", "portada"}
         
 
@@ -194,7 +193,13 @@ class DataProcessor(Step):
         )
     def process_analysis(self, analysis):
 
-        materias = [Materia(Materias.from_string(materia_str)) for materia_str in analysis.get("materias", [])]
+        materias = []
+        for materia_str in analysis.get("materias", []):
+            materia_id = Materias.from_string(materia_str)
+            if materia_id is None:
+                output_logger.warning(f"  ⚠️  Unknown Materia found: '{materia_str}' - Skipping.")
+                continue
+            materias.append(Materia(materia_id))
 
         referencias = analysis.get("referencias", [])
 
@@ -261,6 +266,9 @@ class DataProcessor(Step):
 
         processed_metadata = self.process_metadata(metadata)
         processed_analysis = self.process_analysis(analysis)
+
+        # Initialize TreeBuilder with proper document ID
+        self.content_tree = TreeBuilder(processed_metadata.id)
 
         preprocessed_content = self.preprocessing(content=content)
         
