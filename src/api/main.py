@@ -54,12 +54,24 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """Handle Pydantic validation errors."""
     step_logger.warning(f"[API] Validation error: {exc.errors()}")
     
+    # Convert errors to JSON-serializable format (handle bytes in input)
+    def make_serializable(obj):
+        if isinstance(obj, bytes):
+            return obj.decode('utf-8', errors='replace')
+        elif isinstance(obj, dict):
+            return {k: make_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [make_serializable(item) for item in obj]
+        return obj
+    
+    errors = make_serializable(exc.errors())
+    
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
             "error": "ValidationError",
             "message": "Invalid request parameters",
-            "details": exc.errors()
+            "details": errors
         }
     )
 

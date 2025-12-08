@@ -176,6 +176,50 @@ class ConversationRepository:
             for row in rows
         ]
     
+    def get_metadata(self, conversation_id: str) -> dict:
+        """
+        Get metadata for a conversation.
+        
+        Args:
+            conversation_id: Conversation ID
+            
+        Returns:
+            Metadata dict (empty dict if not found or no metadata)
+        """
+        row = self.connection.fetchone(
+            "SELECT metadata FROM conversations WHERE id = ?",
+            (conversation_id,)
+        )
+        
+        if row and row['metadata']:
+            return json.loads(row['metadata'])
+        return {}
+    
+    def update_metadata(self, conversation_id: str, metadata: dict) -> bool:
+        """
+        Update metadata for a conversation.
+        
+        Args:
+            conversation_id: Conversation ID
+            metadata: New metadata dict (will be merged with existing)
+            
+        Returns:
+            True if updated successfully
+        """
+        # Get existing metadata and merge
+        existing = self.get_metadata(conversation_id)
+        existing.update(metadata)
+        
+        result = self.connection.execute(
+            "UPDATE conversations SET metadata = ? WHERE id = ?",
+            (json.dumps(existing), conversation_id)
+        )
+        
+        if result.rowcount > 0:
+            step_logger.info(f"[ConvRepo] Updated metadata for conversation: {conversation_id}")
+            return True
+        return False
+    
     def add_message(
         self,
         conversation_id: str,

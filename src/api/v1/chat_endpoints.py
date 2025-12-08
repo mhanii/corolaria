@@ -190,10 +190,20 @@ async def chat(
                 }
             )
     
-    # Determine collector type (only for first message of new conversations)
-    # For follow-up messages, collector_type is ignored (use default RAG)
+    # Determine collector type
+    # For new conversations: use request.collector_type and store it
+    # For existing conversations: retrieve from metadata
     collector_type = "rag"  # default
-    if not request.conversation_id and request.collector_type:
+    
+    if request.conversation_id:
+        # Existing conversation - retrieve collector_type from metadata
+        metadata = repos["conversation"].get_metadata(request.conversation_id)
+        stored_collector_type = metadata.get("collector_type")
+        if stored_collector_type:
+            collector_type = stored_collector_type
+            step_logger.info(f"[ChatAPI] Using stored collector type: {collector_type}")
+    elif request.collector_type:
+        # New conversation with collector_type specified
         collector_type = request.collector_type.value
         step_logger.info(f"[ChatAPI] Using collector type: {collector_type}")
     
@@ -208,6 +218,13 @@ async def chat(
             top_k=request.top_k,
             user_id=token.user_id
         )
+        
+        # For new conversations, store the collector_type in metadata
+        if not request.conversation_id and request.collector_type:
+            repos["conversation"].update_metadata(
+                result.conversation_id, 
+                {"collector_type": collector_type}
+            )
         
         # Consume token
         repos["user"].consume_tokens(token.user_id, 1)

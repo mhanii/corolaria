@@ -142,33 +142,104 @@ Salida:'''
         Returns:
             ContextResult with retrieved and merged chunks
         """
-        # Start main span for the entire collect operation
-        span_context = _tracer.start_as_current_span("qrag_collect") if _tracer else None
+        index_name = kwargs.get("index_name", self._index_name)
+        max_queries = kwargs.get("max_queries", self._max_queries)
+        max_results = kwargs.get("max_results", self._max_results)
         
-        try:
-            if span_context:
-                span = span_context.__enter__()
+        # Use proper context manager for tracing
+        if _tracer:
+            with _tracer.start_as_current_span("QRAGCollector.collect") as span:
+                # Record input attributes
                 span.set_attribute("collector.name", self.name)
-                span.set_attribute("collector.query", query[:100])
-                span.set_attribute("collector.top_k", top_k)
-            
-            index_name = kwargs.get("index_name", self._index_name)
-            max_queries = kwargs.get("max_queries", self._max_queries)
-            max_results = kwargs.get("max_results", self._max_results)
-            
-            # Step 1: Generate optimized search queries using LLM
-            step_logger.info(f"[QRAGCollector] Generating search queries for: '{query[:50]}...'")
-            
-            # Trace query generation
-            if _tracer:
-                with _tracer.start_as_current_span("qrag_generate_queries") as gen_span:
-                    gen_span.set_attribute("input.query", query)
-                    gen_span.set_attribute("max_queries", max_queries)
+                span.set_attribute("input.query", query)
+                span.set_attribute("input.top_k", top_k)
+                span.set_attribute("input.max_queries", max_queries)
+                span.set_attribute("input.max_results", max_results)
+                
+                # Step 1: Generate optimized search queries using LLM
+                step_logger.info(f"[QRAGCollector] Generating search queries for: '{query[:50]}...'")
+                
+                with _tracer.start_as_current_span("QRAGCollector.generate_queries") as gen_span:
+                    gen_span.set_attribute("input.user_query", query)
+                    gen_span.set_attribute("input.max_queries", max_queries)
                     generated_queries = self._generate_queries(query, max_queries)
                     gen_span.set_attribute("output.query_count", len(generated_queries))
                     gen_span.set_attribute("output.queries", str(generated_queries))
-            else:
-                generated_queries = self._generate_queries(query, max_queries)
+                
+                if not generated_queries:
+                    step_logger.warning("[QRAGCollector] No queries generated, falling back to original query")
+                    generated_queries = [query]
+                
+                span.set_attribute("generated_queries", str(generated_queries))
+                step_logger.info(f"[QRAGCollector] Generated {len(generated_queries)} queries: {generated_queries}")
+                
+                # Step 2: Run vector search for each query
+                all_chunks: List[Dict[str, Any]] = []
+                seen_ids = set()
+                
+                for i, search_query in enumerate(generated_queries):
+                    step_logger.info(f"[QRAGCollector] Query {i+1}/{len(generated_queries)}: '{search_query}'")
+                    
+                    with _tracer.start_as_current_span(f"QRAGCollector.vector_search_{i+1}") as search_span:
+                        search_span.set_attribute("input.query", search_query)
+                        search_span.set_attribute("input.query_index", i + 1)
+                        search_span.set_attribute("input.top_k", top_k)
+                        
+                        query_embedding = self._embedding_provider.get_embedding(search_query)
+                        chunks = self._neo4j_adapter.vector_search(
+                            query_embedding=query_embedding,
+                            top_k=top_k,
+                            index_name=index_name
+                        )
+                        search_span.set_attribute("output.results_count", len(chunks))
+                    
+                    # Append results (avoiding duplicates by article_id)
+                    for chunk in chunks:
+                        article_id = chunk.get("article_id")
+                        if article_id and article_id not in seen_ids:
+                            seen_ids.add(article_id)
+                            chunk["source_query"] = search_query
+                            chunk["query_index"] = i
+                            all_chunks.append(chunk)
+                
+                step_logger.info(f"[QRAGCollector] Total unique chunks collected: {len(all_chunks)}")
+                
+                # Step 3: Sort by score and trim to max_results
+                all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
+                final_chunks = all_chunks[:max_results]
+                
+                step_logger.info(f"[QRAGCollector] Final chunks after trimming: {len(final_chunks)}")
+                
+                # Record output attributes
+                span.set_attribute("output.total_chunks", len(all_chunks))
+                span.set_attribute("output.final_chunks", len(final_chunks))
+                span.set_attribute("output.queries_used", len(generated_queries))
+                
+                # Log full chunk details for each retrieved chunk
+                for i, chunk in enumerate(final_chunks):
+                    span.set_attribute(f"output.chunk_{i}.article_number", chunk.get('article_number', 'N/A'))
+                    span.set_attribute(f"output.chunk_{i}.normativa_title", chunk.get('normativa_title', 'N/A'))
+                    span.set_attribute(f"output.chunk_{i}.score", chunk.get('score', 0))
+                    span.set_attribute(f"output.chunk_{i}.source_query", chunk.get('source_query', 'N/A'))
+                    span.set_attribute(f"output.chunk_{i}.text", chunk.get('text', ''))
+                
+                return ContextResult(
+                    chunks=final_chunks,
+                    strategy_name=self.name,
+                    metadata={
+                        "index_name": index_name,
+                        "original_query": query,
+                        "generated_queries": generated_queries,
+                        "top_k_per_query": top_k,
+                        "max_results": max_results,
+                        "total_before_trim": len(all_chunks),
+                        "total_after_trim": len(final_chunks)
+                    }
+                )
+        else:
+            # No tracing - execute directly
+            step_logger.info(f"[QRAGCollector] Generating search queries for: '{query[:50]}...'")
+            generated_queries = self._generate_queries(query, max_queries)
             
             if not generated_queries:
                 step_logger.warning("[QRAGCollector] No queries generated, falling back to original query")
@@ -176,61 +247,33 @@ Salida:'''
             
             step_logger.info(f"[QRAGCollector] Generated {len(generated_queries)} queries: {generated_queries}")
             
-            # Step 2: Run vector search for each query and collect results
             all_chunks: List[Dict[str, Any]] = []
             seen_ids = set()
             
             for i, search_query in enumerate(generated_queries):
                 step_logger.info(f"[QRAGCollector] Query {i+1}/{len(generated_queries)}: '{search_query}'")
                 
-                # Trace each vector search
-                if _tracer:
-                    with _tracer.start_as_current_span(f"qrag_vector_search_{i+1}") as search_span:
-                        search_span.set_attribute("search.query", search_query)
-                        search_span.set_attribute("search.index", i + 1)
-                        search_span.set_attribute("search.top_k", top_k)
-                        
-                        # Generate embedding for this query
-                        query_embedding = self._embedding_provider.get_embedding(search_query)
-                        search_span.set_attribute("embedding.dimensions", len(query_embedding))
-                        
-                        # Perform vector search
-                        chunks = self._neo4j_adapter.vector_search(
-                            query_embedding=query_embedding,
-                            top_k=top_k,
-                            index_name=index_name
-                        )
-                        search_span.set_attribute("search.results_count", len(chunks))
-                else:
-                    query_embedding = self._embedding_provider.get_embedding(search_query)
-                    chunks = self._neo4j_adapter.vector_search(
-                        query_embedding=query_embedding,
-                        top_k=top_k,
-                        index_name=index_name
-                    )
+                query_embedding = self._embedding_provider.get_embedding(search_query)
+                chunks = self._neo4j_adapter.vector_search(
+                    query_embedding=query_embedding,
+                    top_k=top_k,
+                    index_name=index_name
+                )
                 
-                # Append results (avoiding duplicates by article_id)
                 for chunk in chunks:
                     article_id = chunk.get("article_id")
                     if article_id and article_id not in seen_ids:
                         seen_ids.add(article_id)
-                        # Tag which query produced this result
                         chunk["source_query"] = search_query
                         chunk["query_index"] = i
                         all_chunks.append(chunk)
             
             step_logger.info(f"[QRAGCollector] Total unique chunks collected: {len(all_chunks)}")
             
-            # Step 3: Sort by score and trim to max_results
             all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
             final_chunks = all_chunks[:max_results]
             
             step_logger.info(f"[QRAGCollector] Final chunks after trimming: {len(final_chunks)}")
-            
-            if span_context:
-                span.set_attribute("output.total_chunks", len(all_chunks))
-                span.set_attribute("output.final_chunks", len(final_chunks))
-                span.set_attribute("output.queries_generated", len(generated_queries))
             
             return ContextResult(
                 chunks=final_chunks,
@@ -245,9 +288,6 @@ Salida:'''
                     "total_after_trim": len(final_chunks)
                 }
             )
-        finally:
-            if span_context:
-                span_context.__exit__(None, None, None)
     
     def _generate_queries(self, user_query: str, max_queries: int) -> List[str]:
         """

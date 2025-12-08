@@ -1,0 +1,452 @@
+This XML file does not appear to have any style information associated with it. The document tree is shown below.
+<documento fecha_actualizacion="20251129105601">
+<metadatos>
+<identificador>BOE-A-2012-13950</identificador>
+<origen_legislativo codigo="2">Autonómico</origen_legislativo>
+<departamento codigo="8060">Comunidad Autónoma de Castilla-La Mancha</departamento>
+<rango codigo="1300">Ley</rango>
+<fecha_disposicion>20120802</fecha_disposicion>
+<numero_oficial>6/2012</numero_oficial>
+<titulo>Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</titulo>
+<diario codigo="BOE">Boletín Oficial del Estado</diario>
+<fecha_publicacion>20121113</fecha_publicacion>
+<diario_numero>273</diario_numero>
+<seccion>1</seccion>
+<subseccion/>
+<pagina_inicial>79197</pagina_inicial>
+<pagina_final>79217</pagina_final>
+<suplemento_pagina_inicial/>
+<suplemento_pagina_final/>
+<url_pdf>/boe/dias/2012/11/13/pdfs/BOE-A-2012-13950.pdf</url_pdf>
+<url_epub>/diario_boe/epub.php?id=BOE-A-2012-13950</url_epub>
+<url_pdf_catalan/>
+<url_pdf_euskera/>
+<url_pdf_gallego/>
+<url_pdf_valenciano/>
+<estatus_legislativo>L</estatus_legislativo>
+<fecha_vigencia>20120807</fecha_vigencia>
+<estatus_derogacion>N</estatus_derogacion>
+<fecha_derogacion/>
+<judicialmente_anulada>N</judicialmente_anulada>
+<fecha_anulacion/>
+<vigencia_agotada>N</vigencia_agotada>
+<estado_consolidacion codigo="3">Finalizado</estado_consolidacion>
+<letra_imagen>A</letra_imagen>
+<suplemento_letra_imagen/>
+<url_eli>https://www.boe.es/eli/es-cm/l/2012/08/02/6</url_eli>
+</metadatos>
+<metadata-eli>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:eli="http://data.europa.eu/eli/ontology#">
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:has_member>
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:version rdf:resource="http://www.elidata.es/mdr/authority/version/dof"/>
+<eli:is_member_of rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6"/>
+<eli:consolidated_by rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229"/>
+<eli:consolidated_by rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511"/>
+<eli:consolidated_by rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223"/>
+<eli:consolidated_by rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806"/>
+<eli:is_realized_by>
+<eli:LegalExpression rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa">
+<eli:language rdf:resource="http://www.elidata.es/mdr/authority/language/spa"/>
+<eli:title rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</eli:title>
+<eli:publisher_agent rdf:resource="https://www.boe.es"/>
+<eli:date_publication rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-11-13</eli:date_publication>
+<eli:realizes rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof"/>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa/epub">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa/html">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa/pdf">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa/xml">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+</eli:LegalExpression>
+</eli:is_realized_by>
+</eli:LegalResource>
+</eli:has_member>
+<eli:has_member>
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:version rdf:resource="http://www.elidata.es/mdr/authority/version/con"/>
+<eli:version_date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2017-12-29</eli:version_date>
+<eli:is_member_of rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6"/>
+<eli:consolidates rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof"/>
+<eli:is_realized_by>
+<eli:LegalExpression rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229/spa">
+<eli:language rdf:resource="http://www.elidata.es/mdr/authority/language/spa"/>
+<eli:title rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</eli:title>
+<eli:publisher_agent rdf:resource="https://www.boe.es"/>
+<eli:realizes rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229"/>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229/spa/html">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20171229/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+</eli:LegalExpression>
+</eli:is_realized_by>
+</eli:LegalResource>
+</eli:has_member>
+<eli:has_member>
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:version rdf:resource="http://www.elidata.es/mdr/authority/version/con"/>
+<eli:version_date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2016-05-11</eli:version_date>
+<eli:is_member_of rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6"/>
+<eli:consolidates rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof"/>
+<eli:is_realized_by>
+<eli:LegalExpression rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511/spa">
+<eli:language rdf:resource="http://www.elidata.es/mdr/authority/language/spa"/>
+<eli:title rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</eli:title>
+<eli:publisher_agent rdf:resource="https://www.boe.es"/>
+<eli:realizes rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511"/>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511/spa/html">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20160511/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+</eli:LegalExpression>
+</eli:is_realized_by>
+</eli:LegalResource>
+</eli:has_member>
+<eli:has_member>
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:version rdf:resource="http://www.elidata.es/mdr/authority/version/con"/>
+<eli:version_date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2013-12-23</eli:version_date>
+<eli:is_member_of rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6"/>
+<eli:consolidates rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof"/>
+<eli:is_realized_by>
+<eli:LegalExpression rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223/spa">
+<eli:language rdf:resource="http://www.elidata.es/mdr/authority/language/spa"/>
+<eli:title rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</eli:title>
+<eli:publisher_agent rdf:resource="https://www.boe.es"/>
+<eli:realizes rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223"/>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223/spa/html">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20131223/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+</eli:LegalExpression>
+</eli:is_realized_by>
+</eli:LegalResource>
+</eli:has_member>
+<eli:has_member>
+<eli:LegalResource rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806">
+<eli:jurisdiction rdf:resource="http://www.elidata.es/mdr/authority/jurisdiction/1/es-cm"/>
+<eli:type_document rdf:resource="http://www.elidata.es/mdr/authority/resource-type/1/l"/>
+<eli:id_local rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BOE-A-2012-13950</eli:id_local>
+<eli:date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-02</eli:date_document>
+<eli:number rdf:datatype="http://www.w3.org/2001/XMLSchema#string">6</eli:number>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/329"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/658"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/784"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3159"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3160"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3180"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3202"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/3896"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/4116"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5281"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/5685"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/6230"/>
+<eli:is_about rdf:resource="https://www.boe.es/legislacion/eli/materias/8114"/>
+<eli:version rdf:resource="http://www.elidata.es/mdr/authority/version/con"/>
+<eli:version_date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2012-08-06</eli:version_date>
+<eli:is_member_of rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6"/>
+<eli:consolidates rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/dof"/>
+<eli:is_realized_by>
+<eli:LegalExpression rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806/spa">
+<eli:language rdf:resource="http://www.elidata.es/mdr/authority/language/spa"/>
+<eli:title rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ley 6/2012, de 2 de agosto, de acompañamiento de la Ley 1/2012, de 21 de febrero, de Medidas Complementarias para la Aplicación del Plan de Garantía de los Servicios Sociales Básicos de Castilla-La Mancha.</eli:title>
+<eli:publisher_agent rdf:resource="https://www.boe.es"/>
+<eli:realizes rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806"/>
+<eli:is_embodied_by>
+<eli:Format rdf:about="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806/spa/html">
+<eli:format rdf:resource="http://www.iana.org/assignments/media-types/html"/>
+<eli:embodies rdf:resource="https://www.boe.es/eli/es-cm/l/2012/08/02/6/con/20120806/spa"/>
+</eli:Format>
+</eli:is_embodied_by>
+</eli:LegalExpression>
+</eli:is_realized_by>
+</eli:LegalResource>
+</eli:has_member>
+<eli:is_another_publication_of rdf:resource="https://docm.jccm.es/docm/eli/es-cm/l/2012/08/02/6"/>
+</eli:LegalResource>
+</rdf:RDF>
+</metadata-eli>
+<analisis>
+<materias>
+<materia codigo="329" orden="">Asistencia social</materia>
+<materia codigo="658" orden="">Castilla La Mancha</materia>
+<materia codigo="784" orden="">Centros de enseñanza</materia>
+<materia codigo="3159" orden="">Empleados públicos</materia>
+<materia codigo="3160" orden="">Empleo</materia>
+<materia codigo="3180" orden="">Empresas públicas</materia>
+<materia codigo="3202" orden="">Enseñanza</materia>
+<materia codigo="3896" orden="">Gastos públicos</materia>
+<materia codigo="4116" orden="">Impuesto sobre Transmisiones Patrimoniales y Actos Jurídicos Documentados</materia>
+<materia codigo="5281" orden="">Organización de las Comunidades Autónomas</materia>
+<materia codigo="5685" orden="">Presupuestos de las Comunidades Autónomas</materia>
+<materia codigo="6230" orden="">Retribuciones</materia>
+<materia codigo="8114" orden="">Servicios Públicos de Salud</materia>
+</materias>
+<notas>
+<nota codigo="14" orden="400">Publicada en el DOCM núm. 153, de 6 de agosto de 2012.</nota>
+</notas>
+<referencias>
+<anteriores>
+<anterior referencia="BOE-A-2011-7752" orden="1010">
+<palabra codigo="210">DEROGA</palabra>
+<texto>arts. 68.7 párrafo 2, 69.3, 70.7, 72.2 y 115.5 de la Ley 4/2011, de 10 de marzo</texto>
+</anterior>
+<anterior referencia="---" orden="1010">
+<palabra codigo="210">DEROGA</palabra>
+<texto>arts. 18.3 y 22.2 del Decreto 74/2002, de 14 de mayo (DOCM núm 60, de 17)</texto>
+</anterior>
+<anterior referencia="BOE-A-2012-13949" orden="2015">
+<palabra codigo="270">MODIFICA</palabra>
+<texto>arts. 25, 43.1, 43.9 y el anexo de la Ley 5/2012, de 12 de julio</texto>
+</anterior>
+<anterior referencia="BOE-A-2012-10756" orden="2015">
+<palabra codigo="270">MODIFICA</palabra>
+<texto>arts. 9 y 13 de la Ley 1/2012, de 21 de febrero</texto>
+</anterior>
+<anterior referencia="BOE-A-2010-15624" orden="2015">
+<palabra codigo="270">MODIFICA</palabra>
+<texto>art. 142.2 de la Ley 7/2010, de 20 de julio</texto>
+</anterior>
+<anterior referencia="BOE-A-2009-8667" orden="2015">
+<palabra codigo="270">MODIFICA</palabra>
+<texto>arts. 10 apartados 1, 2 y 3, y 11 apartados 1, 2, 3 y 4, y AÑADE art. 10 bis y disposición transitoria 3 a la Ley 9/2008, de 4 de diciembre</texto>
+</anterior>
+<anterior referencia="BOE-A-1998-1387" orden="2015">
+<palabra codigo="270">MODIFICA</palabra>
+<texto>arts. 1 y 3.a) y AÑADE la disposición adicional 3 a la Ley 11/1997, de 17 de diciembre</texto>
+</anterior>
+<anterior referencia="BOE-A-1982-20820" orden="3060">
+<palabra codigo="440">DE CONFORMIDAD con</palabra>
+<texto>el Estatuto aprobado por Ley Orgánica 9/1982, de 10 de agosto</texto>
+</anterior>
+</anteriores>
+<posteriores>
+<posterior referencia="BOE-A-2018-989" orden="">
+<palabra codigo="210">SE DEROGA</palabra>
+<texto>las disposición adicionales 4 y 5.1, por Ley 7/2017, de 21 de diciembre</texto>
+</posterior>
+<posterior referencia="BOE-A-2016-6725" orden="">
+<palabra codigo="210">SE DEROGA</palabra>
+<texto>el art. 8.2, por Ley 3/2016, de 5 de mayo</texto>
+</posterior>
+<posterior referencia="BOE-A-2014-1369" orden="">
+<palabra codigo="270">SE MODIFICA</palabra>
+<texto>el art. 8.1, por Ley 9/2013, de 12 de diciembre</texto>
+</posterior>
+</posteriores>
+</referencias>
+<alertas>
+<alerta codigo="104" orden="">Asuntos sociales</alerta>
+<alerta codigo="114" orden="">Educación y enseñanza</alerta>
+<alerta codigo="116" orden="">Función Pública</alerta>
+<alerta codigo="121" orden="">Organización de la Administración</alerta>
+<alerta codigo="124" orden="">Sanidad</alerta>
+<alerta codigo="127" orden="">Sistema financiero</alerta>
+<alerta codigo="128" orden="">Sistema tributario</alerta>
+</alertas>
+</analisis>
+<texto>
+<p class="parrafo">Las Cortes de Castilla-La Mancha han aprobado y yo, en nombre del Rey, promulgo la siguiente ley.</p>
+<p class="centro_redonda">EXPOSICIÓN DE MOTIVOS</p>
+<p class="centro_redonda">I</p>
+<p class="parrafo_2">España se enfrenta cada día a nuevos retos que debemos superar entre todos. Las condiciones de partida desde luego no pueden considerase las más idóneas, pero los españoles ya hemos demostrado a lo largo de nuestra historia que en las peores condiciones somos capaces de obtener los mejores resultados.</p>
+<p class="parrafo">Castilla-La Mancha se enfrenta en los próximos años a uno de los retos más cruciales de su historia. Debido a la situación de las finanzas públicas, puesta de manifiesto por los diferentes informes del Síndico de Cuentas, ha sido necesario adoptar una serie de medidas –plasmadas en el Plan de garantía de los Servicios Sociales Básicos y en el ámbito normativo, en la Ley 1/2012, de 21 de febrero, de medidas complementarias para la aplicación del plan de garantías de los servicios sociales básicos de Castilla-La Mancha– en las que se que permitían adaptar la organización regional a las nuevas necesidades.</p>
+<p class="parrafo">Es imperativo para la Comunidad Autónoma de Castilla-La Mancha, con un montante total de deuda y déficit superior a los 10.000 millones de euros, seguir trabajando para adoptar las medidas necesarias que permitan combatir la crisis económica y generar los puestos de trabajo que a lo largo de los últimos años se han destruido.</p>
+<p class="parrafo">Estas medidas forman parte, por tanto, del esfuerzo coordinado de todos los castellano-manchegos y todos los españoles con el objeto de plantear soluciones a la crisis.</p>
+<p class="centro_redonda">II</p>
+<p class="parrafo_2">Este gran impulso de todos los españoles tiene su reflejo también en las medidas que el Gobierno de España está adoptando como es el plan de pago a proveedores de las corporaciones locales, así como su homónimo para las Administraciones regionales; que han permitido en Castilla-La Mancha, que la Junta de Comunidades pueda sufragar las facturas impagadas, los gastos no consignados así como desviaciones no presupuestadas.</p>
+<p class="parrafo">Un esfuerzo que asegura la viabilidad los servicios sociales básicos y que va a garantizar la mejor educación, sanidad y servicios sociales gratuitos y universales para todos los castellano-manchegos. La nueva Ley se enmarca, por tanto, en la continuidad de la reciente legislación autonómica citada, así como la normativa estatal que plantea medidas de idéntico calado, y las necesidades impuestas por los nuevos presupuestos generales del Estado para 2012.</p>
+<p class="parrafo">Un esfuerzo que supera el ámbito nacional, y que tiene un carácter supranacional debido a la implicación de nuestros socios europeos, que a lo largo de los últimos años han adoptado las medidas de austeridad y eficiencia en el gasto que ahora les permite, en primer lugar crear empleo y riqueza y en segundo lugar ayudar a otros países que sufren un déficit heredado de ejercicios anteriores por desviaciones presupuestarias sin el debido control.</p>
+<p class="parrafo">A través de las instituciones, de cualquier ámbito, europeo, nacional o regional, se están planteando las medidas que van a permitir encarar las adversidades de una manera decidida, que permita la sostenibilidad de los servicios públicos.</p>
+<p class="centro_redonda">III</p>
+<p class="parrafo_2">Sin embargo, la situación en la que nos encontramos, exige de todos un esfuerzo continuo, gradual, y constante, que permita adaptarnos a las cambiantes necesidades que se van produciendo por factores exógenos difícilmente previsibles y que necesitan de una atención inmediata.</p>
+<p class="parrafo">Así, las medidas que los actuales gobiernos de España y Castilla-La Mancha están adoptando van en la buena dirección y sus frutos se verán en el futuro próximo. Hasta entonces y en consonancia con los cambios que en el corto y medio plazo se producen en la situación macroeconómica, es preciso seguir profundizando en las medidas de austeridad y eficiencia en el gasto, así como en las medidas de racionalización de la Administración</p>
+<p class="parrafo">Esta iniciativa pretende por tanto adecuar el marco normativo actual a estas nuevas necesidades para permitir a la Administración regional adaptarse a las demandas de los ciudadanos para generar empleo y riqueza en Castilla-La Mancha.</p>
+<p class="parrafo">Por esta razón se considera imprescindible seguir trabajando en la profundización de la racionalización del gasto y de la las funciones de la Administración, al objeto de conseguir una región más eficiente y austera en la gestión de los servicios públicos.</p>
+<p class="parrafo">Debemos seguir trabajando para conseguir crear empleo en Castilla-La Mancha, poner todas las medidas para que la sociedad sea capaz de crear riqueza en nuestra región.</p>
+<p class="parrafo">Por este motivo la presente iniciativa pretende completar el marco de actuación para que la Administración regional pueda articular las medidas necesarias al objeto de cumplir con los compromisos adquiridos en la lucha contra la crisis y en el objetivo de conseguir una Administración más ágil, moderna, eficiente y austera.</p>
+<p class="parrafo">Al mismo tiempo, se pretende reconocer el trabajo prestado por el personal al servicio de la Junta, fomentando medidas que ayudan a la conciliación de la vida familiar y laboral. La presente iniciativa tiene por objeto la adopción de medidas complementarias de carácter extraordinario que van a permitir una estructuración del gasto público responsable y racional, en consonancia con lo establecido en el artículo 135 de la Constitución Española a través de la prudencia en la determinación del presupuesto y del gasto, la austeridad en la sostenibilidad del Estado social y encaminada a la finalidad común de todas las instituciones para crear las condiciones necesarias para que la sociedad de Castilla-La Mancha reciba de su Gobierno todo lo necesario para poder generar empleo y riqueza para nuestra región.</p>
+<p class="centro_redonda">IV</p>
+<p class="parrafo_2">La presente Ley se estructura en dos títulos. El Título I contiene las medidas en materia de contención del gasto público y se compone de 6 artículos. El Título II introduce una serie de reformas legislativas sobre la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha».</p>
+<p class="parrafo">En el Título I, el artículo 1 regula la prolongación de la permanencia en el servicio activo. Esta medida pretende contribuir a racionalizar las plantillas adecuando las mismas a las necesidades reales que derivan de la prestación de los servicios públicos. El artículo 2 dispone la habilitación al Consejo de Gobierno de la Comunidad Autónoma de la Junta para adoptar en los términos que resulten necesarios, según la competencia de autoorganización de la Junta de Comunidades en virtud del artículo 31 del Estatuto de Autonomía, la reducción de la jornada de los puestos de trabajo ocupados por personal interino. Esta propuesta se muestra como una medida imprescindible para la consecución de los objetivos de estabilidad presupuestaria y sostenibilidad financiera que debe enmarcarse en el contexto económico nacional e internacional difícil al que venimos aludiendo, ocasionado, en el caso castellano manchego, por un engrosamiento innecesario de los efectivos al servicio de la administración.</p>
+<p class="parrafo">El artículo 3 introduce un avance en los derechos del empleado público y en el estatuto del personal al servicio de la administración, por cuanto flexibiliza las causas de reducción de la jornada, permitiendo la elección de este mecanismo de manera voluntaria y sin requisitos añadidos. Facilita, por tanto a los empleados públicos que puedan reducir su jornada voluntariamente sin exigir la concurrencia de ninguna circunstancia particular. Esta disposición, no sólo contribuirá a permitir una mayor conciliación de la vida personal y familiar en supuestos no contemplados por la normativa vigente, sino que además ayudará a la consecución de los objetivos de estabilidad presupuestaria y sostenibilidad financiera, sin que ello tenga que implicar detrimento en la prestación de servicios, puesto que la concesión de la reducción quedará siempre condicionada a las necesidades del servicio.</p>
+<p class="parrafo">El artículo 4 pretende fomentar que el personal funcionario de carrera y el personal estatutario fijo puedan solicitar excedencia, con el consiguiente ahorro retributivo que ello supone y la contribución a una mayor conciliación de la vida personal, familiar y laboral.</p>
+<p class="parrafo">El artículo 5 permite que el personal funcionario y el personal estatutario puedan solicitar licencias no retribuidas por asuntos propios, flexibilizando el régimen de su regulación con igual consecuencia y finalidad que el artículo precedente.</p>
+<p class="parrafo">El Título II introduce en su artículo 7 una disposición relativa a la reorganización de la estructura del sector público autonómico, en virtud de la capacidad de autoorganización que compete a la Junta. De esta forma, se suprime del artículo primero de la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha» (conocida con el acrónimo Gicaman) la adscripción a la Consejería de Hacienda. En línea con tal modificación, se introduce una disposición que regula la actual adscripción de la empresa pública. Y finalmente, se modifica el objeto social de la empresa adecuándolo a las necesidades reales de la administración a la que sirve, una vez realizado el proceso de simplificación del sector público autonómico, y por tanto a la persecución del interés público.</p>
+<p class="titulo_num">TÍTULO I</p>
+<p class="titulo_tit">Medidas en Materia de Contención del Gasto Público</p>
+<p class="articulo">Artículo 1. Prolongación de la permanencia en el servicio activo.</p>
+<p class="parrafo">1. Durante los dos años siguientes a la entrada en vigor de esta Ley, no se concederán nuevas prolongaciones o renovaciones de la permanencia en el servicio activo a todo el personal al servicio de la Administración de la Junta de Comunidades de Castilla-La Mancha no sometido a la legislación laboral.</p>
+<p class="parrafo">2. Asimismo, en el plazo de tres meses desde la entrada en vigor de la presente ley finalizarán las prolongaciones ya autorizadas, así como las renovaciones concedidas cuya fecha de finalización estaba prevista con posterioridad al término de dicho plazo.</p>
+<p class="parrafo">3. Como excepción a lo previsto en los dos apartados anteriores, se podrá prolongar o renovar la permanencia en el servicio activo cuando sea necesario para causar derecho a la pensión de jubilación o en los casos en que, excepcionalmente, mediante resolución de la persona titular de la Consejería u Organismo autónomo competente por razón del régimen jurídico del personal afectado, se determine por causas derivadas de la planificación y racionalización de los recursos humanos o en aquellos supuestos en que la adecuada prestación del servicio público haga imprescindible la permanencia en el servicio activo y así se acredite.</p>
+<p class="parrafo">4. Respecto al personal funcionario docente la duración de estas medidas se extenderá a los cursos escolares 2012-2013 y 2013-2014, durante los cuales no se concederán nuevas prolongaciones. Las prolongaciones ya autorizadas finalizarán con efectos de 31 de agosto de 2012, salvo en los supuestos en que se acuerde su mantenimiento en base a los criterios señalados en el punto anterior.</p>
+<p class="articulo">Artículo 2. Reducción de la jornada de los puestos de trabajo ocupados por personal interino.</p>
+<p class="parrafo">1. Se habilita al Consejo de Gobierno para reducir la jornada, con la correspondiente reducción proporcional de retribuciones, de los puestos de trabajo de la Administración de la Junta de Comunidades de Castilla-La Mancha y de las entidades previstas en el artículo 4.1, párrafos b) y c), del texto refundido de la Ley de Hacienda de Castilla-La Mancha, aprobado por el Decreto Legislativo 1/2002, de 19 de noviembre, ocupados por personal empleado público interino.</p>
+<p class="parrafo">2. El Consejo de Gobierno deberá determinar el personal afectado, la duración de la medida y el porcentaje de reducción de jornada, que no podrá ser superior al 15 %, así como cualesquiera otras cuestiones complementarias que se consideren necesarias para la aplicación de esta medida.</p>
+<p class="articulo">Artículo 3. Reducción voluntaria de jornada.</p>
+<p class="parrafo">1. El personal empleado público que preste servicios en la Administración de la Junta de Comunidades de Castilla-La Mancha podrá solicitar la reducción de su jornada diaria, con la correspondiente reducción proporcional de retribuciones.</p>
+<p class="parrafo">2. Cuando lo permita la organización del trabajo de la unidad, se concederá a la persona solicitante la reducción de jornada y el periodo de disfrute de la misma que convenga a sus intereses personales. En todo caso, se deberá solicitar la reducción de jornada con una antelación mínima de quince días a la fecha en que se pretenda iniciar la misma. Asimismo, la reincorporación a la jornada a tiempo completo o, en su caso, la modificación del porcentaje de reducción de jornada también deberá solicitarse con una antelación mínima de quince días.</p>
+<p class="parrafo">3. Quien ejerza este derecho podrá acumularlo en jornadas diarias completas, de modo que se presten servicios durante un número inferior de días a la semana o al mes. En cualquier caso, como consecuencia de la acumulación no se podrá dejar de prestar servicios durante un mes natural completo.</p>
+<p class="parrafo">4. La acumulación regulada en el apartado anterior, requerirá de acuerdo previo entre la persona solicitante y el órgano competente para su concesión. Dicho acuerdo podrá celebrarse tanto al inicio de la reducción de jornada como en un momento posterior, y podrá extenderse a todo el período de duración de la reducción o a parte de aquél.</p>
+<p class="parrafo">5. En todo caso, el disfrute de la reducción de jornada en esta modalidad será ininterrumpido. Una vez acordado, sólo podrá modificarse el régimen pactado mediante nuevo acuerdo entre el órgano competente para su concesión y el personal afectado.</p>
+<p class="parrafo">6. La concesión de la reducción de jornada y, en su caso, la acumulación en jornadas completas quedan subordinadas a las necesidades y al buen funcionamiento de los servicios públicos. A tal efecto, es necesario que en el expediente se acredite, mediante informe de la persona responsable de la unidad en que estuviera destinada la persona solicitante, que quedan debidamente cubiertas las necesidades del servicio.</p>
+<p class="parrafo">7. No se podrá sustituir a las personas a las que se les conceda la reducción de jornada prevista en esta disposición».</p>
+<p class="articulo">Artículo 4. Excedencia voluntaria especial.</p>
+<p class="parrafo">1. El personal funcionario de carrera y el personal estatutario fijo podrán solicitar una excedencia voluntaria especial con una duración mínima de seis meses y máxima de tres años, durante la cual tendrá derecho a la reserva del puesto de trabajo durante todo el tiempo que permanezca en esa situación.</p>
+<p class="parrafo">Asimismo, el tiempo de permanencia en esta situación se le computará como prestado en dicho puesto a efectos de promoción interna, grado personal y reconocimiento de trienios, así como a efectos del cumplimiento del periodo mínimo de servicios efectivos para solicitar el pase a la situación de excedencia voluntaria por interés particular.</p>
+<p class="parrafo">2. Durante la vigencia de esta excedencia no se pueden desempeñar puestos de trabajo en el sector público bajo ningún tipo de relación funcionarial o contractual, sea ésta de naturaleza laboral o administrativa, excepto aquéllos que, de acuerdo con la normativa sobre incompatibilidades, sean compatibles.</p>
+<p class="parrafo">3. La concesión de la excedencia está supeditada a las necesidades y al buen funcionamiento de los servicios públicos. A tal efecto, es necesario que en el expediente se acredite, mediante informe de la persona responsable de la unidad en que estuviera destinada la persona solicitante, que quedan debidamente cubiertas las necesidades del servicio.</p>
+<p class="parrafo">4. Antes de finalizar el período de tres años de duración de esta situación deberá solicitarse el reingreso al servicio activo, declarándose de oficio, de no hacerlo, la situación de excedencia voluntaria por interés particular.</p>
+<p class="parrafo">5. No se podrán sustituir a las personas a las que se les conceda la excedencia voluntaria prevista en esta disposición».</p>
+<p class="articulo">Artículo 5. Licencia por asuntos propios.</p>
+<p class="parrafo">1. El personal funcionario y el personal estatutario podrán solicitar licencias por asuntos propios.</p>
+<p class="parrafo">Dichas licencias se concederán sin retribución alguna y su duración acumulada no podrá exceder de seis meses durante un periodo de un año.</p>
+<p class="parrafo">2. La licencia por asuntos propios se concederá desde el día en que se deja de trabajar hasta el día natural inmediatamente anterior a aquél en que se produce la reincorporación efectiva al trabajo o se pase a una situación administrativa distinta a la de activo.</p>
+<p class="parrafo">3. La concesión de esta licencia está supeditada a las necesidades y al buen funcionamiento de los servicios públicos. A tal efecto, es necesario que en el expediente se acredite, mediante informe de la persona responsable de la unidad en que estuviera destinada la persona solicitante, que quedan debidamente cubiertas las necesidades del servicio.</p>
+<p class="parrafo">4. No se podrá sustituir a las personas a las que se les conceda la licencia prevista en esta disposición.</p>
+<p class="articulo">Artículo 6. Paga extraordinaria de diciembre de 2012 de los altos cargos.</p>
+<p class="parrafo">Los altos cargos y asimilados de la Administración de la Junta de Comunidades de Castilla-La Mancha y del sector público regional no percibirán la paga extraordinaria de diciembre de 2012. Esta reducción comprenderá la de todos los conceptos retributivos que forman parte de dicha paga.</p>
+<p class="titulo_num">TÍTULO II</p>
+<p class="titulo_tit">Modificaciones legislativas</p>
+<p class="articulo">Artículo 7. Modificación de la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha».</p>
+<p class="parrafo">1. Se modifica el artículo 1 de la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha», el cual queda redactado como sigue:</p>
+<p class="sangrado_articulo">«Artículo 1.º</p>
+<p class="sangrado">Se crea la Empresa Pública ‘‘Gestión de Infraestructuras de Castilla-La Mancha’’.»</p>
+<p class="parrafo_2">2. Se modifica el artículo 3.a) de la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha», el cual queda redactado como sigue:</p>
+<p class="sangrado_2">«a) La Sociedad tendrá por objeto, entre otros, proyectar, construir, conservar, explotar y promocionar infraestructuras y equipamientos sociales, culturales, deportivos y de vivienda, competencia de la Junta de Comunidades de Castilla-La Mancha, que la misma promueva o participe, según los términos de sus encargos y mandatos de actuación, así como los servicios que se puedan instalar o desarrollar en dichas infraestructuras y equipamientos.»</p>
+<p class="parrafo_2">3. Se introduce una nueva disposición adicional en la Ley 11/1997, de 17 de diciembre, de creación de la empresa pública «Gestión de Infraestructuras de Castilla-La Mancha», en los siguientes términos:</p>
+<p class="sangrado_articulo">«Disposición adicional tercera. Adscripción.</p>
+<p class="sangrado">La empresa pública ‘‘Gestión de Infraestructuras de Castilla-La Mancha’’ queda adscrita a la Consejería de Fomento.»</p>
+<p class="articulo">Artículo 8. Reorganización administrativa.</p>
+<p class="parrafo">1. Se adscriben a la Consejería de Fomento, pasando a depender de la Dirección General de Telecomunicaciones y Nuevas Tecnologías, todos los puestos de trabajo de personal funcionario reservados a la Escala Superior de Sistemas y Tecnologías de la Información, a la Escala Técnica de Sistemas e Informática y a la Escala Administrativa de Informática; así como los puestos de trabajo de personal laboral de las siguientes categorías a extinguir del VI Convenio Colectivo del personal laboral al servicio de la Administración de la Junta de Comunidades de Castilla-La Mancha: administrativo de informática de desarrollo, administrativo de informática de explotación y operador consola informática.</p>
+<p class="parrafo">2. Se adscriben a la Consejería de Presidencia y Administraciones Públicas, pasando a depender de la Secretaría General de la citada consejería, todos los puestos de la categoría profesional de ordenanza del VI Convenio Colectivo de personal laboral al servicio de la Administración de la Junta de Comunidades de Castilla-La Mancha que estén ubicados en centros administrativos, así como los puestos de personal funcionario del Cuerpo Subalterno en los que se desempeñen las funciones propias de dicha categoría profesional que, asimismo, estén ubicados en centros administrativos.</p>
+<p class="parrafo">3. Los órganos competentes de las Consejerías de Fomento y de Presidencia y Administraciones Públicas podrán asignar, respectivamente, al personal previsto en los apartados anteriores a unidades, departamentos u organismo públicos distintos a los de su destino cuando consideren que existen prioridades de la actividad pública con necesidades específicas de efectivos, con los límites previstos en el artículo 73.4 de la Ley 4/2011, de 10 de marzo, de Empleo Público de Castilla-La Mancha, cuando se trate de personal funcionario y de acuerdo al vigente convenio colectivo si se refiere a personal laboral.</p>
+<p class="articulo">Disposición adicional primera. Modificación de la Ley 5/2012, de 12 de julio, de Presupuestos Generales de la Junta de Comunidades de Castilla-La Mancha para 2012.</p>
+<p class="parrafo">Uno. El apartado 1 de artículo 43, que queda redactado de la siguiente forma:</p>
+<p class="sangrado_2">«1. De acuerdo con lo establecido en el artículo 117 de la Ley Orgánica 2/2006, de 3 de mayo, de Educación, el importe del módulo económico por unidad escolar, a efectos de la distribución de la cuantía global de los fondos públicos destinados al sostenimiento de los centros concertados para el año 2012, es el fijado en el anexo. Los importes anuales de los componentes de los módulos destinados a ‘‘otros gastos’’ y ‘‘gastos variables’’ son los establecidos por Ley 2/2012, de 29 de junio, de Presupuestos Generales del Estado para el año 2012, en la redacción dada por la disposición final décima, dos, del Real Decreto-ley 20/2012, de 13 de julio, de medidas para garantizar la estabilidad presupuestaria y de fomento de la competitividad.»</p>
+<p class="parrafo_2">Dos. El apartado 9 del artículo 43 queda redactado de la siguiente forma:</p>
+<p class="sangrado_2">«9. Las cantidades máximas a percibir de los alumnos en concepto de financiación complementaria a la proveniente de los fondos públicos que se asignen al régimen de conciertos singulares, suscritos para enseñanzas de niveles no obligatorios, y en concepto exclusivo de enseñanza reglada, son las que se establecen a continuación:</p>
+<p class="sangrado_2">a. Ciclos formativos de grado superior: entre 18 y 36 euros alumno/mes durante diez meses, en el período comprendido entre el 1 de enero y el 31 de diciembre de 2012.</p>
+<p class="sangrado">b. Bachillerato: entre 18 y 36 euros alumno/mes durante diez meses, en el período comprendido entre el 1 de enero y el 31 de diciembre de 2012.</p>
+<p class="sangrado_2">La financiación obtenida por los centros, consecuencia del cobro a los alumnos de estas cantidades, tendrá el carácter de complementaria a la abonada directamente por la Administración para la financiación de los otros gastos.</p>
+<p class="sangrado">Los centros que en el año 2011 estuvieran autorizados para percibir cuotas superiores a las señaladas podrán mantenerlas para el ejercicio 2012.</p>
+<p class="sangrado">La cantidad abonada por la Administración no podrá ser inferior a la resultante de minorar en 3.606,08 euros el importe correspondiente al componente de otros gastos de los módulos económicos establecidos en el anexo IV de la presente Ley, pudiendo las Administraciones educativas competentes establecer la regulación necesaria al respecto.»</p>
+<p class="parrafo_2">Tres. El anexo de la Ley de Presupuestos Generales de la Junta de Comunidades de Castilla-La Mancha para 2012 queda redactado de la siguiente forma:</p>
+
+</texto>
+</documento>

@@ -76,54 +76,67 @@ class RAGCollector(ContextCollector):
         Returns:
             ContextResult with retrieved chunks and metadata
         """
-        # Start tracing span
-        span_context = _tracer.start_as_current_span("rag_collect") if _tracer else None
+        # Allow index_name override via kwargs
+        index_name = kwargs.get("index_name", self._index_name)
         
-        try:
-            if span_context:
-                span = span_context.__enter__()
+        step_logger.info(f"[RAGCollector] Generating embedding for query...")
+        
+        # Use proper context manager for tracing
+        if _tracer:
+            with _tracer.start_as_current_span("RAGCollector.collect") as span:
+                # Record input attributes
                 span.set_attribute("collector.name", self.name)
-                span.set_attribute("collector.query", query[:100])
-                span.set_attribute("collector.top_k", top_k)
-            
-            # Allow index_name override via kwargs
-            index_name = kwargs.get("index_name", self._index_name)
-            
-            step_logger.info(f"[RAGCollector] Generating embedding for query...")
-            
-            # Trace embedding generation
-            if _tracer:
-                with _tracer.start_as_current_span("rag_generate_embedding") as emb_span:
-                    emb_span.set_attribute("input.query", query[:100])
-                    query_embedding = self._embedding_provider.get_embedding(query)
-                    emb_span.set_attribute("output.dimensions", len(query_embedding))
-            else:
+                span.set_attribute("input.query", query)
+                span.set_attribute("input.top_k", top_k)
+                span.set_attribute("input.index_name", index_name)
+                
+                # Generate embedding
                 query_embedding = self._embedding_provider.get_embedding(query)
-            
-            step_logger.info(f"[RAGCollector] Searching vector index (top_k={top_k})...")
-            
-            # Trace vector search
-            if _tracer:
-                with _tracer.start_as_current_span("rag_vector_search") as search_span:
-                    search_span.set_attribute("search.index_name", index_name)
-                    search_span.set_attribute("search.top_k", top_k)
-                    chunks = self._neo4j_adapter.vector_search(
-                        query_embedding=query_embedding,
-                        top_k=top_k,
-                        index_name=index_name
-                    )
-                    search_span.set_attribute("search.results_count", len(chunks))
-            else:
+                span.set_attribute("embedding.dimensions", len(query_embedding))
+                
+                step_logger.info(f"[RAGCollector] Searching vector index (top_k={top_k})...")
+                
+                # Perform vector search
                 chunks = self._neo4j_adapter.vector_search(
                     query_embedding=query_embedding,
                     top_k=top_k,
                     index_name=index_name
                 )
+                
+                # Record output attributes
+                span.set_attribute("output.chunks_count", len(chunks))
+                
+                # Log full chunk details for each retrieved chunk
+                for i, chunk in enumerate(chunks):
+                    span.set_attribute(f"output.chunk_{i}.article_number", chunk.get('article_number', 'N/A'))
+                    span.set_attribute(f"output.chunk_{i}.normativa_title", chunk.get('normativa_title', 'N/A'))
+                    span.set_attribute(f"output.chunk_{i}.score", chunk.get('score', 0))
+                    span.set_attribute(f"output.chunk_{i}.text", chunk.get('text', ''))
+                
+                step_logger.info(f"[RAGCollector] Retrieved {len(chunks)} chunks")
+                
+                return ContextResult(
+                    chunks=chunks,
+                    strategy_name=self.name,
+                    metadata={
+                        "index_name": index_name,
+                        "top_k": top_k,
+                        "embedding_dim": len(query_embedding)
+                    }
+                )
+        else:
+            # No tracing - execute directly
+            query_embedding = self._embedding_provider.get_embedding(query)
+            
+            step_logger.info(f"[RAGCollector] Searching vector index (top_k={top_k})...")
+            
+            chunks = self._neo4j_adapter.vector_search(
+                query_embedding=query_embedding,
+                top_k=top_k,
+                index_name=index_name
+            )
             
             step_logger.info(f"[RAGCollector] Retrieved {len(chunks)} chunks")
-            
-            if span_context:
-                span.set_attribute("output.chunks_count", len(chunks))
             
             return ContextResult(
                 chunks=chunks,
@@ -134,6 +147,4 @@ class RAGCollector(ContextCollector):
                     "embedding_dim": len(query_embedding)
                 }
             )
-        finally:
-            if span_context:
-                span_context.__exit__(None, None, None)
+

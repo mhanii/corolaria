@@ -3,8 +3,16 @@ from src.infrastructure.http.http_client import BOEHTTPClient
 import asyncio
 import concurrent.futures
 
+# Import tracing (optional)
+try:
+    from opentelemetry import trace
+    _tracer = trace.get_tracer("data_retriever")
+except ImportError:
+    _tracer = None
+
+
 class DataRetriever(Step):
-    def __init__(self, name: str, search_criteria: str = "default"): # For now you must specify the id.
+    def __init__(self, name: str, search_criteria: str = "default"):
         super().__init__(name)
         self.search_criteria = search_criteria
         self.client = BOEHTTPClient()
@@ -32,5 +40,27 @@ class DataRetriever(Step):
                 return future.result()
 
     def process(self, data):
-        # Keep pipeline sync: run the async client call synchronously
-        return self._run_coro_sync(self.client.get_law_by_id(self.search_criteria))
+        """Retrieve law data from BOE API."""
+        # Add tracing attributes
+        if _tracer:
+            current_span = trace.get_current_span()
+            if current_span and current_span.is_recording():
+                current_span.set_attribute("retriever.law_id", self.search_criteria)
+                current_span.set_attribute("retriever.source", "BOE API")
+        
+        # Fetch the data
+        result = self._run_coro_sync(self.client.get_law_by_id(self.search_criteria))
+        
+        # Add output attributes
+        if _tracer:
+            current_span = trace.get_current_span()
+            if current_span and current_span.is_recording():
+                if result and isinstance(result, dict):
+                    data_section = result.get("data", {})
+                    current_span.set_attribute("retriever.has_data", bool(data_section))
+                    if data_section:
+                        metadata = data_section.get("metadatos", {})
+                        current_span.set_attribute("retriever.titulo", metadata.get("titulo", "Unknown"))
+                        current_span.set_attribute("retriever.fecha_publicacion", metadata.get("fecha_publicacion", "Unknown"))
+        
+        return result
