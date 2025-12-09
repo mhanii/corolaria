@@ -21,6 +21,7 @@ class ConversationMessage:
     citations: List[Citation] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    context_json: Optional[str] = None  # Serialized context chunks used for this message
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -29,7 +30,8 @@ class ConversationMessage:
             "content": self.content,
             "citations": [c.to_summary_dict() for c in self.citations],
             "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata
+            "metadata": self.metadata,
+            "has_context": self.context_json is not None
         }
     
     def to_llm_format(self) -> Dict[str, str]:

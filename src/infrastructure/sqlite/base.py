@@ -7,7 +7,7 @@ from src.utils.logger import step_logger
 
 
 # Database schema version for migrations
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 # SQL statements for table creation
 SCHEMA_SQL = """
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS messages (
     content TEXT NOT NULL,
     timestamp TEXT NOT NULL,
     metadata TEXT,
+    context_json TEXT,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
 
@@ -68,6 +69,47 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation
 CREATE INDEX IF NOT EXISTS idx_message_citations_message_id ON message_citations(message_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 """
+
+# Migrations dictionary: version -> SQL to upgrade from previous version
+MIGRATIONS = {
+    2: """
+    -- Add context_json column to messages table for storing context used in responses
+    ALTER TABLE messages ADD COLUMN context_json TEXT;
+    """,
+    3: """
+    -- Add cite_key and display_text columns for semantic citation system
+    ALTER TABLE message_citations ADD COLUMN cite_key TEXT;
+    ALTER TABLE message_citations ADD COLUMN display_text TEXT;
+    """
+}
+
+
+def _run_migrations(connection, current_version: int, target_version: int):
+    """Run migrations from current_version to target_version."""
+    from datetime import datetime
+    
+    for version in range(current_version + 1, target_version + 1):
+        if version in MIGRATIONS:
+            step_logger.info(f"[SQLite] Running migration to version {version}...")
+            try:
+                connection.executescript(MIGRATIONS[version])
+                connection.execute(
+                    "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
+                    (version, datetime.now().isoformat())
+                )
+                connection.commit()
+                step_logger.info(f"[SQLite] Migration to version {version} complete")
+            except Exception as e:
+                # Column might already exist if we're re-running
+                if "duplicate column" in str(e).lower():
+                    step_logger.info(f"[SQLite] Migration {version}: column already exists, skipping")
+                    connection.execute(
+                        "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
+                        (version, datetime.now().isoformat())
+                    )
+                    connection.commit()
+                else:
+                    raise
 
 
 def init_database(db_path: str = "data/coloraria.db") -> SQLiteConnection:
@@ -107,6 +149,11 @@ def init_database(db_path: str = "data/coloraria.db") -> SQLiteConnection:
     else:
         current_version = row[0]
         step_logger.info(f"[SQLite] Database schema version: {current_version}")
+        
+        # Run migrations if needed
+        if current_version < SCHEMA_VERSION:
+            _run_migrations(connection, current_version, SCHEMA_VERSION)
     
     step_logger.info("[SQLite] Database initialization complete")
     return conn_manager
+

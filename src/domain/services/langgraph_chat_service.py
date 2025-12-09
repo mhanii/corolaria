@@ -15,6 +15,7 @@ from src.ai.citations.citation_engine import CitationEngine
 from src.ai.prompts.prompt_builder import PromptBuilder
 from src.ai.graph.workflow import build_chat_workflow
 from src.ai.context_collectors import RAGCollector
+from src.ai.context_decision import ContextDecision
 from src.infrastructure.graphdb.adapter import Neo4jAdapter
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.utils.logger import step_logger
@@ -75,7 +76,8 @@ class LangGraphChatService:
         prompt_builder: Optional[PromptBuilder] = None,
         retrieval_top_k: int = 5,
         index_name: str = "article_embeddings",
-        checkpointer=None
+        checkpointer=None,
+        max_context_history: int = 5
     ):
         """
         Initialize LangGraph chat service with dependencies.
@@ -104,6 +106,7 @@ class LangGraphChatService:
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.retrieval_top_k = retrieval_top_k
         self.checkpointer = checkpointer
+        self.max_context_history = max_context_history
         
         # Create or use provided context collector
         if context_collector:
@@ -123,6 +126,9 @@ class LangGraphChatService:
         # Determine persistence mode
         self.use_sqlite = conversation_repository is not None
         
+        # Initialize context decision system
+        self.context_decision = ContextDecision()
+        
         # Build the LangGraph workflow with context collector
         self.workflow = build_chat_workflow(
             context_collector=self.context_collector,
@@ -135,6 +141,10 @@ class LangGraphChatService:
         mode = "SQLite" if self.use_sqlite else "in-memory"
         step_logger.info(f"[LangGraphChatService] Initialized with {mode} persistence, "
                          f"collector={self.context_collector.name} (top_k={retrieval_top_k})")
+    
+    def set_chroma_store(self, chroma_store):
+        """Set ChromaDB store for context decision embedding similarity."""
+        self.context_decision.set_chroma_store(chroma_store)
     
     def chat(
         self,
@@ -168,6 +178,29 @@ class LangGraphChatService:
         # Add user message to conversation
         self._add_user_message(conversation, query, user_id)
         
+        # Get context history for context decision
+        context_history = []
+        previous_context = None
+        if self.use_sqlite and conversation_id:
+            context_history = self.conversation_repository.get_context_history(
+                conversation.id, 
+                n=self.max_context_history
+            )
+            # Get immediate previous context for decision making
+            if context_history:
+                previous_context = context_history[0]["context_json"]
+        
+        # Decide whether to skip context collector
+        skip_collector = False
+        if previous_context:
+            decision = self.context_decision.needs_context_collector(
+                query=query,
+                conversation=conversation,
+                previous_context=previous_context
+            )
+            skip_collector = not decision.needs_collector
+            step_logger.info(f"[LangGraphChatService] Context decision: skip_collector={skip_collector}, reason={decision.reason}")
+        
         # Build messages from conversation history
         messages = self._build_llm_messages(conversation, query)
         step_logger.info(f"[LangGraphChatService] Built {len(messages)} messages for LLM context")
@@ -177,32 +210,40 @@ class LangGraphChatService:
             "query": query,
             "conversation_id": conversation.id,
             "top_k": top_k or self.retrieval_top_k,
+            "previous_context": previous_context,
+            "context_history": context_history,
+            "skip_collector": skip_collector,
             "chunks": [],
-            "context_strategy": "",  # Will be set by collect_context_node
+            "context_strategy": "",
             "citations": [],
             "context": "",
             "messages": messages,
             "system_prompt": "",
             "response": "",
             "used_citations": [],
+            "context_json": None,
             "start_time": start_time,
             "execution_time_ms": 0.0,
             "metadata": {}
         }
         
         # Execute the LangGraph workflow
-        # Pass thread_id in config for checkpointing
         step_logger.info(f"[LangGraphChatService] Invoking workflow...")
         
         if self.checkpointer:
-            # Use thread_id for LangGraph checkpointing
             config = {"configurable": {"thread_id": conversation.id}}
             result = self.workflow.invoke(initial_state, config=config)
         else:
             result = self.workflow.invoke(initial_state)
         
-        # Add assistant message to conversation
-        self._add_assistant_message(conversation, result["response"], result["used_citations"], user_id)
+        # Add assistant message to conversation with context
+        self._add_assistant_message(
+            conversation, 
+            result["response"], 
+            result["used_citations"], 
+            user_id,
+            context_json=result.get("context_json")
+        )
         
         step_logger.info(f"[LangGraphChatService] Completed in {result['execution_time_ms']:.2f}ms "
                         f"(citations used: {len(result['used_citations'])})")
@@ -216,6 +257,7 @@ class LangGraphChatService:
                 "total_chunks_retrieved": len(result["chunks"]),
                 "workflow": "langgraph",
                 "persistence": "sqlite" if self.use_sqlite else "memory",
+                "context_reused": skip_collector,
                 **result.get("metadata", {})
             }
         )
@@ -282,12 +324,13 @@ class LangGraphChatService:
         conversation: Conversation,
         content: str,
         citations: List[Citation],
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        context_json: Optional[str] = None
     ):
-        """Add assistant message to conversation."""
+        """Add assistant message to conversation with optional context."""
         if self.use_sqlite:
             self.conversation_repository.add_message(
-                conversation.id, "assistant", content, citations
+                conversation.id, "assistant", content, citations, context_json=context_json
             )
         else:
             conversation.add_assistant_message(content, citations)
@@ -371,21 +414,156 @@ class LangGraphChatService:
         # Add user message to conversation
         self._add_user_message(conversation, query, user_id)
         
+        # Get context history for context decision
+        context_history = []
+        previous_context = None
+        if self.use_sqlite and conversation_id:
+            context_history = self.conversation_repository.get_context_history(
+                conversation.id,
+                n=self.max_context_history
+            )
+            if context_history:
+                previous_context = context_history[0]["context_json"]
+        
+        # Decide whether to skip context collector
+        skip_collector = False
+        context_json = None
+        if previous_context:
+            decision = self.context_decision.needs_context_collector(
+                query=query,
+                conversation=conversation,
+                previous_context=previous_context
+            )
+            skip_collector = not decision.needs_collector
+            step_logger.info(f"[LangGraphChatService] Stream context decision: skip_collector={skip_collector}, reason={decision.reason}")
+        
         # Build messages from conversation history
         messages = self._build_llm_messages(conversation, query)
         step_logger.info(f"[LangGraphChatService] Built {len(messages)} messages for LLM context")
         
-        # Step 1: Collect context (non-streaming, we need it before generation)
-        step_logger.info(f"[LangGraphChatService] Collecting context...")
-        context_result = self.context_collector.collect(
-            query=query,
-            top_k=top_k or self.retrieval_top_k
-        )
+        # Step 1: Collect context (or reuse previous)
+        if skip_collector and previous_context:
+            step_logger.info(f"[LangGraphChatService] Reusing previous context for streaming")
+            import json
+            try:
+                chunks = json.loads(previous_context)
+                context_json = previous_context
+            except json.JSONDecodeError:
+                step_logger.warning("[LangGraphChatService] Failed to parse previous context, collecting fresh")
+                skip_collector = False
         
-        # Step 2: Build citations
-        citations = self.citation_engine.create_citations(context_result.chunks)
-        context = self.citation_engine.format_context_with_citations(citations)
-        step_logger.info(f"[LangGraphChatService] Created {len(citations)} citations")
+        if not skip_collector:
+            step_logger.info(f"[LangGraphChatService] Collecting context...")
+            context_result = self.context_collector.collect(
+                query=query,
+                top_k=top_k or self.retrieval_top_k
+            )
+            chunks = context_result.chunks
+            import json
+            context_json = json.dumps(chunks, ensure_ascii=False, default=str)
+        
+        # Step 2: Build citations and context with full history
+        # Collect ALL chunks from all sources for unified citation indexing
+        all_chunks = []
+        context_parts = []
+        citation_index = 1
+        seen_article_ids = set()  # Track seen articles for deduplication
+        
+        def add_chunk_if_unique(chunk: dict, label_chunks: list) -> bool:
+            """Add chunk to label_chunks if article_id not seen."""
+            nonlocal citation_index
+            article_id = chunk.get("article_id")
+            if article_id and article_id in seen_article_ids:
+                return False
+            if article_id:
+                seen_article_ids.add(article_id)
+            chunk["_citation_index"] = citation_index
+            label_chunks.append(chunk)
+            all_chunks.append(chunk)
+            citation_index += 1
+            return True
+        
+        # Include context history if we have it AND we ran fresh RAG (not reusing)
+        if context_history and not skip_collector:
+            step_logger.info(f"[LangGraphChatService] Processing {len(context_history)} context history entries...")
+            
+            for i, entry in enumerate(context_history):
+                try:
+                    is_immediate = entry.get("is_immediate", False)
+                    
+                    if is_immediate:
+                        # Immediate previous: include ALL chunks
+                        prev_chunks = json.loads(entry["context_json"])
+                        label = "=== CONTEXTO PREVIO INMEDIATO (de la última respuesta) ==="
+                    else:
+                        # Older contexts: only include used citations
+                        used_citations = entry.get("citations", [])
+                        if not used_citations:
+                            continue
+                        
+                        prev_chunks = [
+                            {
+                                "article_id": c.article_id,
+                                "article_number": c.article_number,
+                                "article_text": c.article_text,
+                                "normativa_title": c.normativa_title,
+                                "article_path": c.article_path,
+                                "score": c.score
+                            }
+                            for c in used_citations
+                        ]
+                        label = f"=== CONTEXTO HISTÓRICO (hace {i+1} turnos, solo citas usadas) ==="
+                    
+                    if prev_chunks:
+                        # Deduplicate and add chunks
+                        label_chunks = []
+                        for chunk in prev_chunks:
+                            add_chunk_if_unique(chunk, label_chunks)
+                        
+                        if label_chunks:
+                            step_logger.info(f"[LangGraphChatService] {'Immediate' if is_immediate else f'History {i+1}'}: {len(label_chunks)} unique chunks (skipped {len(prev_chunks) - len(label_chunks)} duplicates)")
+                            
+                            entry_citations = self.citation_engine.create_citations(label_chunks)
+                            for j, c in enumerate(entry_citations):
+                                c.index = label_chunks[j]["_citation_index"]
+                            
+                            formatted = self.citation_engine.format_context_with_citations(entry_citations)
+                            
+                            if formatted:
+                                context_parts.append(label)
+                                context_parts.append(formatted)
+                                context_parts.append("")
+                        
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    step_logger.warning(f"[LangGraphChatService] Failed to process context history entry {i}: {e}")
+        
+        # Add current context chunks (with deduplication)
+        if chunks:
+            label_chunks = []
+            for chunk in chunks:
+                add_chunk_if_unique(chunk, label_chunks)
+            
+            if label_chunks:
+                step_logger.info(f"[LangGraphChatService] Current: {len(label_chunks)} unique chunks (skipped {len(chunks) - len(label_chunks)} duplicates)")
+                
+                current_citations = self.citation_engine.create_citations(label_chunks)
+                for j, c in enumerate(current_citations):
+                    c.index = label_chunks[j]["_citation_index"]
+                
+                current_context = self.citation_engine.format_context_with_citations(current_citations)
+                
+                if current_context:
+                    if context_parts:
+                        context_parts.append("=== CONTEXTO ACTUAL (nuevo para esta consulta) ===")
+                    context_parts.append(current_context)
+        
+        # Create unified citations list
+        citations = self.citation_engine.create_citations(all_chunks)
+        for i, c in enumerate(citations):
+            c.index = all_chunks[i].get("_citation_index", i + 1)
+        
+        context = "\n".join(context_parts)
+        step_logger.info(f"[LangGraphChatService] Created {len(citations)} total citations ({len(context)} chars context)")
         
         # Step 3: Build system prompt
         system_prompt = self.prompt_builder.build_system_prompt()
@@ -419,8 +597,8 @@ class LangGraphChatService:
             response_text, citations
         )
         
-        # Step 6: Add assistant message to conversation
-        self._add_assistant_message(conversation, cleaned_response, used_citations, user_id)
+        # Step 6: Add assistant message to conversation with context
+        self._add_assistant_message(conversation, cleaned_response, used_citations, user_id, context_json=context_json)
         
         execution_time_ms = (time.time() - start_time) * 1000
         
@@ -437,9 +615,10 @@ class LangGraphChatService:
             "conversation_id": conversation.id,
             "execution_time_ms": execution_time_ms,
             "metadata": {
-                "total_chunks_retrieved": len(context_result.chunks),
+                "total_chunks_retrieved": len(chunks),
                 "workflow": "streaming",
-                "persistence": "sqlite" if self.use_sqlite else "memory"
+                "persistence": "sqlite" if self.use_sqlite else "memory",
+                "context_reused": skip_collector
             }
         }
 

@@ -12,6 +12,7 @@ from src.infrastructure.graphdb.adapter import Neo4jAdapter
 from src.ai.embeddings.factory import EmbeddingFactory
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.domain.value_objects.embedding_config import EmbeddingConfig
+from src.utils.logger import step_logger
 
 # Load environment variables
 load_dotenv()
@@ -134,6 +135,7 @@ def get_embedding_provider() -> EmbeddingProvider:
 # Lazy imports for chat components
 _llm_provider = None
 _conversation_service = None
+_chroma_store = None
 
 
 def get_llm_provider():
@@ -179,6 +181,33 @@ def get_conversation_service():
         )
     
     return _conversation_service
+
+
+def get_chroma_store():
+    """
+    Dependency that provides ChromaDB classification store (cached singleton).
+    Used for context decision embedding similarity.
+    
+    Returns:
+        ChromaClassificationStore instance (seeded with default phrases)
+    """
+    global _chroma_store
+    
+    if _chroma_store is None:
+        from src.infrastructure.chroma import ChromaClassificationStore
+        
+        _chroma_store = ChromaClassificationStore(
+            persist_directory="data/chroma",
+            embedding_provider=get_embedding_provider(),
+            cache_path="data/classification_embeddings_cache.json"
+        )
+        
+        # Seed with defaults if not already seeded
+        _chroma_store.seed_defaults()
+        
+        step_logger.info("[Dependencies] ChromaDB classification store initialized and seeded")
+    
+    return _chroma_store
 
 
 from fastapi import Depends
@@ -308,7 +337,7 @@ def get_chat_service_with_collector(
         index_name=config.retrieval_index_name
     )
     
-    return LangGraphChatService(
+    chat_service = LangGraphChatService(
         llm_provider=get_llm_provider(),
         context_collector=context_collector,
         conversation_repository=conversation_repo,
@@ -317,6 +346,11 @@ def get_chat_service_with_collector(
         retrieval_top_k=config.retrieval_top_k,
         checkpointer=checkpointer
     )
+    
+    # Enable context decision with ChromaDB embedding similarity
+    chat_service.set_chroma_store(get_chroma_store())
+    
+    return chat_service
 
 
 def get_chat_service_with_user(
@@ -351,7 +385,7 @@ def get_chat_service_with_user(
     # Get SQLite checkpointer for LangGraph state persistence
     checkpointer = get_checkpointer()
     
-    return LangGraphChatService(
+    chat_service = LangGraphChatService(
         llm_provider=get_llm_provider(),
         neo4j_adapter=adapter,
         embedding_provider=get_embedding_provider(),
@@ -362,3 +396,8 @@ def get_chat_service_with_user(
         index_name=config.retrieval_index_name,
         checkpointer=checkpointer
     )
+    
+    # Enable context decision with ChromaDB embedding similarity
+    chat_service.set_chroma_store(get_chroma_store())
+    
+    return chat_service

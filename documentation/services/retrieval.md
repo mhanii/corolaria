@@ -58,8 +58,11 @@ python scripts/test_retrieval.py --interactive
 
 ## Retrieval Strategies
 
-### 1. Vector Search (`vector`)
+### 1. Vector Search (`vector`) within RAG
 - **Method**: Semantic similarity using embeddings
+- **Enrichment**:
+    - **Validity Checking**: Automatically checks if citations are outdated. If an article has a `NEXT_VERSION`, it "hops" to the latest version while noting the discrepancy.
+    - **Reference Expansion**: Automatically fetches articles that the result `REFERS_TO` (up to 3 levels) to provide context.
 - **Best for**: Conceptual queries, synonyms, related concepts
 - **Example**: "individual freedoms" → finds articles about rights even without exact match
 
@@ -87,6 +90,19 @@ python scripts/test_retrieval.py --interactive
 ### 5. LLM Query (`llm`) 
 - **Status**: Placeholder for future implementation
 - **Planned**: Query reformulation, intent extraction
+
+## RAG Enrichment (`ChunkEnricher`)
+
+The RAG pipeline includes an automatic enrichment step implemented in `RAGCollector`:
+
+1.  **Validity Checking**:
+    *   For every retrieved chunk, checks if `(article)-[:NEXT_VERSION]->(newer)`.
+    *   If a newer version exists, it traverses to the **latest** version.
+    *   The LLM context receives the latest text but is informed that the retrieval found an older version.
+
+2.  **Reference Expansion (`REFERS_TO`)**:
+    *   For search results, the system looks for outgoing `REFERS_TO` relationships.
+    *   Fetches linked articles (up to 3) to provide immediate context for definitions/references.
 
 ## API Reference
 
@@ -123,7 +139,7 @@ Benchmark performance across queries.
 Value object representing a search result.
 
 **Fields**:
-- `article_id`: Unique identifier
+- `article_id`: Unique identifier (String)
 - `article_number`: Display number (e.g., "14")
 - `article_text`: Full article text
 - `normativa_title`: Parent normativa title

@@ -50,7 +50,8 @@ class ChatRequest(BaseModel):
 class CitationResponse(BaseModel):
     """Schema for citation in response."""
     
-    index: int = Field(..., description="Citation number [1], [2], etc.")
+    cite_key: str = Field(..., description="Citation key like 'art_14_ce_abc123'")
+    display_text: str = Field(default="", description="Text shown in the citation (e.g., 'Artículo 14')")
     article_id: str = Field(..., description="Unique article identifier")
     article_number: str = Field(..., description="Article number (e.g., 'Artículo 14')")
     normativa_title: str = Field(..., description="Title of the regulation")
@@ -60,8 +61,9 @@ class CitationResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "index": 1,
-                "article_id": "123",
+                "cite_key": "art_14_ce_abc123",
+                "display_text": "Artículo 14",
+                "article_id": "abc123",
                 "article_number": "Artículo 14",
                 "normativa_title": "Constitución Española de 1978",
                 "article_path": "Título I, Capítulo Segundo",
@@ -73,7 +75,7 @@ class CitationResponse(BaseModel):
 class ChatResponse(BaseModel):
     """Response schema for chat endpoint."""
     
-    response: str = Field(..., description="AI assistant's response with inline citations")
+    response: str = Field(..., description="AI assistant's response with inline semantic citations")
     conversation_id: str = Field(..., description="Conversation ID for follow-up messages")
     citations: List[CitationResponse] = Field(
         default_factory=list,
@@ -84,12 +86,13 @@ class ChatResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "response": "El artículo 14 de la Constitución Española establece que los españoles son iguales ante la ley [1].",
+                "response": "El [cite:art_14_ce_abc123]Artículo 14 de la Constitución Española[/cite] establece que los españoles son iguales ante la ley.",
                 "conversation_id": "abc123-def456",
                 "citations": [
                     {
-                        "index": 1,
-                        "article_id": "123",
+                        "cite_key": "art_14_ce_abc123",
+                        "display_text": "Artículo 14 de la Constitución Española",
+                        "article_id": "abc123",
                         "article_number": "Artículo 14",
                         "normativa_title": "Constitución Española de 1978",
                         "article_path": "Título I",

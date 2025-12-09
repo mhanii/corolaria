@@ -19,11 +19,11 @@ class PromptBuilder:
     DEFAULT_PROMPTS = {
         "system_prompt": (
             "You are a legal assistant answering questions based solely on provided context.\n"
-            "Always cite sources using [1], [2] format. Be concise and accurate.\n"
+            "Always cite sources using [cite:ID]article text[/cite] format. Be concise and accurate.\n"
             "If the context doesn't contain relevant information, say so clearly."
         ),
-        "context_template": "[Source {index}] {normativa_title} - {article_path}\n{article_text}",
-        "citation_instruction": "Cite sources inline using [N] format referencing the source numbers above."
+        "context_template": "[Fuente: {cite_key}] {normativa_title} - {article_path}\n{article_text}",
+        "citation_instruction": "Cite sources inline using [cite:ID]descriptive text[/cite] format where ID matches the source identifiers above."
     }
     
     def __init__(self, config_path: Optional[str] = None):

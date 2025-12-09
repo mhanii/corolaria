@@ -4,7 +4,7 @@ Handles conversation and message CRUD with user isolation.
 """
 import json
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import uuid
 
 from src.infrastructure.sqlite.connection import SQLiteConnection
@@ -225,7 +225,8 @@ class ConversationRepository:
         conversation_id: str,
         role: str,
         content: str,
-        citations: Optional[List[Citation]] = None
+        citations: Optional[List[Citation]] = None,
+        context_json: Optional[str] = None
     ) -> Optional[ConversationMessage]:
         """
         Add a message to a conversation.
@@ -235,19 +236,20 @@ class ConversationRepository:
             role: Message role ('user' or 'assistant')
             content: Message content
             citations: Optional citations (for assistant messages)
+            context_json: Optional serialized context used for this message
             
         Returns:
             Created message or None if conversation not found
         """
         now = datetime.now()
         
-        # Insert message
+        # Insert message with context
         cursor = self.connection.execute(
             """
-            INSERT INTO messages (conversation_id, role, content, timestamp, metadata)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO messages (conversation_id, role, content, timestamp, metadata, context_json)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (conversation_id, role, content, now.isoformat(), None)
+            (conversation_id, role, content, now.isoformat(), None, context_json)
         )
         
         message_id = cursor.lastrowid
@@ -263,7 +265,9 @@ class ConversationRepository:
                     c.article_text,
                     c.normativa_title,
                     c.article_path,
-                    c.score
+                    c.score,
+                    c.cite_key,
+                    c.display_text
                 )
                 for c in citations
             ]
@@ -271,8 +275,8 @@ class ConversationRepository:
             self.connection.executemany(
                 """
                 INSERT INTO message_citations 
-                (message_id, citation_index, article_id, article_number, article_text, normativa_title, article_path, score)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (message_id, citation_index, article_id, article_number, article_text, normativa_title, article_path, score, cite_key, display_text)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 citation_params
             )
@@ -287,8 +291,79 @@ class ConversationRepository:
             role=role,
             content=content,
             citations=citations or [],
-            timestamp=now
+            timestamp=now,
+            context_json=context_json
         )
+    
+    def get_last_context(self, conversation_id: str) -> Optional[str]:
+        """
+        Get the context_json from the last assistant message in a conversation.
+        
+        Args:
+            conversation_id: Conversation ID
+            
+        Returns:
+            context_json string or None if not found
+        """
+        row = self.connection.fetchone(
+            """
+            SELECT context_json FROM messages 
+            WHERE conversation_id = ? AND role = 'assistant' AND context_json IS NOT NULL
+            ORDER BY timestamp DESC LIMIT 1
+            """,
+            (conversation_id,)
+        )
+        return row['context_json'] if row else None
+    
+    def get_context_history(
+        self, 
+        conversation_id: str, 
+        n: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Get the last n assistant messages with their context and used citations.
+        
+        Returns a list of dicts containing:
+        - context_json: The full context chunks (raw JSON string)
+        - citations: List of Citation objects that were actually used
+        - is_immediate: True if this is the most recent (immediate previous)
+        
+        Args:
+            conversation_id: Conversation ID
+            n: Number of previous contexts to retrieve (default 5)
+            
+        Returns:
+            List of context entries, most recent first
+        """
+        # Get last n assistant messages with context
+        rows = self.connection.fetchall(
+            """
+            SELECT id, context_json FROM messages 
+            WHERE conversation_id = ? AND role = 'assistant' AND context_json IS NOT NULL
+            ORDER BY timestamp DESC LIMIT ?
+            """,
+            (conversation_id, n)
+        )
+        
+        if not rows:
+            return []
+        
+        result = []
+        for i, row in enumerate(rows):
+            message_id = row['id']
+            context_json = row['context_json']
+            
+            # Load citations for this message
+            citations = self._load_citations(message_id)
+            
+            result.append({
+                "context_json": context_json,
+                "citations": citations,
+                "is_immediate": (i == 0)  # First one is most recent
+            })
+        
+        step_logger.info(f"[ConvRepo] Retrieved {len(result)} context history entries for {conversation_id}")
+        return result
     
     def delete_conversation(self, conversation_id: str, user_id: str) -> bool:
         """
@@ -354,12 +429,20 @@ class ConversationRepository:
             # Load citations for this message
             citations = self._load_citations(row['id'])
             
+            # Try to get context_json (may not exist in older records)
+            context_json = None
+            try:
+                context_json = row['context_json']
+            except (KeyError, IndexError):
+                pass
+            
             message = ConversationMessage(
                 role=row['role'],
                 content=row['content'],
                 citations=citations,
                 timestamp=datetime.fromisoformat(row['timestamp']),
-                metadata=json.loads(row['metadata']) if row['metadata'] else {}
+                metadata=json.loads(row['metadata']) if row['metadata'] else {},
+                context_json=context_json
             )
             
             conversation.messages.append(message)
@@ -373,13 +456,15 @@ class ConversationRepository:
         
         return [
             Citation(
-                index=row['citation_index'],
+                cite_key=row['cite_key'],
                 article_id=row['article_id'],
                 article_number=row['article_number'],
                 article_text=row['article_text'] or "",
                 normativa_title=row['normativa_title'],
                 article_path=row['article_path'] or "",
-                score=row['score']
+                display_text=row['display_text'] or "",
+                score=row['score'],
+                index=row['citation_index']
             )
             for row in rows
         ]

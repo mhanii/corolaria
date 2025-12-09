@@ -508,7 +508,7 @@ class Neo4jAdapter:
             next_version.id as next_version_id,
             normativa.titulo as normativa_title,
             normativa.id as normativa_id,
-            [h in hierarchy | {type: labels(h)[0], name: h.name}] as context_path
+            [h in hierarchy | {type: labels(h)[0], name: COALESCE(h.name, h.titulo, '')}] as context_path
         """
         
         with self.conn._driver.session() as session:

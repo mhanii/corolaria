@@ -87,6 +87,14 @@ async def get_article(
             }
         )
     
+    # Sanitize context_path: ensure all values are strings (not None)
+    raw_context_path = result.get("context_path", []) or []
+    sanitized_context_path = [
+        {"type": item.get("type") or "", "name": item.get("name") or ""}
+        for item in raw_context_path
+        if isinstance(item, dict)
+    ]
+    
     return ArticleDetailResponse(
         node_id=str(result.get("node_id", "")),
         article_number=str(result.get("article_number", "")),
@@ -99,7 +107,7 @@ async def get_article(
         fecha_caducidad=format_date(result.get("fecha_caducidad")),
         previous_version_id=str(result.get("previous_version_id")) if result.get("previous_version_id") else None,
         next_version_id=str(result.get("next_version_id")) if result.get("next_version_id") else None,
-        context_path=result.get("context_path", [])
+        context_path=sanitized_context_path
     )
 
 

@@ -28,7 +28,7 @@ class GeminiLLMProvider(LLMProvider):
     """
     
     DEFAULT_SYSTEM_PROMPT = """You are a legal assistant answering questions based solely on provided context.
-Always cite sources using [1], [2] format referencing source numbers.
+Always cite sources using [cite:ID]article text[/cite] format where ID matches the source identifier.
 Be concise and accurate. If context lacks relevant info, say so clearly."""
     
     def __init__(

@@ -234,7 +234,8 @@ async def chat(
         # Convert citations to response format
         citation_responses = [
             CitationResponse(
-                index=c.index,
+                cite_key=c.cite_key,
+                display_text=c.display_text,
                 article_id=c.article_id,
                 article_number=c.article_number,
                 normativa_title=c.normativa_title,
@@ -446,7 +447,8 @@ async def get_conversation(
     for msg in conversation.messages:
         citation_responses = [
             CitationResponse(
-                index=c.index,
+                cite_key=c.cite_key,
+                display_text=c.display_text,
                 article_id=c.article_id,
                 article_number=c.article_number,
                 normativa_title=c.normativa_title,

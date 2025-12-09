@@ -17,12 +17,13 @@ Coloraria uses **Neo4j** as its graph database to store Spanish legal documents 
 
 | Node Label | Description | Key Properties |
 |------------|-------------|----------------|
-| `Normativa` | A legal document (law, constitution, decree) | `id`, `titulo`, `fecha_vigencia`, `fecha_publicacion`, `url_eli` |
-| `articulo` | An article within a law | `id`, `name`, `full_text`, `embedding`, `path`, `fecha_vigencia`, `fecha_caducidad` |
+| `Normativa` | A legal document (law, constitution, decree) | `id` (string), `titulo`, `fecha_vigencia`, `fecha_publicacion`, `url_eli` |
+| `articulo` | An article within a law | `id` (string), `name`, `full_text`, `embedding`, `path`, `fecha_vigencia`, `fecha_caducidad` |
 
 > [!NOTE]
 > Structural nodes (Libro, Título, Capítulo, Sección) are **not stored** in the graph to reduce database size.
 > Instead, the `path` property on articles preserves the hierarchy (e.g., `"Libro I, Titulo II, Capitulo I"`).
+> Hierarchical queries use transitive `PART_OF` relationships to skip these missing nodes (e.g., `MATCH (article)-[:PART_OF*]->(Normativa)`).
 
 ### Content Elements (within Articles)
 
@@ -59,6 +60,7 @@ ArticleElement -[:PART_OF]-> Article
 ```
 
 Articles connect directly to their parent `Normativa` via `PART_OF`. Article elements (apartados, párrafos) connect to their parent article.
+Because structural nodes (Chapters, Titles) are omitted, the `PART_OF` relationship is transitive.
 
 **Example:**
 ```

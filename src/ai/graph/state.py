@@ -19,6 +19,11 @@ class ChatGraphState(TypedDict):
     conversation_id: Optional[str]
     top_k: int
     
+    # Context decision
+    previous_context: Optional[str]  # Immediate previous context (for backward compat)
+    context_history: List[Dict[str, Any]]  # Full history: [{context_json, citations, is_immediate}]
+    skip_collector: bool  # Whether to skip RAG and reuse previous context
+    
     # Context collection (from any ContextCollector strategy)
     chunks: List[Dict[str, Any]]
     context_strategy: str  # Name of the context collector strategy used
@@ -34,8 +39,10 @@ class ChatGraphState(TypedDict):
     # Output
     response: str
     used_citations: List[Citation]
+    context_json: Optional[str]  # Serialized context for storage
     
     # Metadata
     start_time: float
     execution_time_ms: float
     metadata: Dict[str, Any]
+
