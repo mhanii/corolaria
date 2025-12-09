@@ -60,7 +60,7 @@ def format_date(date_str: Optional[str]) -> Optional[str]:
     }
 )
 async def get_article(
-    node_id: int,
+    node_id: str,
     connection: Neo4jConnection = Depends(get_neo4j_connection)
 ) -> ArticleDetailResponse:
     """
@@ -121,7 +121,7 @@ async def get_article(
     }
 )
 async def get_article_versions(
-    node_id: int,
+    node_id: str,
     connection: Neo4jConnection = Depends(get_neo4j_connection)
 ) -> ArticleVersionsResponse:
     """

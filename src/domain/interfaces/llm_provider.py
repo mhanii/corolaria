@@ -3,7 +3,7 @@ Abstract interface for LLM providers.
 Defines contract for language model integrations (Gemini, OpenAI, Anthropic, etc.)
 """
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, AsyncGenerator
+from typing import List, Dict, Any, Optional, Generator, AsyncGenerator
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -80,6 +80,61 @@ class LLMProvider(ABC):
             LLMResponse with generated content
         """
         pass
+    
+    def generate_stream(
+        self, 
+        messages: List[Message], 
+        context: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> Generator[str, None, LLMResponse]:
+        """
+        Stream generation from the LLM, yielding text chunks.
+        
+        Args:
+            messages: Conversation history
+            context: Optional RAG context to inject
+            system_prompt: Optional system prompt override
+            **kwargs: Provider-specific parameters
+            
+        Yields:
+            str: Text chunks as they are generated
+            
+        Returns:
+            LLMResponse: Final response with usage metadata (via StopIteration.value)
+        """
+        # Default implementation falls back to non-streaming
+        response = self.generate(messages, context, system_prompt, **kwargs)
+        yield response.content
+        return response
+    
+    async def agenerate_stream(
+        self, 
+        messages: List[Message], 
+        context: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> AsyncGenerator[str, None]:
+        """
+        Async stream generation from the LLM, yielding text chunks.
+        
+        Args:
+            messages: Conversation history
+            context: Optional RAG context to inject
+            system_prompt: Optional system prompt override
+            **kwargs: Provider-specific parameters
+            
+        Yields:
+            str: Text chunks as they are generated
+            
+        Note:
+            The final LLMResponse with usage is yielded as the last item
+            with a special marker dict: {"_final_response": LLMResponse}
+        """
+        # Default implementation falls back to non-streaming
+        response = await self.agenerate(messages, context, system_prompt, **kwargs)
+        yield response.content
+        yield {"_final_response": response}
     
     def _build_messages_with_context(
         self, 

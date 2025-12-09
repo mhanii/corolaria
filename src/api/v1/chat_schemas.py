@@ -153,3 +153,37 @@ class DeleteResponse(BaseModel):
     
     success: bool = Field(..., description="Whether the operation succeeded")
     message: str = Field(..., description="Status message")
+
+
+# ============ Streaming Event Schemas ============
+
+class StreamChunkEvent(BaseModel):
+    """Schema for streaming text chunk event."""
+    
+    type: str = Field(default="chunk", description="Event type")
+    content: str = Field(..., description="Partial response text")
+
+
+class StreamCitationsEvent(BaseModel):
+    """Schema for streaming citations event."""
+    
+    type: str = Field(default="citations", description="Event type")
+    citations: List[CitationResponse] = Field(..., description="List of citations used")
+
+
+class StreamDoneEvent(BaseModel):
+    """Schema for streaming completion event."""
+    
+    type: str = Field(default="done", description="Event type")
+    conversation_id: str = Field(..., description="Conversation ID")
+    execution_time_ms: float = Field(..., description="Total execution time in ms")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
+
+
+class StreamErrorEvent(BaseModel):
+    """Schema for streaming error event."""
+    
+    type: str = Field(default="error", description="Event type")
+    message: str = Field(..., description="Error message")
+    details: Optional[Dict[str, Any]] = Field(default=None, description="Error details")
+

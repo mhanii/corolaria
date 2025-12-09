@@ -1,7 +1,8 @@
 dic 8
 
-Fix bad phoenix tracing
-    - it tracks the embedding not the context collecter.
+Fix conversation-RAG issue:
+	- Initially the agent is prompted to answer a specific question. He answers it using the provided context (eg. a, b ,c).
+	- The user asks a clarification or something like "estas seguro" (are you sure)
+	- The agent gets a new context (eg. d, e ,f) and says that he was wrong and apologizes for its mistake.
+	- This should't happen, but I am yet to find a solution for it
 
-Fix run type
-    - when an old chat is opened and a message is sent there, it returns to RAGcollector even if it was a different type. Every chat should have a fixed collector types.

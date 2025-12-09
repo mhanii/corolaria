@@ -66,6 +66,55 @@ class Neo4jAdapter:
         """
         self.conn.execute_write(query, {})
 
+    # ========== Generic Query Methods ==========
+    
+    def run_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """
+        Execute a read query and return all results as a list of dictionaries.
+        
+        Args:
+            query: Cypher query string
+            parameters: Optional query parameters
+            
+        Returns:
+            List of record dictionaries
+        """
+        with self.conn._driver.session(database="neo4j") as session:
+            result = session.run(query, parameters or {})
+            return [dict(record) for record in result]
+    
+    def run_query_single(self, query: str, parameters: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
+        """
+        Execute a read query and return a single result.
+        
+        Args:
+            query: Cypher query string
+            parameters: Optional query parameters
+            
+        Returns:
+            Single record dictionary or None
+        """
+        with self.conn._driver.session(database="neo4j") as session:
+            result = session.run(query, parameters or {})
+            record = result.single()
+            return dict(record) if record else None
+    
+    def run_write(self, query: str, parameters: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
+        """
+        Execute a write query and return the single result.
+        
+        Args:
+            query: Cypher query string
+            parameters: Optional query parameters
+            
+        Returns:
+            Single record dictionary or None
+        """
+        with self.conn._driver.session(database="neo4j") as session:
+            result = session.run(query, parameters or {})
+            record = result.single()
+            return dict(record) if record else None
+
     # ========== Batch Operations ==========
     
     def batch_merge_nodes(self, nodes_data: list) -> None:
@@ -208,10 +257,13 @@ class Neo4jAdapter:
             result = session.run(query, {"keywords": keywords, "top_k": top_k})
             return [dict(record) for record in result]
     
-    def get_article_with_context(self, article_id: int, context_window: int = 2) -> Optional[Dict[str, Any]]:
+    def get_article_with_context(self, article_id: str, context_window: int = 2) -> Optional[Dict[str, Any]]:
         """
         Get an article along with surrounding articles (context windowing).
-        Fetches N articles before and after the target article.
+        Fetches N articles before and after from the same normativa.
+        
+        Note: Since structural nodes are no longer stored, siblings are articles
+        in the same normativa ordered by name.
         
         Args:
             article_id: ID of the target article
@@ -221,26 +273,22 @@ class Neo4jAdapter:
             Dict with target article and context articles
         """
         query = """
-        MATCH (target:articulo {id: $article_id})
-        MATCH (target)-[:PART_OF*]->(parent)
-        WITH target, collect(parent) as hierarchy
-        MATCH (node)-[:PART_OF*]->(normativa:Normativa)
+        MATCH (target:articulo {id: $article_id})-[:PART_OF]->(normativa:Normativa)
         
-        // Get articles in the same parent structure
-        MATCH (sibling:articulo)-[:PART_OF]->(commonParent)
-        WHERE (target)-[:PART_OF]->(commonParent)
+        // Get all articles in the same normativa
+        MATCH (sibling:articulo)-[:PART_OF]->(normativa)
         
-        WITH target, normativa, hierarchy, collect(DISTINCT sibling) as siblings
+        WITH target, normativa, collect(DISTINCT sibling) as all_articles
         
         RETURN 
             target.id as article_id,
             target.name as article_number,
-            target.text as article_text,
+            target.full_text as article_text,
             target.embedding as embedding,
+            target.path as context_path,
             normativa.titulo as normativa_title,
             normativa.id as normativa_id,
-            [h in hierarchy | {type: labels(h)[0], name: h.name}] as context_path,
-            [s in siblings | {id: s.id, name: s.name, text: s.text}] as surrounding_articles
+            [s in all_articles | {id: s.id, name: s.name, text: s.full_text}] as surrounding_articles
         """
         
         with self.conn._driver.session() as session:
@@ -248,40 +296,57 @@ class Neo4jAdapter:
             record = result.single()
             return dict(record) if record else None
     
-    def get_articles_by_structure(self, structure_id: str, 
-                                 structure_type: str = "Título") -> List[Dict[str, Any]]: # might need updating
+    def get_articles_by_structure(self, structure_pattern: str, 
+                                 normativa_id: str = None) -> List[Dict[str, Any]]:
         """
-        Get all articles within a specific structural element (Title, Chapter, Book).
+        Get all articles within a specific structural element using path property.
+        
+        Since structural nodes are no longer stored in the graph, this method
+        uses the `path` property on articles to filter by structure.
         
         Args:
-            structure_id: ID of the structure node
-            structure_type: Type of structure (Título, Capítulo, Libro)
+            structure_pattern: Pattern to match in path (e.g., "Titulo I", "Capitulo II")
+            normativa_id: Optional normativa ID to scope the search
             
         Returns:
-            List of articles in that structure
+            List of articles matching the structure pattern
         """
-        query = f"""
-        MATCH (structure:{structure_type} {{id: $structure_id}})
-        MATCH (article:articulo)-[:PART_OF*]->(structure)
-        MATCH (article)-[:PART_OF*]->(normativa:Normativa)
-        MATCH (article)-[:PART_OF*]->(parent)
-        WITH article, normativa, collect(parent) as hierarchy
-        RETURN 
-            article.id as article_id,
-            article.name as article_number,
-            article.text as article_text,
-            article.embedding as embedding,
-            normativa.titulo as normativa_title,
-            normativa.id as normativa_id,
-            [h in hierarchy | {{type: labels(h)[0], name: h.name}}] as context_path
-        ORDER BY article.name
-        """
+        if normativa_id:
+            query = """
+            MATCH (article:articulo)-[:PART_OF]->(normativa:Normativa {id: $normativa_id})
+            WHERE article.path CONTAINS $structure_pattern
+            RETURN 
+                article.id as article_id,
+                article.name as article_number,
+                article.full_text as article_text,
+                article.embedding as embedding,
+                article.path as context_path,
+                normativa.titulo as normativa_title,
+                normativa.id as normativa_id
+            ORDER BY article.name
+            """
+            params = {"structure_pattern": structure_pattern, "normativa_id": normativa_id}
+        else:
+            query = """
+            MATCH (article:articulo)-[:PART_OF]->(normativa:Normativa)
+            WHERE article.path CONTAINS $structure_pattern
+            RETURN 
+                article.id as article_id,
+                article.name as article_number,
+                article.full_text as article_text,
+                article.embedding as embedding,
+                article.path as context_path,
+                normativa.titulo as normativa_title,
+                normativa.id as normativa_id
+            ORDER BY article.name
+            """
+            params = {"structure_pattern": structure_pattern}
         
         with self.conn._driver.session() as session:
-            result = session.run(query, {"structure_id": structure_id})
+            result = session.run(query, params)
             return [dict(record) for record in result]
     
-    def get_article_versions(self, article_id: int) -> List[Dict[str, Any]]:
+    def get_article_versions(self, article_id: str) -> List[Dict[str, Any]]:
         """
         Get all versions of an article (historical versions via NEXT_VERSION relationships).
         
@@ -361,7 +426,7 @@ class Neo4jAdapter:
             return [dict(record) for record in result]
 
 
-    def get_article_rich_text(self, article_id: int) -> Optional[str]:
+    def get_article_rich_text(self, article_id: str) -> Optional[str]:
         """
         Get article text with proper formatting and indentation based on nesting depth.
         
@@ -411,7 +476,7 @@ class Neo4jAdapter:
 
             return text.strip() if text else None
 
-    def get_article_by_id(self, node_id: int) -> Optional[Dict[str, Any]]:
+    def get_article_by_id(self, node_id: str) -> Optional[Dict[str, Any]]:
         """
         Get a single article by its node ID with full metadata.
         
@@ -451,7 +516,7 @@ class Neo4jAdapter:
             record = result.single()
             return dict(record) if record else None
 
-    def get_version_text(self, node_id: int) -> Optional[str]:
+    def get_version_text(self, node_id: str) -> Optional[str]:
         """
         Get the full text of an article by node ID.
         Used for fetching version context in RAG.
@@ -472,7 +537,7 @@ class Neo4jAdapter:
             record = result.single()
             return record["text"] if record else None
 
-    def get_all_next_versions(self, node_id: int) -> List[Dict[str, Any]]:
+    def get_all_next_versions(self, node_id: str) -> List[Dict[str, Any]]:
         """
         Recursively get all subsequent versions of an article.
         
@@ -498,7 +563,7 @@ class Neo4jAdapter:
             result = session.run(query, {"node_id": node_id})
             return [dict(record) for record in result]
 
-    def get_previous_version(self, node_id: int) -> Optional[Dict[str, Any]]:
+    def get_previous_version(self, node_id: str) -> Optional[Dict[str, Any]]:
         """
         Get the immediate previous version of an article.
         
@@ -523,3 +588,63 @@ class Neo4jAdapter:
             result = session.run(query, {"node_id": node_id})
             record = result.single()
             return dict(record) if record else None
+
+    def get_latest_version(self, article_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the latest version of an article by following NEXT_VERSION chain.
+        
+        If the article has no newer versions, returns the article itself.
+        Used for RAG validity checking to ensure context is current.
+        
+        Args:
+            article_id: ID of any version of the article
+            
+        Returns:
+            Latest version's data with normativa context
+        """
+        query = """
+        MATCH (start:articulo {id: $article_id})
+        OPTIONAL MATCH path = (start)-[:NEXT_VERSION*]->(latest)
+        WHERE NOT (latest)-[:NEXT_VERSION]->()
+        WITH COALESCE(last(nodes(path)), start) as current
+        MATCH (current)-[:PART_OF*1..10]->(normativa:Normativa)
+        RETURN 
+            current.id as article_id,
+            current.name as article_number,
+            current.full_text as article_text,
+            current.path as article_path,
+            current.fecha_vigencia as fecha_vigencia,
+            current.fecha_caducidad as fecha_caducidad,
+            normativa.titulo as normativa_title,
+            normativa.id as normativa_id
+        """
+        return self.run_query_single(query, {"article_id": article_id})
+
+    def get_referred_articles(self, article_id: str, max_refs: int = 3) -> List[Dict[str, Any]]:
+        """
+        Get articles that this article REFERS_TO.
+        
+        Used for RAG reference expansion to include related legal articles.
+        
+        Args:
+            article_id: ID of the source article
+            max_refs: Maximum number of referenced articles to return
+            
+        Returns:
+            List of referenced article data with normativa context
+        """
+        query = """
+        MATCH (source:articulo {id: $article_id})-[:REFERS_TO]->(target:articulo)
+        MATCH (target)-[:PART_OF*1..10]->(normativa:Normativa)
+        WITH DISTINCT target, normativa
+        RETURN 
+            target.id as article_id,
+            target.name as article_number,
+            target.full_text as article_text,
+            target.path as article_path,
+            target.fecha_vigencia as fecha_vigencia,
+            normativa.titulo as normativa_title,
+            normativa.id as normativa_id
+        LIMIT $max_refs
+        """
+        return self.run_query(query, {"article_id": article_id, "max_refs": max_refs})

@@ -1,67 +1,120 @@
 # domain/repository/change_repository.py
-from typing import List
+from typing import List, Dict, Any
 from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.services.change_handler import ChangeEvent, AffectedNode
+
 
 class ChangeRepository:
-    """Repository for tracking changes between versions"""
+    """
+    Repository for persisting change events to Neo4j.
+    
+    Schema:
+    - SourceNormativa -[:INTRODUCED_CHANGE]-> ChangeEvent
+    - ChangeEvent -[:MODIFIES]-> TargetNormativa  
+    - ChangeEvent -[:CHANGED {type: "added"|"modified"|"removed"}]-> Article
+    """
     
     def __init__(self, adapter: Neo4jAdapter):
         self.adapter = adapter
     
-    def save_change_event(self, change_event) -> str:
-        """Save a change event"""
+    def save_change_event(self, change_event: ChangeEvent, normativa_id: str = None) -> dict:
+        """
+        Save a change event to Neo4j with all relationships.
+        
+        Creates:
+        1. ChangeEvent node
+        2. SourceNormativa -[:INTRODUCED_CHANGE]-> ChangeEvent
+        3. ChangeEvent -[:MODIFIES]-> TargetNormativa
+        4. ChangeEvent -[:CHANGED {type}]-> Article (for each affected article)
+        """
+        # ChangeEvent properties
         props = {
             "id": change_event.id,
             "target_document_id": change_event.target_document_id,
             "source_document_id": change_event.source_document_id,
-            "description": change_event.description,
+            "description": change_event.description or "",
             "affected_nodes_count": len(change_event.affected_nodes),
         }
         
-        change_id = self.adapter.create_node(["ChangeEvent"], props)
+        # Merge the ChangeEvent node
+        result = self.adapter.merge_node(["ChangeEvent"], props)
         
-        # Link to source and target documents
-        source_results = self.adapter.find_nodes(
-            ["Normativa"],
-            {"id": change_event.source_document_id}
-        )
-        target_results = self.adapter.find_nodes(
-            ["Normativa"],
-            {"id": change_event.target_document_id}
-        )
+        if not result:
+            return {"success": False, "id": None, "articles_linked": 0}
         
-        if source_results:
-            self.adapter.create_relationship(source_results[0]["id"], change_id, "CAUSED_CHANGE")
+        event_id = result["id"]
         
-        if target_results:
-            self.adapter.create_relationship(change_id, target_results[0]["id"], "AFFECTS")
+        # 1. ChangeEvent -[:MODIFIES]-> TargetNormativa
+        if normativa_id:
+            self.adapter.merge_relationship(
+                from_id=event_id,
+                to_id=normativa_id,
+                rel_type="MODIFIES"
+            )
         
-        # Save affected nodes
-        for node_path in change_event.affected_nodes:
-            self._link_affected_node(change_id, node_path)
+        # 2. SourceNormativa -[:INTRODUCED_CHANGE]-> ChangeEvent
+        if change_event.source_document_id:
+            self.adapter.merge_relationship(
+                from_id=change_event.source_document_id,
+                to_id=event_id,
+                rel_type="INTRODUCED_CHANGE"
+            )
         
-        return change_id
+        # 3. ChangeEvent -[:CHANGED {type}]-> Article (for each affected article)
+        # Deduplicate by article_id and collect change types
+        article_changes = {}  # article_id -> set of change types
+        for affected in change_event.affected_nodes:
+            if affected.node_id:
+                if affected.node_id not in article_changes:
+                    article_changes[affected.node_id] = set()
+                article_changes[affected.node_id].add(affected.change_type)
+        
+        # Create relationships for each unique article
+        articles_linked = 0
+        for article_id, change_types in article_changes.items():
+            # Use the most significant change type: removed > modified > added
+            if "removed" in change_types:
+                change_type = "removed"
+            elif "modified" in change_types:
+                change_type = "modified"
+            else:
+                change_type = "added"
+            
+            self.adapter.merge_relationship(
+                from_id=event_id,
+                to_id=article_id,
+                rel_type="CHANGED",
+                properties={"type": change_type}
+            )
+            articles_linked += 1
+        
+        return {"success": True, "id": event_id, "articles_linked": articles_linked}
+
     
-    def _link_affected_node(self, change_id: str, node_path: str):
-        """Link change event to affected nodes"""
+    def save_change_events(self, change_events: Dict[str, ChangeEvent], normativa_id: str) -> dict:
+        """Save multiple change events for a normativa."""
+        saved_count = 0
+        total_articles_linked = 0
+        for event in change_events.values():
+            result = self.save_change_event(event, normativa_id)
+            if result.get("success"):
+                saved_count += 1
+                total_articles_linked += result.get("articles_linked", 0)
+        
+        return {"events_saved": saved_count, "articles_linked": total_articles_linked}
+    
+    def find_changes_for_document(self, normativa_id: str) -> List[Dict[str, Any]]:
+        """Find all change events that modified a specific document."""
         query = """
-        MATCH (n:Node {path: $node_path})
-        MATCH (c:ChangeEvent)
-        WHERE elementId(c) = $change_id
-        CREATE (c)-[:AFFECTED_NODE]->(n)
+        MATCH (event:ChangeEvent)-[:MODIFIES]->(n:Normativa {id: $normativa_id})
+        OPTIONAL MATCH (event)-[r:CHANGED]->(article)
+        RETURN event.id as id, 
+               event.source_document_id as source,
+               event.affected_nodes_count as affected_count,
+               collect({article_id: article.id, change_type: r.type}) as changes
+        ORDER BY event.source_document_id
         """
         
-        self.adapter.conn.execute_write(query, {
-            "change_id": change_id,
-            "node_path": node_path
-        })
-    
-    def find_changes_affecting_node(self, node_path: str) -> List:
-        """Find all changes that affected a specific node"""
-        query = """
-        MATCH (c:ChangeEvent)-[:AFFECTED_NODE]->(n:Node {path: $node_path})
-        RETURN c, c.source_document_id as source
-        ORDER BY c.date
-        """
-        
-        return self.adapter.conn.execute_query(query, {"node_path": node_path})
+        with self.adapter.conn._driver.session() as session:
+            result = session.run(query, {"normativa_id": normativa_id})
+            return [dict(record) for record in result]

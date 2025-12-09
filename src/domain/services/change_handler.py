@@ -1,10 +1,22 @@
 from dataclasses import dataclass, field
 import hashlib
-from typing import Optional, List
+from typing import Optional, List, Literal
 from src.domain.models.common.node import ArticleNode, ArticleElementNode, Node
 from datetime import datetime
 from .utils.print_tree import print_tree
 from src.utils.logger import output_logger
+
+# Change types for tracking what kind of modification occurred
+ChangeType = Literal["added", "modified", "removed"]
+
+
+@dataclass
+class AffectedNode:
+    """Represents a node affected by a change with its change type."""
+    node_id: str  # The node ID (for linking in graph)
+    node_path: str  # Human-readable path like "articulo:5"
+    change_type: ChangeType  # "added", "modified", or "removed"
+
 
 @dataclass
 class ChangeEvent:
@@ -20,7 +32,8 @@ class ChangeEvent:
     
     description: Optional[str] = None
     
-    affected_nodes: List[str] = field(default_factory=list)  # Node paths
+    # List of affected nodes with their change types
+    affected_nodes: List[AffectedNode] = field(default_factory=list)
     
     @staticmethod
     def generate_id(target_doc_id: str, source_doc_id: str) -> str:
@@ -48,10 +61,17 @@ class ChangeEvent:
             description=description
         )
     
-    def add_affected_node(self, node_path: str):
-        """Add a node that was affected by this change"""
-        if node_path not in self.affected_nodes:
-            self.affected_nodes.append(node_path)
+    def add_affected_node(self, node_path: str, change_type: ChangeType = "modified", node_id: str = None):
+        """Add a node that was affected by this change with its change type."""
+        # Don't add duplicates
+        if any(n.node_path == node_path for n in self.affected_nodes):
+            return
+        self.affected_nodes.append(AffectedNode(
+            node_id=node_id or node_path,  # Use path as ID if not provided
+            node_path=node_path,
+            change_type=change_type
+        ))
+
     
     def print_summary(self, verbose: bool = False):
         """
@@ -68,22 +88,24 @@ class ChangeEvent:
 
         if verbose and self.affected_nodes:
             output_logger.info("\nDetalle de los nodos afectados:")
-            for node_path in self.affected_nodes:
-                partes = node_path.split('/')
+            for node in self.affected_nodes:
+                partes = node.node_path.split('/')
                 indent = "  " * (len(partes) - 1)
-                output_logger.info(f"{indent}- {node_path}")
+                output_logger.info(f"{indent}- [{node.change_type}] {node.node_path}")
 
         output_logger.info("="*80 + "\n")
 
         # También devolver texto para uso en embeddings o RAG
+        node_paths = [n.node_path for n in self.affected_nodes]
         return (
             f"El evento de cambio {self.id} modifica {len(self.affected_nodes)} nodos "
             f"en el documento {self.target_document_id} como resultado de {self.source_document_id}. "
             + (f"Descripción: {self.description}. " if self.description else "")
-            + ("Nodos afectados: " + ", ".join(self.affected_nodes[:10]) + "..."
-               if len(self.affected_nodes) > 10 else 
-               "Nodos afectados: " + ", ".join(self.affected_nodes))
+            + ("Nodos afectados: " + ", ".join(node_paths[:10]) + "..."
+               if len(node_paths) > 10 else 
+               "Nodos afectados: " + ", ".join(node_paths))
         )
+
     
     def __repr__(self):
         return (f"ChangeEvent(id={self.id[:12]}..., "
@@ -172,31 +194,50 @@ class ChangeHandler:
     # ------------------------------------------------------------------------
     # New Section: Change Detection
     # ------------------------------------------------------------------------
-    def _detect_changes(self, old: Node, new: Node, change_event: ChangeEvent, path: str = ""):
+    def _detect_changes(self, old: Node, new: Node, change_event: ChangeEvent, path: str = "", article_id: str = None):
         """
         Recursively detect differences between old and new nodes.
-        Records added, removed, and modified nodes.
+        Records added, removed, and modified nodes with their change types.
+        
+        Args:
+            old: The old version of the node
+            new: The new version of the node
+            change_event: The ChangeEvent to record changes in
+            path: Current path string for logging
+            article_id: The parent article ID (for linking CHANGED relationships to articles)
         """
         current_path = f"{path}/{new.node_type}:{new.name}" if path else f"{new.node_type}:{new.name}"
+        
+        # Track the article ID for child nodes
+        current_article_id = article_id
+        if isinstance(new, ArticleNode):
+            current_article_id = new.id
 
         # Case 1 — New node didn't exist before
         if not old:
-            change_event.add_affected_node(current_path)
+            change_event.add_affected_node(current_path, change_type="added", node_id=current_article_id or new.id)
             # print(f"🟢 Added: {current_path}")
             return
 
-        # Case 2 — Node type or name changed
+        # Case 2 — Node type or name changed (structural change)
         if old.node_type != new.node_type or old.name != new.name:
-            change_event.add_affected_node(current_path)
+            change_event.add_affected_node(current_path, change_type="modified", node_id=current_article_id or new.id)
             # print(f"🟡 Modified structure: {current_path}")
 
-        # Case 3 — Compare content (only for element nodes)
-        if isinstance(new, ArticleElementNode):
-            old_texts = [t.strip() for t in old.content if isinstance(t, str)]
-            new_texts = [t.strip() for t in new.content if isinstance(t, str)]
-            if old_texts != new_texts:
-                change_event.add_affected_node(current_path)
-                # print(f"🟠 Text changed in {current_path}")
+        # Case 3 — Compare text content (for ALL nodes, not just elements)
+        # This catches cases where structure is same but text differs
+        old_texts = [t.strip() for t in old.content if isinstance(t, str)]
+        new_texts = [t.strip() for t in new.content if isinstance(t, str)]
+        if old_texts != new_texts:
+            change_event.add_affected_node(current_path, change_type="modified", node_id=current_article_id or new.id)
+            # print(f"🟠 Text changed in {current_path}")
+
+        # Also compare the node's own text property if it exists
+        old_text = getattr(old, 'text', None) or ""
+        new_text = getattr(new, 'text', None) or ""
+        if old_text.strip() != new_text.strip():
+            change_event.add_affected_node(current_path, change_type="modified", node_id=current_article_id or new.id)
+            # print(f"🟠 Node text changed in {current_path}")
 
         # Case 4 — Recurse into children
         old_children = [c for c in old.content if isinstance(c, Node)]
@@ -204,14 +245,15 @@ class ChangeHandler:
 
         for n_child in new_children:
             o_child = next((c for c in old_children if c.name == n_child.name and c.node_type == n_child.node_type), None)
-            self._detect_changes(o_child, n_child, change_event, path=current_path)
+            self._detect_changes(o_child, n_child, change_event, path=current_path, article_id=current_article_id)
 
         # Case 5 — Removed nodes
         for o_child in old_children:
             if not any(c.name == o_child.name and c.node_type == o_child.node_type for c in new_children):
                 removed_path = f"{current_path}/{o_child.node_type}:{o_child.name}"
-                change_event.add_affected_node(removed_path)
+                change_event.add_affected_node(removed_path, change_type="removed", node_id=current_article_id or o_child.id)
                 # print(f"🔴 Removed: {removed_path}")
+
 
     def print_summary(self, verbose: bool = False):
         """
@@ -235,7 +277,7 @@ class ChangeHandler:
 
             if verbose:
                 for node in event.affected_nodes:
-                    output_logger.info(f"     - {node}")
+                    output_logger.info(f"     - [{node.change_type}] {node.node_path}")
 
         output_logger.info("\n" + "#"*90 + "\n")
 
@@ -245,8 +287,9 @@ class ChangeHandler:
             f"Origen: {e.source_document_id}. "
             f"Destino: {e.target_document_id}. "
             + (f"Descripción: {e.description}. " if e.description else "")
-            + "Nodos: " + ", ".join(e.affected_nodes[:10]) + 
+            + "Nodos: " + ", ".join(n.node_path for n in e.affected_nodes[:10]) + 
               ("..." if len(e.affected_nodes) > 10 else "")
             for e in self.change_events.values()
         ])
         return resumen_combinado
+

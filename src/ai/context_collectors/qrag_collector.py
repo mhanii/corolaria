@@ -11,6 +11,7 @@ from src.domain.interfaces.context_collector import ContextCollector, ContextRes
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.domain.interfaces.llm_provider import LLMProvider, Message
 from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.ai.context_collectors.chunk_enricher import ChunkEnricher
 from src.utils.logger import step_logger
 
 # Import tracer for Phoenix observability
@@ -111,6 +112,7 @@ Salida:'''
         self._index_name = index_name
         self._max_queries = max_queries
         self._max_results = max_results
+        self._enricher = ChunkEnricher(neo4j_adapter)
         
         step_logger.info(
             f"[QRAGCollector] Initialized with index '{index_name}', "
@@ -145,6 +147,8 @@ Salida:'''
         index_name = kwargs.get("index_name", self._index_name)
         max_queries = kwargs.get("max_queries", self._max_queries)
         max_results = kwargs.get("max_results", self._max_results)
+        max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
+        self._enricher.max_refs = max_refs
         
         # Use proper context manager for tracing
         if _tracer:
@@ -208,7 +212,10 @@ Salida:'''
                 all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
                 final_chunks = all_chunks[:max_results]
                 
-                step_logger.info(f"[QRAGCollector] Final chunks after trimming: {len(final_chunks)}")
+                # Step 4: Enrich chunks with validity checking and reference expansion
+                final_chunks = self._enricher.enrich_chunks(final_chunks)
+                
+                step_logger.info(f"[QRAGCollector] Final chunks after enrichment: {len(final_chunks)}")
                 
                 # Record output attributes
                 span.set_attribute("output.total_chunks", len(all_chunks))
@@ -273,7 +280,10 @@ Salida:'''
             all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
             final_chunks = all_chunks[:max_results]
             
-            step_logger.info(f"[QRAGCollector] Final chunks after trimming: {len(final_chunks)}")
+            # Enrich chunks with validity checking and reference expansion
+            final_chunks = self._enricher.enrich_chunks(final_chunks)
+            
+            step_logger.info(f"[QRAGCollector] Final chunks after enrichment: {len(final_chunks)}")
             
             return ContextResult(
                 chunks=final_chunks,

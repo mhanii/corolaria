@@ -3,8 +3,10 @@ Chat API v1 endpoints.
 RESTful endpoints for AI chatbot with RAG-based citations.
 Protected by JWT authentication with token-based rate limiting.
 """
+import json
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from src.api.v1.chat_schemas import (
     ChatRequest,
@@ -261,6 +263,135 @@ async def chat(
                 "details": {"exception": str(e)}
             }
         )
+
+
+# ============ Streaming Chat Endpoint ============
+
+@router.post(
+    "/chat/stream",
+    status_code=status.HTTP_200_OK,
+    summary="Send Chat Message (Streaming)",
+    description="Send a message and receive a streaming response via Server-Sent Events (SSE)",
+    responses={
+        200: {
+            "description": "SSE stream with chunk, citations, and done events",
+            "content": {
+                "text/event-stream": {
+                    "example": 'data: {"type": "chunk", "content": "El artículo"}\n\ndata: {"type": "done", "conversation_id": "abc123"}\n\n'
+                }
+            }
+        },
+        400: {"description": "Invalid request"},
+        401: {"description": "Not authenticated"},
+        402: {"description": "Insufficient tokens"}
+    }
+)
+async def chat_stream(
+    request: ChatRequest,
+    token: TokenPayload = Depends(get_current_user_from_token),
+    connection: Neo4jConnection = Depends(get_neo4j_connection)
+) -> StreamingResponse:
+    """
+    Stream a chat response using Server-Sent Events (SSE).
+    
+    This endpoint streams the AI response in real-time as it's generated.
+    The response is a series of SSE events:
+    
+    - `{"type": "chunk", "content": "..."}` - Partial response text
+    - `{"type": "citations", "citations": [...]}` - Citation data (after response complete)
+    - `{"type": "done", "conversation_id": "...", "execution_time_ms": ...}` - Completion marker
+    - `{"type": "error", "message": "..."}` - Error if something fails
+    
+    Args:
+        request: Chat request with message and optional conversation_id
+        token: JWT token payload (injected)
+        connection: Neo4j connection (injected)
+    
+    Returns:
+        StreamingResponse with SSE events
+    """
+    step_logger.info(f"[ChatAPI] Received streaming chat request from {token.username}: '{request.message[:50]}...'")
+    
+    repos = get_repositories()
+    
+    # Check token balance
+    balance = repos["user"].get_token_balance(token.user_id)
+    if balance <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "error": "InsufficientTokens",
+                "message": "You have no remaining API tokens. Please contact an administrator."
+            }
+        )
+    
+    # Verify conversation ownership if continuing existing conversation
+    if request.conversation_id:
+        owner = repos["conversation"].get_conversation_user_id(request.conversation_id)
+        if owner and owner != token.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": "ConversationNotFound",
+                    "message": f"Conversation '{request.conversation_id}' not found"
+                }
+            )
+    
+    # Determine collector type
+    collector_type = "rag"
+    
+    if request.conversation_id:
+        metadata = repos["conversation"].get_metadata(request.conversation_id)
+        stored_collector_type = metadata.get("collector_type")
+        if stored_collector_type:
+            collector_type = stored_collector_type
+    elif request.collector_type:
+        collector_type = request.collector_type.value
+    
+    # Create chat service with appropriate collector
+    chat_service = get_chat_service_with_collector(connection, collector_type)
+    
+    async def event_generator():
+        """Generate SSE events from streaming chat."""
+        conversation_id = None
+        try:
+            async for event in chat_service.achat_stream(
+                query=request.message,
+                conversation_id=request.conversation_id,
+                top_k=request.top_k,
+                user_id=token.user_id
+            ):
+                # Track conversation_id for collector type storage
+                if event.get("type") == "done":
+                    conversation_id = event.get("conversation_id")
+                
+                # Format as SSE
+                yield f"data: {json.dumps(event)}\n\n"
+            
+            # Store collector type for new conversations
+            if not request.conversation_id and request.collector_type and conversation_id:
+                repos["conversation"].update_metadata(
+                    conversation_id, 
+                    {"collector_type": collector_type}
+                )
+            
+            # Consume token after successful streaming
+            repos["user"].consume_tokens(token.user_id, 1)
+            
+        except Exception as e:
+            step_logger.error(f"[ChatAPI] Streaming error: {e}", exc_info=True)
+            error_event = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 @router.get(

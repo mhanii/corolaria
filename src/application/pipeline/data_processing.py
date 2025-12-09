@@ -236,26 +236,22 @@ class DataProcessor(Step):
         fecha_vigencia = version.get("@fecha_vigencia", None)
 
         known_meta = {"@id_norma", "@fecha_publicacion", "@fecha_vigencia"}
-        elements_by_tag = {}
         processed_elements = []
         for k, v in version.items():
             if k in known_meta or k.startswith("@"):
                 continue
             items = v if isinstance(v, list) else [v]
-            elements_by_tag[k] = items
             processed_elements += [Element(element_type=ElementType(k), content=item) for item in items]
 
-        # dispatch to handler methods named process_<tag> when present
-        # processed_elements = [Element(element_type=ElementType(tag), content=item) for item in items for tag, items in elements_by_tag.items()]
-        version =  Version(
+        version = Version(
             id_norma=id_norma,
             fecha_publicacion=fecha_publicacion,
             fecha_vigencia=fecha_vigencia,
             content=processed_elements
         )
 
-    
         return version
+
 
     def process(self, data):
         # Import tracing (optional)
