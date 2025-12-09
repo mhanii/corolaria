@@ -45,17 +45,24 @@ class GraphConstructionResult:
 
 
 class GraphConstruction(Step):
-    def __init__(self, name: str, *args): 
+    def __init__(self, name: str, adapter: Neo4jAdapter = None, *args): 
         super().__init__(name)
         
-        load_dotenv()
-
-        neo4j_uri = os.getenv("NEO4J_URI")
-        neo4j_user = os.getenv("NEO4J_USER")
-        neo4j_password = os.getenv("NEO4J_PASSWORD")
-
-        self.connection = Neo4jConnection(neo4j_uri, neo4j_user, neo4j_password)
-        self.adapter = Neo4jAdapter(self.connection)
+        self._owns_connection = False
+        
+        if adapter is not None:
+            # Use shared adapter (don't close on cleanup)
+            self.adapter = adapter
+            self.connection = None
+        else:
+            # Create own connection (backward compatible)
+            load_dotenv()
+            neo4j_uri = os.getenv("NEO4J_URI")
+            neo4j_user = os.getenv("NEO4J_USER")
+            neo4j_password = os.getenv("NEO4J_PASSWORD")
+            self.connection = Neo4jConnection(neo4j_uri, neo4j_user, neo4j_password)
+            self.adapter = Neo4jAdapter(self.connection)
+            self._owns_connection = True
         
         # Initialize repositories
         self.normativa_repo = NormativaRepository(self.adapter)
@@ -74,6 +81,16 @@ class GraphConstruction(Step):
             f"{save_result['relationships_created']} relationships"
         )
         
+        # Persist change events if any were collected
+        events_saved = 0
+        if change_events:
+            change_result = self.change_repo.save_change_events(
+                change_events, 
+                normativa_id=save_result["doc_id"]
+            )
+            events_saved = change_result.get("events_saved", 0)
+            step_logger.info(f"[GraphConstruction] Saved {events_saved} change events")
+        
         # Add tracing attributes if available
         if _tracer:
             current_span = trace.get_current_span()
@@ -85,6 +102,7 @@ class GraphConstruction(Step):
                 current_span.set_attribute("graph.materias_count", save_result["materias_count"])
                 current_span.set_attribute("graph.tree_nodes", save_result.get("tree_nodes", 0))
                 current_span.set_attribute("graph.tree_relationships", save_result.get("tree_relationships", 0))
+                current_span.set_attribute("graph.change_events_saved", events_saved)
         
         return GraphConstructionResult(
             doc_id=save_result["doc_id"],
@@ -108,4 +126,5 @@ class GraphConstruction(Step):
             return None
 
     def close(self):
-        self.connection.close()
+        if self._owns_connection and self.connection:
+            self.connection.close()

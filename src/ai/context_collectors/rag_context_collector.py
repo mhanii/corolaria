@@ -9,6 +9,7 @@ from typing import List, Dict, Any
 from src.domain.interfaces.context_collector import ContextCollector, ContextResult
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.ai.context_collectors.chunk_enricher import ChunkEnricher
 from src.utils.logger import step_logger
 
 # Import tracer for Phoenix observability
@@ -50,6 +51,7 @@ class RAGCollector(ContextCollector):
         self._neo4j_adapter = neo4j_adapter
         self._embedding_provider = embedding_provider
         self._index_name = index_name
+        self._enricher = ChunkEnricher(neo4j_adapter)
         
         step_logger.info(f"[RAGCollector] Initialized with index '{index_name}'")
     
@@ -76,8 +78,10 @@ class RAGCollector(ContextCollector):
         Returns:
             ContextResult with retrieved chunks and metadata
         """
-        # Allow index_name override via kwargs
+        # Allow overrides via kwargs
         index_name = kwargs.get("index_name", self._index_name)
+        max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
+        self._enricher.max_refs = max_refs
         
         step_logger.info(f"[RAGCollector] Generating embedding for query...")
         
@@ -102,6 +106,9 @@ class RAGCollector(ContextCollector):
                     top_k=top_k,
                     index_name=index_name
                 )
+                
+                # Enrich chunks with validity checking and reference expansion
+                chunks = self._enricher.enrich_chunks(chunks)
                 
                 # Record output attributes
                 span.set_attribute("output.chunks_count", len(chunks))
@@ -135,6 +142,9 @@ class RAGCollector(ContextCollector):
                 top_k=top_k,
                 index_name=index_name
             )
+            
+            # Enrich chunks with validity checking and reference expansion
+            chunks = self._enricher.enrich_chunks(chunks)
             
             step_logger.info(f"[RAGCollector] Retrieved {len(chunks)} chunks")
             

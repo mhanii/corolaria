@@ -331,3 +331,115 @@ class LangGraphChatService:
         messages.append(Message(role="user", content=current_query))
         
         return messages
+    
+    async def achat_stream(
+        self,
+        query: str,
+        conversation_id: Optional[str] = None,
+        top_k: Optional[int] = None,
+        user_id: Optional[str] = None
+    ):
+        """
+        Stream chat response with chunks, citations, and completion events.
+        
+        This method performs context collection synchronously, then streams
+        the LLM response. Citations are extracted and sent after streaming completes.
+        
+        Args:
+            query: User's question
+            conversation_id: Optional existing conversation ID
+            top_k: Override for number of chunks to retrieve
+            user_id: User ID for SQLite mode (required for persistence)
+            
+        Yields:
+            dict: Event objects with types:
+                - {"type": "chunk", "content": "..."}
+                - {"type": "citations", "citations": [...]}
+                - {"type": "done", "conversation_id": "...", "execution_time_ms": ...}
+        """
+        import time
+        start_time = time.time()
+        
+        step_logger.info(f"[LangGraphChatService] Starting streaming for query: '{query[:50]}...'")
+        
+        # Get or create conversation based on persistence mode
+        if self.use_sqlite:
+            conversation = self._get_or_create_conversation_sqlite(conversation_id, user_id)
+        else:
+            conversation = self._get_or_create_conversation_memory(conversation_id)
+        
+        # Add user message to conversation
+        self._add_user_message(conversation, query, user_id)
+        
+        # Build messages from conversation history
+        messages = self._build_llm_messages(conversation, query)
+        step_logger.info(f"[LangGraphChatService] Built {len(messages)} messages for LLM context")
+        
+        # Step 1: Collect context (non-streaming, we need it before generation)
+        step_logger.info(f"[LangGraphChatService] Collecting context...")
+        context_result = self.context_collector.collect(
+            query=query,
+            top_k=top_k or self.retrieval_top_k
+        )
+        
+        # Step 2: Build citations
+        citations = self.citation_engine.create_citations(context_result.chunks)
+        context = self.citation_engine.format_context_with_citations(citations)
+        step_logger.info(f"[LangGraphChatService] Created {len(citations)} citations")
+        
+        # Step 3: Build system prompt
+        system_prompt = self.prompt_builder.build_system_prompt()
+        
+        # Step 4: Stream LLM response
+        step_logger.info(f"[LangGraphChatService] Starting LLM streaming...")
+        full_response = []
+        final_llm_response = None
+        
+        try:
+            async for item in self.llm_provider.agenerate_stream(
+                messages=messages,
+                context=context,
+                system_prompt=system_prompt
+            ):
+                if isinstance(item, dict) and "_final_response" in item:
+                    # Final response marker
+                    final_llm_response = item["_final_response"]
+                else:
+                    # Text chunk
+                    full_response.append(item)
+                    yield {"type": "chunk", "content": item}
+        except Exception as e:
+            step_logger.error(f"[LangGraphChatService] Streaming error: {e}")
+            yield {"type": "error", "message": str(e)}
+            return
+        
+        # Step 5: Extract and re-index citations from complete response
+        response_text = "".join(full_response)
+        cleaned_response, used_citations = self.citation_engine.extract_and_reindex_citations(
+            response_text, citations
+        )
+        
+        # Step 6: Add assistant message to conversation
+        self._add_assistant_message(conversation, cleaned_response, used_citations, user_id)
+        
+        execution_time_ms = (time.time() - start_time) * 1000
+        
+        step_logger.info(f"[LangGraphChatService] Streaming completed in {execution_time_ms:.2f}ms "
+                        f"(citations used: {len(used_citations)})")
+        
+        # Yield citations
+        citation_dicts = [c.to_summary_dict() for c in used_citations]
+        yield {"type": "citations", "citations": citation_dicts}
+        
+        # Yield done event with metadata
+        yield {
+            "type": "done",
+            "conversation_id": conversation.id,
+            "execution_time_ms": execution_time_ms,
+            "metadata": {
+                "total_chunks_retrieved": len(context_result.chunks),
+                "workflow": "streaming",
+                "persistence": "sqlite" if self.use_sqlite else "memory"
+            }
+        }
+

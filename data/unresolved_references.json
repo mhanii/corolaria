@@ -1,0 +1,391 @@
+{
+  "unresolved": [
+    {
+      "source_document": "BOE-A-1995-25444_1346",
+      "extraction_time": "2025-12-09T00:06:29.921026",
+      "reference": {
+        "raw_text": "artículo 72 de la Ley Orgánica 1/1979",
+        "reference_type": "organic_law",
+        "article_number": "72",
+        "article_range": null,
+        "law_type": "Ley Orgánica 1/1979",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 1104,
+        "end_pos": 1141
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:06:36.480743",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 257,
+        "end_pos": 291
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:06:36.480743",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 579,
+        "end_pos": 613
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:06:36.480743",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 873,
+        "end_pos": 907
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4259",
+      "extraction_time": "2025-12-09T00:06:36.832100",
+      "reference": {
+        "raw_text": "la citada ley",
+        "reference_type": "law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 3863,
+        "end_pos": 3876
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4267",
+      "extraction_time": "2025-12-09T00:06:36.850781",
+      "reference": {
+        "raw_text": "Ley 58/2003",
+        "reference_type": "law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": "58/2003",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 6869,
+        "end_pos": 6880
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4267",
+      "extraction_time": "2025-12-09T00:06:36.850781",
+      "reference": {
+        "raw_text": "la citada Ley",
+        "reference_type": "law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 7146,
+        "end_pos": 7159
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4277",
+      "extraction_time": "2025-12-09T00:06:36.869096",
+      "reference": {
+        "raw_text": "Ley 58/2003",
+        "reference_type": "law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": "58/2003",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 6996,
+        "end_pos": 7007
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4277",
+      "extraction_time": "2025-12-09T00:06:36.869096",
+      "reference": {
+        "raw_text": "la citada Ley",
+        "reference_type": "law",
+        "article_number": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 7273,
+        "end_pos": 7286
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:38:52.633945",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 257,
+        "end_pos": 291
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:38:52.633945",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 579,
+        "end_pos": 613
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4232",
+      "extraction_time": "2025-12-09T00:38:52.633945",
+      "reference": {
+        "raw_text": "Ley Orgánica 8/2007, de 4 de julio",
+        "reference_type": "organic_law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica",
+        "law_number": "8/2007",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 873,
+        "end_pos": 907
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4259",
+      "extraction_time": "2025-12-09T00:38:53.337680",
+      "reference": {
+        "raw_text": "la citada ley",
+        "reference_type": "law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 3863,
+        "end_pos": 3876
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4267",
+      "extraction_time": "2025-12-09T00:38:53.351426",
+      "reference": {
+        "raw_text": "Ley 58/2003",
+        "reference_type": "law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": "58/2003",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 6869,
+        "end_pos": 6880
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4267",
+      "extraction_time": "2025-12-09T00:38:53.351426",
+      "reference": {
+        "raw_text": "la citada Ley",
+        "reference_type": "law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 7146,
+        "end_pos": 7159
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4277",
+      "extraction_time": "2025-12-09T00:38:53.380356",
+      "reference": {
+        "raw_text": "Ley 58/2003",
+        "reference_type": "law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": "58/2003",
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 6996,
+        "end_pos": 7007
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_4277",
+      "extraction_time": "2025-12-09T00:38:53.380356",
+      "reference": {
+        "raw_text": "la citada Ley",
+        "reference_type": "law",
+        "article_number": null,
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 7273,
+        "end_pos": 7286
+      }
+    },
+    {
+      "source_document": "BOE-A-1995-25444_1346",
+      "extraction_time": "2025-12-09T00:39:20.248411",
+      "reference": {
+        "raw_text": "artículo 72 de la Ley Orgánica 1/1979",
+        "reference_type": "organic_law",
+        "article_number": "72",
+        "apartado": null,
+        "article_range": null,
+        "law_type": "Ley Orgánica 1/1979",
+        "law_number": null,
+        "law_date": null,
+        "law_title": null,
+        "abbreviation": null,
+        "judicial_court": null,
+        "judicial_number": null,
+        "is_external": true,
+        "resolved_boe_id": null,
+        "start_pos": 1104,
+        "end_pos": 1141
+      }
+    }
+  ]
+}

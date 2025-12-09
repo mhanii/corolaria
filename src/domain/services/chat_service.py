@@ -334,7 +334,7 @@ class ChatService:
         
         return chunks
 
-    def _get_next_versions(self, node_id: int, max_depth: int = -1) -> List[Dict[str, Any]]:
+    def _get_next_versions(self, node_id: str, max_depth: int = -1) -> List[Dict[str, Any]]:
         """
         Get all next versions of an article up to max_depth.
         

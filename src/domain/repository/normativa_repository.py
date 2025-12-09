@@ -178,12 +178,23 @@ class NormativaRepository:
     def _collect_tree_data(self, node: Node, nodes_data: list, relationships_data: list, normativa_id: str = None):
         """
         Recursively collect node and relationship data for batch persistence.
+        
+        Skips structural nodes (libro, titulo, capitulo, seccion, subseccion) to reduce
+        database size. Articles link directly to Normativa, and the `path` property 
+        preserves hierarchy info for display.
         """
         if isinstance(node, str):
             return
         
-        # Build node properties
-        if node.node_type != NodeType.ROOT:
+        # Structural nodes to skip (don't create graph nodes, but traverse children)
+        STRUCTURAL_TYPES = {NodeType.LIBRO, NodeType.TITULO, NodeType.CAPITULO, 
+                           NodeType.SECCION, NodeType.SUBSECCION}
+        
+        is_structural = node.node_type in STRUCTURAL_TYPES
+        is_root = node.node_type == NodeType.ROOT
+        
+        # Build node properties (skip for ROOT and structural nodes)
+        if not is_root and not is_structural:
             props = {
                 "id": node.id,
                 "name": node.name,
@@ -219,9 +230,14 @@ class NormativaRepository:
             child = item
             self._collect_tree_data(child, nodes_data, relationships_data, normativa_id)
             
+            # Skip creating relationships for structural children
+            child_is_structural = child.node_type in STRUCTURAL_TYPES
+            if child_is_structural:
+                continue
+            
             # Database Relationship Logic
-            if node.node_type == NodeType.ROOT:
-                # Top-level nodes (children of ROOT) link directly to Normativa
+            if is_root or is_structural:
+                # Children of ROOT or structural nodes link directly to Normativa
                 if normativa_id:
                     relationships_data.append({
                         "from_id": child.id,
@@ -230,7 +246,7 @@ class NormativaRepository:
                         "props": {}
                     })
             else:
-                # Variable hierarchy levels link to their parent
+                # Non-structural nodes (articles) link children to themselves
                 relationships_data.append({
                     "from_id": child.id,
                     "to_id": node.id,
@@ -240,14 +256,8 @@ class NormativaRepository:
         
         # Add ArticleNode version relationships
         if isinstance(node, ArticleNode):
-            # INTRODUCED_BY relationship for queryability
-            if node.introduced_by and normativa_id:
-                relationships_data.append({
-                    "from_id": node.id,
-                    "to_id": node.introduced_by,  # Link to introducing Normativa
-                    "rel_type": "INTRODUCED_BY",
-                    "props": {}
-                })
+            # Note: INTRODUCED_BY relationship removed - change events capture this info
+            # The introduced_by property is still stored on the node for queryability
             
             # Version chain relationships
             if node.previous_version:
