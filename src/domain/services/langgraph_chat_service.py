@@ -258,6 +258,7 @@ class LangGraphChatService:
                 "workflow": "langgraph",
                 "persistence": "sqlite" if self.use_sqlite else "memory",
                 "context_reused": skip_collector,
+                "context": result.get("context", ""),  # RAG context for beta testing
                 **result.get("metadata", {})
             }
         )

@@ -82,6 +82,10 @@ class ChatResponse(BaseModel):
         description="List of citations referenced in the response"
     )
     execution_time_ms: float = Field(..., description="Total processing time in milliseconds")
+    config_matrix: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Configuration used to generate this response (exposed in test mode)"
+    )
     
     class Config:
         json_schema_extra = {
@@ -99,7 +103,8 @@ class ChatResponse(BaseModel):
                         "score": 0.92
                     }
                 ],
-                "execution_time_ms": 1250.5
+                "execution_time_ms": 1250.5,
+                "config_matrix": None
             }
         }
 

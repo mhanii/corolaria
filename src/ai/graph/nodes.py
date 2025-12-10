@@ -283,13 +283,42 @@ def generate_node(
         system_prompt=system_prompt
     )
     
+    # Build config matrix for beta testing feedback
+    # Load config settings
+    import yaml
+    from pathlib import Path
+    version_context = {"next_version_depth": -1, "previous_version_depth": 1}
+    max_refs = 3  # Default REFERS_TO expansion depth
+    try:
+        config_path = Path("config/config.yaml")
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                version_context = config.get("version_context", version_context)
+                max_refs = config.get("retrieval", {}).get("max_refs", 3)
+    except Exception:
+        pass
+    
+    config_matrix = {
+        "model": llm_provider.model,
+        "temperature": getattr(llm_provider, 'temperature', 1.0),
+        "top_k": state.get("top_k", 10),
+        "collector_type": state.get("context_strategy", "unknown"),
+        "prompt_version": "1.0",  # Hardcoded for now, can be made configurable
+        "context_reused": state.get("skip_collector", False),
+        "next_version_depth": version_context.get("next_version_depth", -1),
+        "previous_version_depth": version_context.get("previous_version_depth", 1),
+        "max_refers_to": max_refs
+    }
+    
     step_logger.info(f"[GenerateNode] Generated response ({len(llm_response.content)} chars)")
     return {
         "response": llm_response.content,
         "system_prompt": system_prompt,
         "metadata": {
             "llm_model": llm_provider.model,
-            "tokens_used": llm_response.usage
+            "tokens_used": llm_response.usage,
+            "config_matrix": config_matrix
         }
     }
 

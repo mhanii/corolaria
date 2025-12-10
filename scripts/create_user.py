@@ -37,9 +37,15 @@ Examples:
     parser.add_argument(
         "--tokens", "-t",
         type=int,
-        default=1000,
-        help="Initial token allocation (default: 1000)"
+        default=None,
+        help="Initial token allocation (default: 1000, or 15 for test users)"
     )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Create as test user with beta testing token allocation (15 tokens)"
+    )
+
     
     args = parser.parse_args()
     
@@ -59,12 +65,21 @@ Examples:
     # Create repository
     user_repo = UserRepository(connection)
     
+    # Determine token allocation
+    if args.tokens is not None:
+        token_count = args.tokens
+    elif args.test:
+        token_count = 15  # Beta testing initial tokens
+        print("(Test user mode - using 15 tokens)")
+    else:
+        token_count = 1000  # Default for regular users
+    
     # Create user
     print(f"Creating user: {args.username}")
     user = user_repo.create_user(
         username=args.username,
         password=args.password,
-        available_tokens=args.tokens
+        available_tokens=token_count
     )
     
     if user is None:

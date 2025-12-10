@@ -176,7 +176,9 @@ async def chat(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={
                 "error": "InsufficientTokens",
-                "message": "You have no remaining API tokens. Please contact an administrator."
+                "message": "You have no remaining API tokens. Complete a survey to refill.",
+                "requires_refill": True,
+                "survey_endpoint": "/api/v1/beta/survey"
             }
         )
     
@@ -213,7 +215,6 @@ async def chat(
     chat_service = get_chat_service_with_collector(connection, collector_type)
     
     try:
-        # Process chat through service
         result = await chat_service.achat(
             query=request.message,
             conversation_id=request.conversation_id,
@@ -247,11 +248,15 @@ async def chat(
         
         step_logger.info(f"[ChatAPI] Response generated: {len(citation_responses)} citations")
         
+        # Extract config_matrix from metadata if available
+        config_matrix = result.metadata.get("config_matrix") if result.metadata else None
+        
         return ChatResponse(
             response=result.response,
             conversation_id=result.conversation_id,
             citations=citation_responses,
-            execution_time_ms=result.execution_time_ms
+            execution_time_ms=result.execution_time_ms,
+            config_matrix=config_matrix
         )
         
     except Exception as e:
@@ -355,6 +360,7 @@ async def chat_stream(
     async def event_generator():
         """Generate SSE events from streaming chat."""
         conversation_id = None
+        
         try:
             async for event in chat_service.achat_stream(
                 query=request.message,
