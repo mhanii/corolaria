@@ -124,24 +124,30 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
         Generate embeddings for a batch of texts.
-        Gemini supports batching, but we should respect limits (e.g. 100).
-        Each batch is retried with exponential backoff on transient errors.
+        
+        Note: Caller (EmbeddingGenerator.process_subset) already does smart
+        bin-packing with token limits. This method just handles the API call
+        with internal batching at 225 items max.
         """
-        BATCH_SIZE = 100
+        BATCH_SIZE = 225  # Matches EmbeddingGenerator's MAX_ITEMS_PER_BATCH
         all_embeddings = []
         total_batches = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
         mode_str = "SIM" if self.simulate else "API"
-        step_logger.info(f"[{mode_str}] Generating {len(texts)} embeddings in {total_batches} batches...")
+        
+        if total_batches > 1:
+            step_logger.info(f"[{mode_str}] Processing {len(texts)} texts in {total_batches} API calls...")
         
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i : i + BATCH_SIZE]
             batch_num = i // BATCH_SIZE + 1
             
             if self.simulate:
-                step_logger.info(f"[SIM] Batch {batch_num}/{total_batches} ({len(batch)} texts) - waiting 3s...")
+                if total_batches > 1:
+                    step_logger.info(f"[SIM] API call {batch_num}/{total_batches} ({len(batch)} texts) - waiting 3s...")
                 batch_embeddings = self._simulate_batch(len(batch))
             else:
-                step_logger.info(f"[API] Batch {batch_num}/{total_batches} ({len(batch)} texts)")
+                if total_batches > 1:
+                    step_logger.info(f"[API] Call {batch_num}/{total_batches} ({len(batch)} texts)")
                 batch_embeddings = self._embed_batch(batch)
             
             all_embeddings.extend(batch_embeddings)

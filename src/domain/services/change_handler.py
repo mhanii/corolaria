@@ -189,7 +189,7 @@ class ChangeHandler:
                 self._replace_duplicates(item, old_registry)
             else:
                 new_content.append(item)
-        node.content = new_content
+        # node.content = new_content
 
     # ------------------------------------------------------------------------
     # New Section: Change Detection

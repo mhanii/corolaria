@@ -314,6 +314,17 @@ Examples:
         help="Number of disk/writer workers in decoupled mode (default: 2)"
     )
     parser.add_argument(
+        "--scatter-chunk-size",
+        type=int,
+        default=500,
+        help="Articles per chunk for scatter-gather parallelism (default: 500)"
+    )
+    parser.add_argument(
+        "--skip-embeddings",
+        action="store_true",
+        help="Skip embedding generation (graph-only mode for speed testing)"
+    )
+    parser.add_argument(
         "--simulate",
         action="store_true",
         help="Use simulated embeddings (for stress testing without API costs)"
@@ -379,13 +390,17 @@ Examples:
                 from src.ingestion.decoupled_orchestrator import DecoupledIngestionOrchestrator
                 
                 step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
-                if args.simulate:
+                if args.skip_embeddings:
+                    step_logger.info("Skip embeddings: Graph-only mode (no embeddings)")
+                elif args.simulate:
                     step_logger.info("Simulation mode: Using fake embeddings")
                 
                 orchestrator = DecoupledIngestionOrchestrator(
                     cpu_workers=args.cpu_workers,
                     network_workers=args.network_workers,
                     disk_workers=args.disk_workers,
+                    scatter_chunk_size=args.scatter_chunk_size,
+                    skip_embeddings=args.skip_embeddings,
                     simulate_embeddings=args.simulate,
                     config=config
                 )

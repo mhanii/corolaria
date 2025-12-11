@@ -1,7 +1,11 @@
 import logging
+import os
 from datetime import datetime
 
 def setup_loggers():
+    # Ensure output directory exists
+    os.makedirs('output', exist_ok=True)
+    
     # Create step_logger
     step_logger = logging.getLogger('step_logger')
     step_logger.setLevel(logging.INFO)

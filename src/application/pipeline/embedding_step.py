@@ -177,8 +177,8 @@ class EmbeddingGenerator(Step):
 
         return data
 
-    def _collect_articles(self, node: Node) -> List[ArticleNode]:
-        """Recursively find all ArticleNodes in the tree."""
+    def collect_articles(self, node: Node) -> List[ArticleNode]:
+        """Recursively find all ArticleNodes in the tree. Public API for scatter-gather."""
         articles = []
         if isinstance(node, ArticleNode):
             articles.append(node)
@@ -186,6 +186,155 @@ class EmbeddingGenerator(Step):
         if node.content:
             for child in node.content:
                 if isinstance(child, Node):  # Ensure it's a Node (not string)
-                    articles.extend(self._collect_articles(child))
+                    articles.extend(self.collect_articles(child))
         
         return articles
+
+    def _collect_articles(self, node: Node) -> List[ArticleNode]:
+        """Alias for backward compatibility."""
+        return self.collect_articles(node)
+
+    def process_subset(
+        self, 
+        articles: List[ArticleNode], 
+        normativa: NormativaCons,
+        chunk_id: int = 0,
+        total_chunks: int = 1
+    ) -> int:
+        """
+        Generate embeddings for a SUBSET of articles (for scatter-gather pattern).
+        
+        Uses SMART DYNAMIC BATCHING with bin-packing strategy:
+        - Fills batches until either token limit OR item limit is reached
+        - Handles oversized texts by truncation
+        - More efficient than fixed-size batching
+        
+        Args:
+            articles: Subset of ArticleNodes to process
+            normativa: Parent normativa for context building
+            chunk_id: Identifier for logging (0-indexed)
+            total_chunks: Total number of chunks for logging
+            
+        Returns:
+            Number of embeddings generated (for statistics)
+        """
+        # ===== CONFIGURATION =====
+        MAX_TOKENS_PER_BATCH = 18000   # 2000 token buffer for safety
+        MAX_ITEMS_PER_BATCH = 100       # Google's batch limit
+        CHARS_PER_TOKEN = 4             # Heuristic for English/Spanish
+        MAX_CHARS_PER_TEXT = MAX_TOKENS_PER_BATCH * CHARS_PER_TOKEN  # ~72k chars
+        
+        if not articles:
+            return 0
+        
+        # Check if provider supports simulation mode
+        is_simulation = getattr(self.provider, 'simulate', False)
+        
+        # Build context text and compute hashes
+        article_data: List[Tuple[ArticleNode, str, str]] = []
+        for article in articles:
+            context_text = self.text_builder.build_context_string(normativa, article)
+            context_hash = hashlib.sha256(context_text.encode('utf-8')).hexdigest()
+            article_data.append((article, context_text, context_hash))
+        
+        # Cache lookup (skip in simulation mode)
+        cache_hits = 0
+        to_embed: List[Tuple[ArticleNode, str, str]] = []
+        
+        if is_simulation:
+            to_embed = article_data
+        elif self.cache:
+            all_hashes = [h for _, _, h in article_data]
+            
+            if hasattr(self.cache, 'get_batch'):
+                cached_embeddings = self.cache.get_batch(all_hashes)
+            else:
+                cached_embeddings = {h: self.cache.get(h) for h in all_hashes}
+                cached_embeddings = {k: v for k, v in cached_embeddings.items() if v is not None}
+            
+            for article, text, hash_key in article_data:
+                if hash_key in cached_embeddings:
+                    article.embedding = cached_embeddings[hash_key]
+                    cache_hits += 1
+                else:
+                    to_embed.append((article, text, hash_key))
+        else:
+            to_embed = article_data
+        
+        # ===== SMART DYNAMIC BATCHING (Bin-Packing) =====
+        embeddings_generated = 0
+        new_embeddings: Dict[str, List[float]] = {}
+        
+        if to_embed:
+            try:
+                # Build optimized batches using bin-packing
+                batches: List[List[Tuple[ArticleNode, str, str]]] = []
+                current_batch: List[Tuple[ArticleNode, str, str]] = []
+                current_token_count = 0
+                
+                for article, text, hash_key in to_embed:
+                    # Estimate tokens using heuristic
+                    est_tokens = len(text) // CHARS_PER_TOKEN
+                    
+                    # Handle oversized text
+                    if est_tokens > MAX_TOKENS_PER_BATCH:
+                        step_logger.warning(
+                            f"[Chunk {chunk_id+1}/{total_chunks}] Article {article.id} exceeds token limit "
+                            f"({est_tokens} tokens). Truncating to {MAX_TOKENS_PER_BATCH} tokens."
+                        )
+                        text = text[:MAX_CHARS_PER_TEXT]
+                        est_tokens = MAX_TOKENS_PER_BATCH
+                    
+                    # Check if adding this item would exceed limits
+                    would_exceed_items = len(current_batch) + 1 > MAX_ITEMS_PER_BATCH
+                    would_exceed_tokens = current_token_count + est_tokens > MAX_TOKENS_PER_BATCH
+                    
+                    if current_batch and (would_exceed_items or would_exceed_tokens):
+                        # Flush current batch
+                        batches.append(current_batch)
+                        current_batch = []
+                        current_token_count = 0
+                    
+                    # Add to current batch
+                    current_batch.append((article, text, hash_key))
+                    current_token_count += est_tokens
+                
+                # Final flush
+                if current_batch:
+                    batches.append(current_batch)
+                
+                # Process all batches
+                for batch_idx, batch in enumerate(batches):
+                    batch_texts = [text for _, text, _ in batch]
+                    batch_tokens = sum(len(t) // CHARS_PER_TOKEN for t in batch_texts)
+                    
+                    # Log batch details
+                    step_logger.info(
+                        f"[Batch {batch_idx+1}/{len(batches)}] "
+                        f"{len(batch)} items, ~{batch_tokens} tokens"
+                    )
+                    
+                    # Call provider (provider may do its own internal batching)
+                    batch_embeddings = self.provider.get_embeddings(batch_texts)
+                    embeddings_generated += len(batch_embeddings)
+                    
+                    # Assign embeddings
+                    for (article, text, hash_key), embedding in zip(batch, batch_embeddings):
+                        article.embedding = embedding
+                        if not is_simulation:
+                            new_embeddings[hash_key] = embedding
+                        
+            except Exception as e:
+                step_logger.error(f"[Chunk {chunk_id+1}/{total_chunks}] Error: {e}")
+                raise  # Re-raise for scatter-gather error handling
+        
+        # Cache write (skip in simulation)
+        if self.cache and new_embeddings and not is_simulation:
+            if hasattr(self.cache, 'set_batch'):
+                self.cache.set_batch(new_embeddings)
+            else:
+                for hash_key, embedding in new_embeddings.items():
+                    self.cache.set(hash_key, embedding)
+        
+        return embeddings_generated
+

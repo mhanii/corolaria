@@ -101,7 +101,8 @@ class ChangeRepository:
         """Save multiple change events for a normativa."""
         saved_count = 0
         total_articles_linked = 0
-        for event in change_events.values():
+        # Iterate over a copy to prevent "dictionary changed size during iteration"
+        for event in list(change_events.values()):
             result = self.save_change_event(event, normativa_id)
             if result.get("success"):
                 saved_count += 1

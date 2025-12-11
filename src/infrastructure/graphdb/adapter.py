@@ -224,7 +224,7 @@ class Neo4jAdapter(GraphAdapter):
                 label_buckets[primary_label] = []
             
             label_buckets[primary_label].append({
-                "props": node["props"],
+                "props": dict(node["props"]),  # Copy to prevent concurrent modification
                 "secondary_labels": secondary_labels
             })
         

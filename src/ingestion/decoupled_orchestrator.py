@@ -133,6 +133,8 @@ class DecoupledIngestionOrchestrator:
         network_workers: int = 20,
         disk_workers: int = 2,
         queue_maxsize: int = 50,
+        scatter_chunk_size: int = 500,
+        skip_embeddings: bool = False,
         simulate_embeddings: bool = False,
         config: Optional[IngestionConfig] = None
     ):
@@ -140,6 +142,8 @@ class DecoupledIngestionOrchestrator:
         self.network_workers = network_workers
         self.disk_workers = disk_workers
         self.queue_maxsize = queue_maxsize
+        self.scatter_chunk_size = scatter_chunk_size  # Articles per chunk for scatter-gather
+        self.skip_embeddings = skip_embeddings  # Skip embedding generation entirely
         self.simulate_embeddings = simulate_embeddings
         self.config = config or IngestionConfig.from_env()
         
@@ -371,6 +375,11 @@ class DecoupledIngestionOrchestrator:
         """
         Network Worker: Generate embeddings for documents from embed_queue,
         then push to save_queue.
+        
+        Uses SCATTER-GATHER pattern for large documents:
+        - Scatter: Split document articles into chunks
+        - Parallel: Process chunks concurrently in thread pool  
+        - Gather: Wait for all chunks, articles updated by reference
         """
         loop = asyncio.get_running_loop()
         
@@ -384,18 +393,115 @@ class DecoupledIngestionOrchestrator:
                 break
             
             try:
-                embedded = await loop.run_in_executor(
-                    pool, 
-                    self._generate_embeddings_sync, 
-                    parsed
+                start_time = perf_counter()
+                
+                # SKIP EMBEDDINGS MODE: Pass directly to save_queue
+                if self.skip_embeddings:
+                    embedded = EmbeddedDocument(
+                        law_id=parsed.law_id,
+                        normativa=parsed.normativa,
+                        change_events=parsed.change_events,
+                        parse_duration=parsed.parse_duration,
+                        embed_duration=0.0
+                    )
+                    await self._save_queue.put(embedded)
+                    step_logger.info(f"[Network] {parsed.law_id} skipped embeddings, queued ({perf_counter() - start_time:.2f}s)")
+                    self._embed_queue.task_done()
+                    continue
+                
+                # Import here to avoid circular imports
+                from src.application.pipeline.embedding_step import EmbeddingGenerator
+                
+                # Create generator (uses shared cache and provider)
+                generator = EmbeddingGenerator(
+                    name="embedding_generator",
+                    provider=self._embedding_provider,
+                    cache=self._embedding_cache
+                )
+                
+                # Collect all articles from the document tree
+                articles = generator.collect_articles(parsed.normativa.content_tree)
+                
+                if not articles:
+                    # No articles, just pass through
+                    embedded = EmbeddedDocument(
+                        law_id=parsed.law_id,
+                        normativa=parsed.normativa,
+                        change_events=parsed.change_events,
+                        parse_duration=parsed.parse_duration,
+                        embed_duration=0.0
+                    )
+                    await self._save_queue.put(embedded)
+                    step_logger.info(f"[Network] {parsed.law_id} no articles, queued")
+                    self._embed_queue.task_done()
+                    continue
+                
+                # Determine if we need scatter-gather
+                if len(articles) <= self.scatter_chunk_size:
+                    # Small document - process directly
+                    embeddings_count = await loop.run_in_executor(
+                        pool,
+                        generator.process_subset,
+                        articles,
+                        parsed.normativa,
+                        0,
+                        1
+                    )
+                else:
+                    # Large document - SCATTER-GATHER
+                    chunks = [
+                        articles[i:i + self.scatter_chunk_size]
+                        for i in range(0, len(articles), self.scatter_chunk_size)
+                    ]
+                    total_chunks = len(chunks)
+                    
+                    step_logger.info(
+                        f"[Network] {parsed.law_id}: Scatter-Gather {len(articles)} articles "
+                        f"into {total_chunks} chunks of ~{self.scatter_chunk_size}"
+                    )
+                    
+                    # Schedule all chunks to run in parallel
+                    chunk_tasks = [
+                        loop.run_in_executor(
+                            pool,
+                            generator.process_subset,
+                            chunk,
+                            parsed.normativa,
+                            i,
+                            total_chunks
+                        )
+                        for i, chunk in enumerate(chunks)
+                    ]
+                    
+                    # Gather results (articles updated by reference)
+                    chunk_results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
+                    
+                    # Check for errors
+                    for i, result in enumerate(chunk_results):
+                        if isinstance(result, Exception):
+                            raise RuntimeError(f"Chunk {i+1}/{total_chunks} failed: {result}")
+                    
+                    embeddings_count = sum(chunk_results)
+                
+                # Commit cache after document
+                if self._embedding_cache:
+                    self._embedding_cache.save()
+                
+                embed_duration = perf_counter() - start_time
+                
+                embedded = EmbeddedDocument(
+                    law_id=parsed.law_id,
+                    normativa=parsed.normativa,
+                    change_events=parsed.change_events,
+                    parse_duration=parsed.parse_duration,
+                    embed_duration=embed_duration
                 )
                 
                 await self._save_queue.put(embedded)
-                step_logger.info(f"[Network] {parsed.law_id} embedded and queued ({embedded.embed_duration:.2f}s)")
+                step_logger.info(f"[Network] {parsed.law_id} embedded and queued ({embed_duration:.2f}s)")
                 
             except Exception as e:
                 step_logger.error(f"[Network] {parsed.law_id} failed: {e}")
-                # Push a failed marker to save_queue so we can track it
                 async with self._results_lock:
                     self._results.append(DocumentResult(
                         law_id=parsed.law_id,
@@ -407,8 +513,8 @@ class DecoupledIngestionOrchestrator:
     
     def _generate_embeddings_sync(self, parsed: ParsedDocument) -> EmbeddedDocument:
         """
-        Synchronous embedding generation (runs in Network thread pool).
-        Uses shared cache and provider.
+        DEPRECATED: Kept for backward compatibility.
+        Use _network_worker with scatter-gather instead.
         """
         start_time = perf_counter()
         

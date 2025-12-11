@@ -1,0 +1,27 @@
+# Docker build context exclusions
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+logs/
+output/
+stats/
+*.log
+.env
+.env.*
+!.env.example
+
+# Development files
+*.md
+docs/
+documentation/
+exams/
+scripts/
+
+# Test data (keep data/ for embedding cache)
+output/
+
+# IDE
+.idea/
+.vscode/
