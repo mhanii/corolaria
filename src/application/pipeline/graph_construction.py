@@ -2,7 +2,6 @@
 from typing import List, Dict, Any, Optional
 from src.domain.models.normativa import NormativaCons
 from src.domain.repository.normativa_repository import NormativaRepository
-from src.domain.repository.tree_repository import TreeRepository
 from src.domain.repository.change_repository import ChangeRepository
 from src.domain.services.change_handler import ChangeEvent
 from src.infrastructure.graphdb.connection import Neo4jConnection
@@ -66,7 +65,6 @@ class GraphConstruction(Step):
         
         # Initialize repositories
         self.normativa_repo = NormativaRepository(self.adapter)
-        self.tree_repo = TreeRepository(self.adapter)
         self.change_repo = ChangeRepository(self.adapter)
     
     def process_normativa(self, normativa: NormativaCons, change_events: List[ChangeEvent]) -> GraphConstructionResult:

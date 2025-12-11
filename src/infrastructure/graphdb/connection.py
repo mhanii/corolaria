@@ -38,14 +38,14 @@ class Neo4jConnection:
     )
         return record
 
-    def execute_batch(self, query: str, batch_data: list, batch_size: int = 1000):
+    def execute_batch(self, query: str, batch_data: list, batch_size: int = 5000):
         """
         Execute a batched UNWIND query for optimal bulk operations.
         
         Args:
             query: Cypher query using UNWIND $batch AS row
             batch_data: List of dictionaries to be processed
-            batch_size: Number of items per batch (default 1000)
+            batch_size: Number of items per batch (default 5000)
         """
         with self._driver.session(database="neo4j") as session:
             for i in range(0, len(batch_data), batch_size):

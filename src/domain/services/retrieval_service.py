@@ -2,7 +2,7 @@ from typing import List, Dict, Optional, Any
 import time
 from src.domain.interfaces.retrieval_strategy import RetrievalStrategy
 from src.domain.value_objects.search_result import SearchResult, BenchmarkResult
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.utils.logger import step_logger
 
 class RetrievalService:
@@ -17,10 +17,10 @@ class RetrievalService:
     - Benchmarking capabilities
     """
     
-    def __init__(self, adapter: Neo4jAdapter, strategies: Dict[str, RetrievalStrategy]):
+    def __init__(self, adapter: GraphAdapter, strategies: Dict[str, RetrievalStrategy]):
         """
         Args:
-            adapter: Neo4j adapter for additional queries
+            adapter: Graph adapter for additional queries (implements GraphAdapter)
             strategies: Dict mapping strategy names to strategy instances
         """
         self.adapter = adapter

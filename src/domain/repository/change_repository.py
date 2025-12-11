@@ -1,6 +1,6 @@
 # domain/repository/change_repository.py
 from typing import List, Dict, Any
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.domain.services.change_handler import ChangeEvent, AffectedNode
 
 
@@ -14,7 +14,7 @@ class ChangeRepository:
     - ChangeEvent -[:CHANGED {type: "added"|"modified"|"removed"}]-> Article
     """
     
-    def __init__(self, adapter: Neo4jAdapter):
+    def __init__(self, adapter: GraphAdapter):
         self.adapter = adapter
     
     def save_change_event(self, change_event: ChangeEvent, normativa_id: str = None) -> dict:
@@ -49,7 +49,9 @@ class ChangeRepository:
             self.adapter.merge_relationship(
                 from_id=event_id,
                 to_id=normativa_id,
-                rel_type="MODIFIES"
+                rel_type="MODIFIES",
+                from_label="ChangeEvent",
+                to_label="Normativa"
             )
         
         # 2. SourceNormativa -[:INTRODUCED_CHANGE]-> ChangeEvent
@@ -57,7 +59,9 @@ class ChangeRepository:
             self.adapter.merge_relationship(
                 from_id=change_event.source_document_id,
                 to_id=event_id,
-                rel_type="INTRODUCED_CHANGE"
+                rel_type="INTRODUCED_CHANGE",
+                from_label="Normativa",
+                to_label="ChangeEvent"
             )
         
         # 3. ChangeEvent -[:CHANGED {type}]-> Article (for each affected article)
@@ -84,7 +88,9 @@ class ChangeRepository:
                 from_id=event_id,
                 to_id=article_id,
                 rel_type="CHANGED",
-                properties={"type": change_type}
+                properties={"type": change_type},
+                from_label="ChangeEvent",
+                to_label="articulo"
             )
             articles_linked += 1
         

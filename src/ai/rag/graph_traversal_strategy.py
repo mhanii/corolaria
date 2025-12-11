@@ -1,7 +1,7 @@
 from typing import List
 from src.domain.interfaces.retrieval_strategy import RetrievalStrategy
 from src.domain.value_objects.search_result import SearchResult
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.utils.logger import step_logger
 
 class GraphTraversalStrategy(RetrievalStrategy):
@@ -10,10 +10,10 @@ class GraphTraversalStrategy(RetrievalStrategy):
     Supports querying by structure (Title, Chapter), subject matter, and version history.
     """
     
-    def __init__(self, adapter: Neo4jAdapter):
+    def __init__(self, adapter: GraphAdapter):
         """
         Args:
-            adapter: Neo4j adapter for database queries
+            adapter: Graph adapter for database queries (implements GraphAdapter)
         """
         super().__init__(name="Graph Traversal")
         self.adapter = adapter

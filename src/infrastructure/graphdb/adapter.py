@@ -1,8 +1,16 @@
 # infrastructure/graphdb/neo4j_adapter.py
 from typing import List, Dict, Any, Optional
 from .connection import Neo4jConnection
-class Neo4jAdapter:
-    """Low-level Neo4j operations"""
+from src.domain.interfaces.graph_adapter import GraphAdapter
+
+
+class Neo4jAdapter(GraphAdapter):
+    """
+    Low-level Neo4j operations implementing the GraphAdapter interface.
+    
+    This concrete implementation can be swapped with other graph databases
+    by implementing the same GraphAdapter interface.
+    """
     
     def __init__(self, connection: Neo4jConnection):
         self.conn = connection
@@ -32,25 +40,53 @@ class Neo4jAdapter:
         
 
     def merge_relationship(self, from_id: str, to_id: str, 
-                          rel_type: str, properties: dict = None):
-        """Merge relationship between nodes"""
-        if properties:
-            # Build Cypher literal map string, e.g. "{k1: $props.k1, k2: $props.k2}"
-            props_str = "{" + ", ".join([f"{k}: $props.{k}" for k in properties.keys()]) + "}"
-        else:
-            props_str = "{}"
-
-        query = f"""
-        MATCH (a {{id: $from_id}})
-        MATCH (b {{id: $to_id}})
-        MERGE (a)-[r:{rel_type} {props_str}]->(b)
-        RETURN r
+                          rel_type: str, properties: dict = None,
+                          from_label: str = None, to_label: str = None):
         """
-        return self.conn.execute_write(query, {
-            "from_id": from_id,
-            "to_id": to_id,
-            "props": properties or {}
-        })
+        Merge relationship between nodes.
+        
+        Args:
+            from_id: Source node ID
+            to_id: Target node ID
+            rel_type: Relationship type
+            properties: Optional relationship properties
+            from_label: Optional source node label (for index usage)
+            to_label: Optional target node label (for index usage)
+        """
+        if from_label and to_label:
+            # Use APOC merge with labels (uses indexes!)
+            query = f"""
+            CALL apoc.merge.node([$from_label], {{id: $from_id}}) YIELD node AS a
+            CALL apoc.merge.node([$to_label], {{id: $to_id}}) YIELD node AS b
+            MERGE (a)-[r:{rel_type}]->(b)
+            SET r += $props
+            RETURN r
+            """
+            return self.conn.execute_write(query, {
+                "from_id": from_id,
+                "to_id": to_id,
+                "from_label": from_label,
+                "to_label": to_label,
+                "props": properties or {}
+            })
+        else:
+            # Fallback: no labels (backward compatibility, slower)
+            if properties:
+                props_str = "{" + ", ".join([f"{k}: $props.{k}" for k in properties.keys()]) + "}"
+            else:
+                props_str = "{}"
+
+            query = f"""
+            MATCH (a {{id: $from_id}})
+            MATCH (b {{id: $to_id}})
+            MERGE (a)-[r:{rel_type} {props_str}]->(b)
+            RETURN r
+            """
+            return self.conn.execute_write(query, {
+                "from_id": from_id,
+                "to_id": to_id,
+                "props": properties or {}
+            })
 
     def create_vector_index(self, index_name: str, label: str, property_name: str, dimensions: int, similarity_function: str):
         """
@@ -65,6 +101,42 @@ class Neo4jAdapter:
         }}}}
         """
         self.conn.execute_write(query, {})
+
+    def ensure_indexes(self) -> None:
+        """
+        Create indexes on id property for all node labels used in the graph.
+        Should be called once before bulk ingestion for optimal performance.
+        
+        Creates indexes for:
+        - Document types: Normativa, Materia, Departamento, Rango, ChangeEvent
+        - Content types: articulo, parrafo, apartado_alfa, apartado_numerico,
+                        ordinal_alfa, ordinal_numerico, disposicion
+        """
+        # All node labels that use 'id' property for lookups
+        labels = [
+            # Document-level nodes
+            "Normativa",
+            "Materia", 
+            "Departamento",
+            "Rango",
+            "ChangeEvent",
+            # Article content nodes
+            "articulo",
+            "parrafo",
+            "apartado_alfa",
+            "apartado_numerico",
+            "ordinal_alfa",
+            "ordinal_numerico",
+            "disposicion",
+        ]
+        
+        for label in labels:
+            index_name = f"idx_{label.lower()}_id"
+            query = f"CREATE INDEX {index_name} IF NOT EXISTS FOR (n:{label}) ON (n.id)"
+            try:
+                self.conn.execute_write(query, {})
+            except Exception:
+                pass  # Index might already exist
 
     # ========== Generic Query Methods ==========
     
@@ -143,19 +215,33 @@ class Neo4jAdapter:
         Supports dynamic relationship types via apoc.merge.relationship.
         
         Args:
-            relationships_data: List of dicts with 'from_id', 'to_id', 'rel_type', 'props' (optional)
+            relationships_data: List of dicts with 'from_id', 'to_id', 'rel_type', 'props',
+                               and optionally 'from_label', 'to_label' for index usage.
         """
         if not relationships_data:
             return
         
-        # APOC merge.relationship: dynamic rel type with merge semantics
-        query = """
-        UNWIND $batch AS row
-        MATCH (a {id: row.from_id})
-        MATCH (b {id: row.to_id})
-        CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
-        RETURN count(rel) as count
-        """
+        # Check if labels are provided (for index usage)
+        has_labels = relationships_data and 'from_label' in relationships_data[0]
+        
+        if has_labels:
+            # Use APOC to lookup nodes by label+id (uses indexes!)
+            query = """
+            UNWIND $batch AS row
+            CALL apoc.merge.node([row.from_label], {id: row.from_id}) YIELD node AS a
+            CALL apoc.merge.node([row.to_label], {id: row.to_id}) YIELD node AS b
+            CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
+            RETURN count(rel) as count
+            """
+        else:
+            # Fallback: no labels (backward compatibility, but slower)
+            query = """
+            UNWIND $batch AS row
+            MATCH (a {id: row.from_id})
+            MATCH (b {id: row.to_id})
+            CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
+            RETURN count(rel) as count
+            """
         self.conn.execute_batch(query, relationships_data)
 
     

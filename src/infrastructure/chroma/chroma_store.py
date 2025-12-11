@@ -77,49 +77,102 @@ DEFAULT_CLARIFICATION_PHRASES = [
 
 class ClassificationEmbeddingCache:
     """
-    JSON file-based cache for classification embeddings.
-    Similar to the article embeddings cache but for classification phrases.
+    SQLite file-based cache for classification embeddings.
+    Uses binary blob storage for efficiency.
     """
     
-    def __init__(self, cache_path: str = "data/classification_embeddings_cache.json"):
+    def __init__(self, cache_path: str = "data/classification_embeddings_cache.db"):
+        import sqlite3
+        import struct
+        from datetime import datetime
+        
+        self._struct = struct
+        self._datetime = datetime
+        
+        # Ensure .db extension for SQLite
+        if cache_path.endswith('.json'):
+            cache_path = cache_path.replace('.json', '.db')
+        
         self.cache_path = cache_path
-        self.cache: Dict[str, List[float]] = {}
-        self._load()
+        self._connection: Optional[sqlite3.Connection] = None
+        self._ensure_database()
     
-    def _load(self):
-        """Load cache from file if exists."""
-        if os.path.exists(self.cache_path):
-            try:
-                with open(self.cache_path, 'r', encoding='utf-8') as f:
-                    self.cache = json.load(f)
-                step_logger.info(f"[ClassificationCache] Loaded {len(self.cache)} cached embeddings")
-            except Exception as e:
-                step_logger.warning(f"[ClassificationCache] Failed to load: {e}")
-                self.cache = {}
-        else:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.cache_path) if os.path.dirname(self.cache_path) else ".", exist_ok=True)
-            self.cache = {}
+    def _ensure_database(self):
+        """Ensure database and schema exist."""
+        import sqlite3
+        
+        # Ensure directory exists
+        cache_dir = os.path.dirname(self.cache_path)
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
+        
+        conn = self._get_connection()
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS embedding_cache (
+                key TEXT PRIMARY KEY,
+                embedding BLOB NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_embedding_cache_key ON embedding_cache(key);
+        """)
+        conn.commit()
+        
+        # Log entry count
+        cursor = conn.execute("SELECT COUNT(*) FROM embedding_cache")
+        count = cursor.fetchone()[0]
+        if count > 0:
+            step_logger.info(f"[ClassificationCache] Loaded {count} cached embeddings")
+    
+    def _get_connection(self):
+        """Get or create database connection."""
+        import sqlite3
+        if self._connection is None:
+            self._connection = sqlite3.connect(self.cache_path, check_same_thread=False)
+        return self._connection
+    
+    def _pack_embedding(self, embedding: List[float]) -> bytes:
+        """Pack embedding list to binary blob (float32)."""
+        return self._struct.pack(f'{len(embedding)}f', *embedding)
+    
+    def _unpack_embedding(self, blob: bytes) -> List[float]:
+        """Unpack binary blob to embedding list."""
+        count = len(blob) // 4  # 4 bytes per float32
+        return list(self._struct.unpack(f'{count}f', blob))
     
     def get(self, phrase: str) -> Optional[List[float]]:
         """Get cached embedding for phrase."""
-        return self.cache.get(phrase)
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT embedding FROM embedding_cache WHERE key = ?",
+            (phrase,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return self._unpack_embedding(row[0])
+        return None
     
     def set(self, phrase: str, embedding: List[float]):
         """Cache an embedding."""
-        self.cache[phrase] = embedding
+        conn = self._get_connection()
+        blob = self._pack_embedding(embedding)
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO embedding_cache (key, embedding, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (phrase, blob, self._datetime.now().isoformat())
+        )
     
     def save(self):
         """Persist cache to disk."""
-        try:
-            with open(self.cache_path, 'w', encoding='utf-8') as f:
-                json.dump(self.cache, f)
-            step_logger.info(f"[ClassificationCache] Saved {len(self.cache)} embeddings to {self.cache_path}")
-        except Exception as e:
-            step_logger.error(f"[ClassificationCache] Failed to save: {e}")
+        if self._connection:
+            self._connection.commit()
+            step_logger.info(f"[ClassificationCache] Saved to {self.cache_path}")
     
     def __len__(self):
-        return len(self.cache)
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT COUNT(*) FROM embedding_cache")
+        return cursor.fetchone()[0]
 
 
 class ChromaClassificationStore:

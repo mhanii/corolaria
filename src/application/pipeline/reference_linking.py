@@ -125,8 +125,12 @@ class LegalReferenceLinker(Step):
                 result.unresolved_references += len(extraction.unresolved_references)
                 
                 # 3. Create relationships for resolved references
+                # Pass referencer's fecha_vigencia for version-aware linking
+                referencer_fecha = article.get("fecha_vigencia")
                 for ref in extraction.references:
-                    link_created = self._create_reference_link(article_id, ref, data.doc_id)
+                    link_created = self._create_reference_link(
+                        article_id, ref, data.doc_id, referencer_fecha
+                    )
                     if link_created:
                         if ref.is_external:
                             result.external_links_created += 1
@@ -150,10 +154,11 @@ class LegalReferenceLinker(Step):
         return result
     
     def _fetch_articles(self, normativa_id: str) -> List[Dict[str, Any]]:
-        """Fetch all articles belonging to a normativa."""
+        """Fetch all articles belonging to a normativa (with fecha_vigencia for version-aware linking)."""
         query = """
         MATCH (a:articulo)-[:PART_OF*1..10]->(n:Normativa {id: $normativa_id})
-        RETURN a.id as id, a.full_text as full_text, a.text as text, a.name as name
+        RETURN a.id as id, a.full_text as full_text, a.text as text, 
+               a.name as name, a.fecha_vigencia as fecha_vigencia
         """
         return self.adapter.run_query(query, {"normativa_id": normativa_id})
     
@@ -161,11 +166,13 @@ class LegalReferenceLinker(Step):
         self, 
         source_article_id: str, 
         ref: ExtractedReference,
-        current_normativa_id: str
+        current_normativa_id: str,
+        referencer_fecha: Optional[str] = None
     ) -> bool:
         """
         Create a REFERS_TO relationship based on the extracted reference.
         
+        Uses version-aware matching: finds article version valid at referencer's date.
         Returns True if link was created, False otherwise.
         """
         # Skip judicial references (different relationship type, future work)
@@ -178,20 +185,22 @@ class LegalReferenceLinker(Step):
         # Internal reference - link to article within same normativa
         if not ref.is_external:
             if ref.article_number and ref.article_number not in ("anterior", "siguiente", "precedente"):
-                # Try to find the specific article
+                # Try to find the specific article (version-aware)
                 target_id = self._find_article_in_normativa(
                     current_normativa_id, 
-                    ref.article_number
+                    ref.article_number,
+                    referencer_fecha
                 )
                 target_label = "articulo"
         
         # External reference with resolved BOE ID
         elif ref.resolved_boe_id:
-            # If we have an article number, try to link to specific article
+            # If we have an article number, try to link to specific article (version-aware)
             if ref.article_number:
                 target_id = self._find_article_in_normativa(
                     ref.resolved_boe_id,
-                    ref.article_number
+                    ref.article_number,
+                    referencer_fecha
                 )
                 target_label = "articulo"
             
@@ -213,28 +222,39 @@ class LegalReferenceLinker(Step):
         
         return False
     
-    def _find_article_in_normativa(self, normativa_id: str, article_number: str) -> Optional[str]:
-        """Find an article by number within a normativa."""
-        # Normalize article number for matching
-        # "808" should NOT match "1808" - use word boundary regex
-        clean_num = article_number.strip()
+    def _find_article_in_normativa(
+        self, 
+        normativa_id: str, 
+        article_number: str,
+        referencer_fecha: Optional[str] = None
+    ) -> Optional[str]:
+        """Find an article by number within a normativa (version-aware).
         
-        # Remove ordinal markers for matching (269.4º -> 269.4)
-        clean_num = clean_num.rstrip('ºª')
+        When referencer_fecha is provided, finds the version of the article
+        that was valid at that date:
+            article.fecha_vigencia <= referencer_fecha < article.fecha_caducidad
+        """
+        # Normalize article number for matching
+        clean_num = article_number.strip().rstrip('º\u00aa')
         
         # Build regex that matches article number with word boundaries
-        # (?i) = case insensitive, \\b = word boundary
-        # Matches: "Artículo 808", "Art. 808", "808 bis", etc.
-        # Does NOT match: "1808" (because of word boundary before 808)
+        # Uses version filtering when referencer_fecha is provided
         query = """
         MATCH (a:articulo)-[:PART_OF*1..10]->(n:Normativa {id: $normativa_id})
         WHERE a.name =~ ('(?i).*\\\\b' + $article_num + '(\\\\b|º|ª|\\\\s+bis|\\\\s+ter|$).*')
+          // Version filtering: find article valid at referencer's date
+          AND ($ref_fecha IS NULL 
+               OR (a.fecha_vigencia IS NOT NULL 
+                   AND a.fecha_vigencia <= $ref_fecha
+                   AND (a.fecha_caducidad IS NULL OR $ref_fecha < a.fecha_caducidad)))
         RETURN a.id as id
+        ORDER BY a.fecha_vigencia DESC
         LIMIT 1
         """
         result = self.adapter.run_query_single(query, {
             "normativa_id": normativa_id,
-            "article_num": clean_num
+            "article_num": clean_num,
+            "ref_fecha": referencer_fecha
         })
         return result["id"] if result else None
     

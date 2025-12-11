@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 from src.domain.interfaces.context_collector import ContextCollector, ContextResult
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.ai.context_collectors.chunk_enricher import ChunkEnricher
 from src.utils.logger import step_logger
 
@@ -36,7 +36,7 @@ class RAGCollector(ContextCollector):
     
     def __init__(
         self, 
-        neo4j_adapter: Neo4jAdapter,
+        neo4j_adapter: GraphAdapter,
         embedding_provider: EmbeddingProvider,
         index_name: str = "article_embeddings"
     ):
@@ -44,7 +44,7 @@ class RAGCollector(ContextCollector):
         Initialize the RAG context collector.
         
         Args:
-            neo4j_adapter: Neo4j adapter for database queries
+            neo4j_adapter: Graph adapter for database queries (implements GraphAdapter)
             embedding_provider: Provider to generate query embeddings
             index_name: Name of the vector index (default: "article_embeddings")
         """

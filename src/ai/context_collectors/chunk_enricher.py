@@ -9,7 +9,7 @@ This utility is shared by all context collectors (RAG, QRAG, etc.)
 to ensure consistent behavior across retrieval strategies.
 """
 from typing import List, Dict, Any, Set
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.utils.logger import step_logger
 
 # Import tracer for Phoenix observability
@@ -29,18 +29,18 @@ class ChunkEnricher:
     2. Expand references - add REFERS_TO articles (up to max_refs)
     
     Attributes:
-        adapter: Neo4j adapter for graph queries
+        adapter: Graph adapter for graph queries
         max_refs: Maximum REFERS_TO articles to include per chunk
     """
     
     DEFAULT_MAX_REFS = 3
     
-    def __init__(self, adapter: Neo4jAdapter, max_refs: int = DEFAULT_MAX_REFS):
+    def __init__(self, adapter: GraphAdapter, max_refs: int = DEFAULT_MAX_REFS):
         """
         Initialize the chunk enricher.
         
         Args:
-            adapter: Neo4j adapter for database queries
+            adapter: Graph adapter for database queries (implements GraphAdapter)
             max_refs: Maximum REFERS_TO articles to include per original chunk
         """
         self._adapter = adapter

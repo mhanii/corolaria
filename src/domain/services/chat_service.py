@@ -12,7 +12,7 @@ from src.domain.models.conversation import Conversation, ConversationMessage
 from src.domain.models.citation import Citation
 from src.ai.citations.citation_engine import CitationEngine
 from src.ai.prompts.prompt_builder import PromptBuilder
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.utils.logger import step_logger
 
@@ -54,7 +54,7 @@ class ChatService:
     def __init__(
         self,
         llm_provider: LLMProvider,
-        neo4j_adapter: Neo4jAdapter,
+        graph_adapter: GraphAdapter,
         embedding_provider: EmbeddingProvider,
         conversation_service: ConversationService,
         citation_engine: Optional[CitationEngine] = None,
@@ -67,7 +67,7 @@ class ChatService:
         
         Args:
             llm_provider: LLM provider for generation
-            neo4j_adapter: Neo4j adapter for RAG retrieval
+            graph_adapter: Graph adapter for RAG retrieval (implements GraphAdapter)
             embedding_provider: Embedding provider for query embedding
             conversation_service: Service for managing conversations
             citation_engine: Engine for citation management (optional)
@@ -76,7 +76,7 @@ class ChatService:
             index_name: Vector index name for search
         """
         self.llm_provider = llm_provider
-        self.neo4j_adapter = neo4j_adapter
+        self.graph_adapter = graph_adapter
         self.embedding_provider = embedding_provider
         self.conversation_service = conversation_service
         self.citation_engine = citation_engine or CitationEngine()
@@ -258,7 +258,7 @@ class ChatService:
         query_embedding = self.embedding_provider.get_embedding(query)
         
         # Perform vector search
-        results = self.neo4j_adapter.vector_search(
+        results = self.graph_adapter.vector_search(
             query_embedding=query_embedding,
             top_k=top_k,
             index_name=self.index_name
@@ -316,7 +316,7 @@ class ChatService:
             
             # Get previous version (limited depth for historical context)
             if chunk.get("previous_version_id") is not None and prev_depth > 0:
-                prev_version = self.neo4j_adapter.get_previous_version(chunk["article_id"])
+                prev_version = self.graph_adapter.get_previous_version(chunk["article_id"])
                 if prev_version:
                     version_context.append({
                         "type": "previous",
@@ -345,7 +345,7 @@ class ChatService:
         Returns:
             List of version data
         """
-        all_versions = self.neo4j_adapter.get_all_next_versions(node_id)
+        all_versions = self.graph_adapter.get_all_next_versions(node_id)
         
         if max_depth == -1:
             return all_versions

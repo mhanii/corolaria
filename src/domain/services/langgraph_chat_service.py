@@ -16,7 +16,7 @@ from src.ai.prompts.prompt_builder import PromptBuilder
 from src.ai.graph.workflow import build_chat_workflow
 from src.ai.context_collectors import RAGCollector
 from src.ai.context_decision import ContextDecision
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.utils.logger import step_logger
 
@@ -67,7 +67,7 @@ class LangGraphChatService:
         llm_provider: LLMProvider,
         # Context collector can be injected or auto-created from adapter/embedding provider
         context_collector: Optional[ContextCollector] = None,
-        neo4j_adapter: Optional[Neo4jAdapter] = None,
+        graph_adapter: Optional[GraphAdapter] = None,
         embedding_provider: Optional[EmbeddingProvider] = None,
         # Can accept either ConversationService (in-memory) or ConversationRepository (SQLite)
         conversation_service=None,
@@ -85,7 +85,7 @@ class LangGraphChatService:
         Args:
             llm_provider: LLM provider for generation
             context_collector: ContextCollector for gathering context (recommended)
-            neo4j_adapter: Neo4j adapter (optional, used to create default RAGContextCollector)
+            graph_adapter: Graph adapter (optional, used to create default RAGContextCollector)
             embedding_provider: Embedding provider (optional, used to create default RAGContextCollector)
             conversation_service: In-memory conversation service (legacy)
             conversation_repository: SQLite conversation repository (new)
@@ -97,7 +97,7 @@ class LangGraphChatService:
             
         Note:
             Either provide a context_collector directly, or provide both
-            neo4j_adapter and embedding_provider to auto-create a RAGCollector.
+            graph_adapter and embedding_provider to auto-create a RAGCollector.
         """
         self.llm_provider = llm_provider
         self.conversation_service = conversation_service
@@ -111,16 +111,16 @@ class LangGraphChatService:
         # Create or use provided context collector
         if context_collector:
             self.context_collector = context_collector
-        elif neo4j_adapter and embedding_provider:
+        elif graph_adapter and embedding_provider:
             # Backward compatibility: create RAGCollector from components
             self.context_collector = RAGCollector(
-                neo4j_adapter=neo4j_adapter,
+                neo4j_adapter=graph_adapter,  # RAGCollector accepts GraphAdapter
                 embedding_provider=embedding_provider,
                 index_name=index_name
             )
         else:
             raise ValueError(
-                "Either provide a context_collector, or both neo4j_adapter and embedding_provider"
+                "Either provide a context_collector, or both graph_adapter and embedding_provider"
             )
         
         # Determine persistence mode

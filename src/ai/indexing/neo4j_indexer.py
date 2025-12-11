@@ -1,7 +1,7 @@
 from typing import List, Any, Dict
 from src.domain.interfaces.vector_indexer import VectorIndexer
 from src.domain.value_objects.embedding_config import EmbeddingConfig
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.utils.logger import step_logger
 
 class Neo4jVectorIndexer(VectorIndexer):
@@ -12,7 +12,7 @@ class Neo4jVectorIndexer(VectorIndexer):
     so upsert() here is a no-op or could be used for explicit updates if needed.
     """
     
-    def __init__(self, config: EmbeddingConfig, adapter: Neo4jAdapter):
+    def __init__(self, config: EmbeddingConfig, adapter: GraphAdapter):
         super().__init__(config)
         self.adapter = adapter
 

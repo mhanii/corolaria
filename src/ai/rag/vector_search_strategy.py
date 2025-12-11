@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from src.domain.interfaces.retrieval_strategy import RetrievalStrategy
 from src.domain.value_objects.search_result import SearchResult
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.utils.logger import step_logger
 
 class VectorSearchStrategy(RetrievalStrategy):
@@ -11,10 +11,10 @@ class VectorSearchStrategy(RetrievalStrategy):
     Generates embedding for the query and searches for similar articles.
     """
     
-    def __init__(self, adapter: Neo4jAdapter, embedding_provider: EmbeddingProvider):
+    def __init__(self, adapter: GraphAdapter, embedding_provider: EmbeddingProvider):
         """
         Args:
-            adapter: Neo4j adapter for database queries
+            adapter: Graph adapter for database queries (implements GraphAdapter)
             embedding_provider: Provider to generate query embeddings
         """
         super().__init__(name="Vector Search")

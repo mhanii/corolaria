@@ -88,24 +88,6 @@ CREATE TABLE IF NOT EXISTS surveys (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS arena_comparisons (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    query TEXT NOT NULL,
-    response_a TEXT NOT NULL,
-    response_b TEXT NOT NULL,
-    config_a TEXT NOT NULL,
-    config_b TEXT NOT NULL,
-    citations_a TEXT,
-    citations_b TEXT,
-    context_a TEXT,
-    context_b TEXT,
-    user_preference TEXT,
-    created_at TEXT NOT NULL,
-    resolved_at TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -114,7 +96,6 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_message_id ON feedback(message_id);
 CREATE INDEX IF NOT EXISTS idx_surveys_user_id ON surveys(user_id);
-CREATE INDEX IF NOT EXISTS idx_arena_user_id ON arena_comparisons(user_id);
 """
 
 # Migrations dictionary: version -> SQL to upgrade from previous version
@@ -155,28 +136,10 @@ MIGRATIONS = {
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
     
-    -- Arena comparisons table for A/B testing
-    CREATE TABLE IF NOT EXISTS arena_comparisons (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        query TEXT NOT NULL,
-        response_a TEXT NOT NULL,
-        response_b TEXT NOT NULL,
-        config_a TEXT NOT NULL,
-        config_b TEXT NOT NULL,
-        citations_a TEXT,
-        citations_b TEXT,
-        user_preference TEXT,
-        created_at TEXT NOT NULL,
-        resolved_at TEXT,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    
     -- Indexes for beta testing tables
     CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON feedback(user_id);
     CREATE INDEX IF NOT EXISTS idx_feedback_message_id ON feedback(message_id);
     CREATE INDEX IF NOT EXISTS idx_surveys_user_id ON surveys(user_id);
-    CREATE INDEX IF NOT EXISTS idx_arena_user_id ON arena_comparisons(user_id);
     """
 }
 

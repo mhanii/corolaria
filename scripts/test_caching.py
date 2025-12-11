@@ -5,7 +5,7 @@ sys.path.append(os.getcwd())
 
 from src.application.pipeline.embedding_step import EmbeddingGenerator
 from src.ai.embeddings.factory import EmbeddingFactory
-from src.ai.embeddings.json_cache import JSONFileCache
+from src.ai.embeddings.sqlite_cache import SQLiteEmbeddingCache
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.domain.models.normativa import NormativaCons, Metadata, Analysis
 from src.domain.models.common.node import ArticleNode, NodeType
@@ -29,7 +29,7 @@ def test_caching_flow():
     print("Setting up test data...")
     
     # Clean up previous cache
-    cache_file = "data/test_cache.json"
+    cache_file = "data/test_cache.db"
     if os.path.exists(cache_file):
         os.remove(cache_file)
     
@@ -72,7 +72,7 @@ def test_caching_flow():
     
     print("\n--- RUN 1: Expecting Cache MISS ---")
     provider = MockEmbeddingProvider(model="mock", dimensions=10)
-    cache = JSONFileCache(cache_file)
+    cache = SQLiteEmbeddingCache(cache_file)
     step = EmbeddingGenerator(name="test_caching", provider=provider, cache=cache)
     
     step.process((normativa, []))
@@ -92,7 +92,7 @@ def test_caching_flow():
     print("\n--- RUN 2: Expecting Cache HIT ---")
     # Reset provider count, reload cache
     provider.call_count = 0
-    cache = JSONFileCache(cache_file) # Reloads from disk
+    cache = SQLiteEmbeddingCache(cache_file) # Reloads from disk
     step = EmbeddingGenerator(name="test_caching", provider=provider, cache=cache)
     
     # Reset article embedding to force check

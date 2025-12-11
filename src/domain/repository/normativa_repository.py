@@ -2,13 +2,13 @@
 from typing import Optional, List
 from src.domain.models.normativa import NormativaCons, Version
 from src.domain.models.common.node import Node, NodeType, ArticleNode, ArticleElementNode
-from src.infrastructure.graphdb.adapter import Neo4jAdapter
+from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.domain.services.article_text_builder import ArticleTextBuilder
 
 class NormativaRepository:
     """High-level domain operations for legal documents"""
     
-    def __init__(self, adapter: Neo4jAdapter):
+    def __init__(self, adapter: GraphAdapter):
         self.adapter = adapter
         self.text_builder = ArticleTextBuilder()
     
@@ -55,7 +55,10 @@ class NormativaRepository:
             materia_props = {"id": materia.id, "name": materia.get_name()}
             materia_node = self.adapter.merge_node(["Materia"], materia_props)
             if materia_node:
-                self.adapter.merge_relationship(from_id=doc_id, to_id=materia_node["id"], rel_type="ABOUT")
+                self.adapter.merge_relationship(
+                    from_id=doc_id, to_id=materia_node["id"], rel_type="ABOUT",
+                    from_label="Normativa", to_label="Materia"
+                )
                 nodes_created += 1
                 relationships_created += 1
                 materias_count += 1
@@ -65,7 +68,10 @@ class NormativaRepository:
         departamento_props = {"id": departamento.id, "name": departamento.get_name()}
         departamento_node = self.adapter.merge_node(["Departamento"], departamento_props)
         if departamento_node:
-            self.adapter.merge_relationship(from_id=doc_id, to_id=departamento_node["id"], rel_type="ISSUED_BY")
+            self.adapter.merge_relationship(
+                from_id=doc_id, to_id=departamento_node["id"], rel_type="ISSUED_BY",
+                from_label="Normativa", to_label="Departamento"
+            )
             nodes_created += 1
             relationships_created += 1
 
@@ -74,7 +80,10 @@ class NormativaRepository:
         rango_props = {"id": rango.id, "name": rango.get_name()}
         rango_node = self.adapter.merge_node(["Rango"], rango_props)
         if rango_node:
-            self.adapter.merge_relationship(from_id=doc_id, to_id=rango_node["id"], rel_type="HAS_RANK")
+            self.adapter.merge_relationship(
+                from_id=doc_id, to_id=rango_node["id"], rel_type="HAS_RANK",
+                from_label="Normativa", to_label="Rango"
+            )
             nodes_created += 1
             relationships_created += 1
 
@@ -241,7 +250,9 @@ class NormativaRepository:
                 if normativa_id:
                     relationships_data.append({
                         "from_id": child.id,
+                        "from_label": child.node_type,
                         "to_id": normativa_id,
+                        "to_label": "Normativa",
                         "rel_type": "PART_OF",
                         "props": {}
                     })
@@ -249,7 +260,9 @@ class NormativaRepository:
                 # Non-structural nodes (articles) link children to themselves
                 relationships_data.append({
                     "from_id": child.id,
+                    "from_label": child.node_type,
                     "to_id": node.id,
+                    "to_label": node.node_type,
                     "rel_type": "PART_OF",
                     "props": {}
                 })
@@ -263,13 +276,17 @@ class NormativaRepository:
             if node.previous_version:
                 relationships_data.append({
                     "from_id": node.previous_version.id,
+                    "from_label": "articulo",
                     "to_id": node.id,
+                    "to_label": "articulo",
                     "rel_type": "NEXT_VERSION",
                     "props": {}
                 })
                 relationships_data.append({
                     "from_id": node.id,
+                    "from_label": "articulo",
                     "to_id": node.previous_version.id,
+                    "to_label": "articulo",
                     "rel_type": "PREVIOUS_VERSION",
                     "props": {}
                 })
