@@ -385,35 +385,25 @@ Examples:
             
             step_logger.info(f"Batch mode: {len(law_ids)} law IDs loaded from {args.batch}")
             
-            if args.decoupled:
-                # Decoupled 3-pool producer-consumer mode
-                from src.ingestion.decoupled_orchestrator import DecoupledIngestionOrchestrator
-                
-                step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
-                if args.skip_embeddings:
-                    step_logger.info("Skip embeddings: Graph-only mode (no embeddings)")
-                elif args.simulate:
-                    step_logger.info("Simulation mode: Using fake embeddings")
-                
-                orchestrator = DecoupledIngestionOrchestrator(
-                    cpu_workers=args.cpu_workers,
-                    network_workers=args.network_workers,
-                    disk_workers=args.disk_workers,
-                    scatter_chunk_size=args.scatter_chunk_size,
-                    skip_embeddings=args.skip_embeddings,
-                    simulate_embeddings=args.simulate,
-                    config=config
-                )
-            else:
-                # Simple ThreadPoolExecutor mode
-                from src.ingestion.concurrent_orchestrator import ConcurrentIngestionOrchestrator
-                
-                step_logger.info(f"Simple concurrent mode: semaphore={args.semaphore}")
-                
-                orchestrator = ConcurrentIngestionOrchestrator(
-                    semaphore_limit=args.semaphore,
-                    config=config
-                )
+            # Always use Decoupled 3-pool producer-consumer mode
+            # (Legacy concurrent orchestrator has been deprecated)
+            from src.ingestion.orchestrator import DecoupledIngestionOrchestrator
+            
+            step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
+            if args.skip_embeddings:
+                step_logger.info("Skip embeddings: Graph-only mode (no embeddings)")
+            elif args.simulate:
+                step_logger.info("Simulation mode: Using fake embeddings")
+            
+            orchestrator = DecoupledIngestionOrchestrator(
+                cpu_workers=args.cpu_workers,
+                network_workers=args.network_workers,
+                disk_workers=args.disk_workers,
+                scatter_chunk_size=args.scatter_chunk_size,
+                skip_embeddings=args.skip_embeddings,
+                simulate_embeddings=args.simulate,
+                config=config
+            )
             
             result = asyncio.run(orchestrator.run(law_ids))
             result_dict = result.to_dict()

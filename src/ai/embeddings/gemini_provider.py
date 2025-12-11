@@ -5,11 +5,12 @@ Supports both real API calls and simulation mode for stress testing.
 Simulation mode generates fake embeddings with realistic latency to stress-test 
 the pipeline architecture without incurring API costs.
 """
-from typing import List
+from typing import List, Optional
 import os
 import time
 import random
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
+from src.ai.embeddings.rate_limiter import SlidingWindowRateLimiter
 from src.utils.logger import step_logger, output_logger
 
 try:
@@ -61,12 +62,19 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         model: str = "models/gemini-embedding-001", 
         dimensions: int = 768, 
         task_type: str = "RETRIEVAL_DOCUMENT",
-        simulate: bool = False
+        simulate: bool = False,
+        rate_limiter: Optional[SlidingWindowRateLimiter] = None
     ):
         super().__init__(model, dimensions)
         self.task_type = task_type
         self.simulate = simulate
         self.client = None
+        
+        # Rate limiter: 3000 articles per minute (shared across all providers)
+        self.rate_limiter = rate_limiter or SlidingWindowRateLimiter(
+            max_requests=3000,
+            window_seconds=60.0
+        )
         
         if simulate:
             step_logger.info(
@@ -133,6 +141,10 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         all_embeddings = []
         total_batches = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
         mode_str = "SIM" if self.simulate else "API"
+        
+        # Acquire rate limit capacity for entire batch upfront
+        if not self.simulate:
+            self.rate_limiter.acquire(len(texts))
         
         if total_batches > 1:
             step_logger.info(f"[{mode_str}] Processing {len(texts)} texts in {total_batches} API calls...")

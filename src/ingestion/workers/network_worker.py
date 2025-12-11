@@ -111,6 +111,12 @@ async def generate_embeddings_scatter_gather(
         cache=embedding_cache
     )
     
+    # Debug: verify cache is available
+    if embedding_cache:
+        step_logger.debug(f"[Network] Cache available: {type(embedding_cache).__name__}")
+    else:
+        step_logger.warning(f"[Network] No cache provided - embeddings will not be cached!")
+    
     # Collect all articles
     articles = generator.collect_articles(parsed.normativa.content_tree)
     

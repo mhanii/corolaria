@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field,field_validator, model_validator
 import httpx
 from httpx import Response, RequestError, HTTPStatusError, TimeoutException
 import re
+from lxml import etree
 
 
 logger = logging.getLogger(__name__)
@@ -268,7 +269,6 @@ class BOEHTTPClient:
                 
             elif accept_format == "application/xml":
                 # Para XML, necesitaremos parsearlo con lxml
-                from lxml import etree
                 root = etree.fromstring(content.encode('utf-8'))
                 return self._xml_to_dict(root)
                 
