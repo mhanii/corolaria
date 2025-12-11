@@ -19,6 +19,13 @@ class VectorIndexer(ABC):
         pass
     
     @abstractmethod
+    def drop_index(self):
+        """
+        Drop the vector index or collection if it exists.
+        """
+        pass
+    
+    @abstractmethod
     def upsert(self, items: List[Dict[str, Any]]):
         """
         Upsert vectors into the index.

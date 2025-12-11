@@ -32,7 +32,7 @@ class Neo4jVectorIndexer(VectorIndexer):
         try:
             self.adapter.create_vector_index(
                 index_name="article_embeddings",
-                label="Article",
+                label="articulo",
                 property_name="embedding",
                 dimensions=self.config.dimensions,
                 similarity_function=sim_func
@@ -40,6 +40,16 @@ class Neo4jVectorIndexer(VectorIndexer):
             step_logger.info(f"Ensured Neo4j vector index 'article_embeddings' exists (dim={self.config.dimensions}, sim={sim_func}).")
         except Exception as e:
             step_logger.error(f"Failed to create Neo4j vector index: {e}")
+
+    def drop_index(self):
+        """
+        Drop the vector index in Neo4j.
+        """
+        try:
+            self.adapter.drop_vector_index("article_embeddings")
+            step_logger.info("Dropped Neo4j vector index 'article_embeddings'.")
+        except Exception as e:
+            step_logger.error(f"Failed to drop Neo4j vector index: {e}")
 
     def upsert(self, items: List[Dict[str, Any]]):
         """

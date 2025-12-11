@@ -16,7 +16,8 @@ class EmbeddingFactory:
             return GeminiEmbeddingProvider(
                 model=model or "models/gemini-embedding-001", 
                 dimensions=dimensions or 768,
-                task_type=kwargs.get("task_type", "RETRIEVAL_DOCUMENT")
+                task_type=kwargs.get("task_type", "RETRIEVAL_DOCUMENT"),
+                simulate=kwargs.get("simulate", False)
             )
         
         else:

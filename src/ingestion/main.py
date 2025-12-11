@@ -256,11 +256,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  Ingest a law:
+  Ingest a single law:
     python -m src.ingestion.main --law-id BOE-A-1978-31229
 
-  Dry run (no database writes):
-    python -m src.ingestion.main --law-id BOE-A-1978-31229 --dry-run
+  Batch ingest from file (one law ID per line):
+    python -m src.ingestion.main --batch laws.txt --semaphore 10
+
+  Decoupled mode (3-pool producer-consumer):
+    python -m src.ingestion.main --batch laws.txt --decoupled
+
+  Stress test with simulated embeddings:
+    python -m src.ingestion.main --batch laws.txt --decoupled --simulate
 
   Rollback a law:
     python -m src.ingestion.main --rollback BOE-A-1978-31229
@@ -271,6 +277,46 @@ Examples:
         "--law-id",
         type=str,
         help="BOE identifier for the law to ingest (e.g., BOE-A-1978-31229)"
+    )
+    parser.add_argument(
+        "--batch",
+        type=str,
+        metavar="FILE",
+        help="Path to file with law IDs (one per line) for concurrent ingestion"
+    )
+    parser.add_argument(
+        "--semaphore",
+        type=int,
+        default=10,
+        help="Concurrency limit for simple batch mode (default: 10)"
+    )
+    parser.add_argument(
+        "--decoupled",
+        action="store_true",
+        help="Use 3-pool decoupled producer-consumer architecture"
+    )
+    parser.add_argument(
+        "--cpu-workers",
+        type=int,
+        default=5,
+        help="Number of CPU/parser workers in decoupled mode (default: 5)"
+    )
+    parser.add_argument(
+        "--network-workers",
+        type=int,
+        default=20,
+        help="Number of network/embedder workers in decoupled mode (default: 20)"
+    )
+    parser.add_argument(
+        "--disk-workers",
+        type=int,
+        default=2,
+        help="Number of disk/writer workers in decoupled mode (default: 2)"
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="Use simulated embeddings (for stress testing without API costs)"
     )
     parser.add_argument(
         "--rollback",
@@ -298,8 +344,8 @@ Examples:
     args = parser.parse_args()
     
     # Validate arguments
-    if not args.law_id and not args.rollback:
-        parser.error("Either --law-id or --rollback is required")
+    if not args.law_id and not args.rollback and not args.batch:
+        parser.error("Either --law-id, --batch, or --rollback is required")
     
     # Create config
     config = IngestionConfig.from_env()
@@ -317,6 +363,59 @@ Examples:
             else:
                 step_logger.error(f"✗ Rollback failed: {result.error_message}")
                 sys.exit(1)
+        
+        elif args.batch:
+            # Batch mode: concurrent ingestion
+            import asyncio
+            
+            # Read law IDs from file
+            with open(args.batch, 'r') as f:
+                law_ids = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            
+            step_logger.info(f"Batch mode: {len(law_ids)} law IDs loaded from {args.batch}")
+            
+            if args.decoupled:
+                # Decoupled 3-pool producer-consumer mode
+                from src.ingestion.decoupled_orchestrator import DecoupledIngestionOrchestrator
+                
+                step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
+                if args.simulate:
+                    step_logger.info("Simulation mode: Using fake embeddings")
+                
+                orchestrator = DecoupledIngestionOrchestrator(
+                    cpu_workers=args.cpu_workers,
+                    network_workers=args.network_workers,
+                    disk_workers=args.disk_workers,
+                    simulate_embeddings=args.simulate,
+                    config=config
+                )
+            else:
+                # Simple ThreadPoolExecutor mode
+                from src.ingestion.concurrent_orchestrator import ConcurrentIngestionOrchestrator
+                
+                step_logger.info(f"Simple concurrent mode: semaphore={args.semaphore}")
+                
+                orchestrator = ConcurrentIngestionOrchestrator(
+                    semaphore_limit=args.semaphore,
+                    config=config
+                )
+            
+            result = asyncio.run(orchestrator.run(law_ids))
+            result_dict = result.to_dict()
+            
+            # Print summary
+            step_logger.info(f"✓ Batch ingestion complete")
+            step_logger.info(f"  Total: {result.successful}/{result.total_documents} successful")
+            step_logger.info(f"  Nodes: {result.total_nodes}")
+            step_logger.info(f"  Reference links: {result.total_reference_links}")
+            step_logger.info(f"  Duration: {result.duration_seconds:.2f}s")
+            
+            if result.failed > 0:
+                step_logger.warning(f"  Failed: {result.failed} documents")
+                for doc in result.document_results:
+                    if not doc.success:
+                        step_logger.warning(f"    - {doc.law_id}: {doc.error_message}")
+        
         else:
             result = run_ingestion(args.law_id, config, dry_run=args.dry_run)
             result_dict = result.to_dict()

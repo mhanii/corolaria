@@ -34,7 +34,7 @@ class Doc2Graph(Pipeline):
         self._adapter = Neo4jAdapter(self._connection)
         
         # 2b. Ensure all required indexes exist (critical for performance)
-        self._adapter.ensure_indexes()
+        self._adapter.ensure_constraints()
         
         # 3. Initialize Indexer and Ensure Index Exists
         self.indexer = IndexerFactory.create("neo4j", self.embedding_config, adapter=self._adapter)

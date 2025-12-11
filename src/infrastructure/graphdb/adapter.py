@@ -43,21 +43,25 @@ class Neo4jAdapter(GraphAdapter):
                           rel_type: str, properties: dict = None,
                           from_label: str = None, to_label: str = None):
         """
-        Merge relationship between nodes.
+        Merge relationship between nodes using native Cypher MATCH.
         
         Args:
             from_id: Source node ID
             to_id: Target node ID
             rel_type: Relationship type
             properties: Optional relationship properties
-            from_label: Optional source node label (for index usage)
-            to_label: Optional target node label (for index usage)
+            from_label: Source node label (required for index usage)
+            to_label: Target node label (required for index usage)
         """
-        if from_label and to_label:
-            # Use APOC merge with labels (uses indexes!)
+        # Extract enum values if present
+        from_lbl = from_label.value if hasattr(from_label, 'value') else from_label
+        to_lbl = to_label.value if hasattr(to_label, 'value') else to_label
+        
+        if from_lbl and to_lbl:
+            # Native MATCH with static labels (uses indexes!)
             query = f"""
-            CALL apoc.merge.node([$from_label], {{id: $from_id}}) YIELD node AS a
-            CALL apoc.merge.node([$to_label], {{id: $to_id}}) YIELD node AS b
+            MATCH (a:{from_lbl} {{id: $from_id}})
+            MATCH (b:{to_lbl} {{id: $to_id}})
             MERGE (a)-[r:{rel_type}]->(b)
             SET r += $props
             RETURN r
@@ -65,21 +69,15 @@ class Neo4jAdapter(GraphAdapter):
             return self.conn.execute_write(query, {
                 "from_id": from_id,
                 "to_id": to_id,
-                "from_label": from_label,
-                "to_label": to_label,
                 "props": properties or {}
             })
         else:
             # Fallback: no labels (backward compatibility, slower)
-            if properties:
-                props_str = "{" + ", ".join([f"{k}: $props.{k}" for k in properties.keys()]) + "}"
-            else:
-                props_str = "{}"
-
             query = f"""
             MATCH (a {{id: $from_id}})
             MATCH (b {{id: $to_id}})
-            MERGE (a)-[r:{rel_type} {props_str}]->(b)
+            MERGE (a)-[r:{rel_type}]->(b)
+            SET r += $props
             RETURN r
             """
             return self.conn.execute_write(query, {
@@ -101,13 +99,22 @@ class Neo4jAdapter(GraphAdapter):
         }}}}
         """
         self.conn.execute_write(query, {})
-
-    def ensure_indexes(self) -> None:
+    
+    def drop_vector_index(self, index_name: str) -> None:
         """
-        Create indexes on id property for all node labels used in the graph.
+        Drop a vector index if it exists. 
+        Used before bulk ingestion to speed up writes.
+        """
+        query = f"DROP INDEX {index_name} IF EXISTS"
+        self.conn.execute_write(query, {})
+    
+    def ensure_constraints(self) -> None:
+        """
+        Create unique constraints on id property for all node labels.
+        Constraints are faster than indexes for MERGE as Neo4j stops after first match.
         Should be called once before bulk ingestion for optimal performance.
         
-        Creates indexes for:
+        Creates constraints for:
         - Document types: Normativa, Materia, Departamento, Rango, ChangeEvent
         - Content types: articulo, parrafo, apartado_alfa, apartado_numerico,
                         ordinal_alfa, ordinal_numerico, disposicion
@@ -131,12 +138,12 @@ class Neo4jAdapter(GraphAdapter):
         ]
         
         for label in labels:
-            index_name = f"idx_{label.lower()}_id"
-            query = f"CREATE INDEX {index_name} IF NOT EXISTS FOR (n:{label}) ON (n.id)"
+            constraint_name = f"unique_{label.lower()}_id"
+            query = f"CREATE CONSTRAINT {constraint_name} IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE"
             try:
                 self.conn.execute_write(query, {})
             except Exception:
-                pass  # Index might already exist
+                pass  # Constraint might already exist
 
     # ========== Generic Query Methods ==========
     
@@ -191,8 +198,8 @@ class Neo4jAdapter(GraphAdapter):
     
     def batch_merge_nodes(self, nodes_data: list) -> None:
         """
-        Create/merge multiple nodes using APOC for optimal performance.
-        Supports dynamic labels via apoc.merge.node.
+        Create/merge multiple nodes using native Cypher MERGE for optimal performance.
+        Groups data by primary label to enable index usage (NodeUniqueIndexSeek).
         
         Args:
             nodes_data: List of dicts with 'labels' (list of str) and 'props' (dict)
@@ -201,48 +208,109 @@ class Neo4jAdapter(GraphAdapter):
         if not nodes_data:
             return
         
-        # APOC merge.node: dynamic labels, merge on id, set all properties
-        query = """
-        UNWIND $batch AS row
-        CALL apoc.merge.node(row.labels, {id: row.props.id}, row.props) YIELD node
-        RETURN count(node) as count
-        """
-        self.conn.execute_batch(query, nodes_data)
+        # Group nodes by primary label (first label in list)
+        label_buckets: Dict[str, list] = {}
+        for node in nodes_data:
+            # Primary label is the first one - this is what we MERGE on
+            # Handle both string labels and NodeType enum values
+            raw_label = node["labels"][0] if node.get("labels") else "Node"
+            # If it's an enum (has .value), extract the value, otherwise use as-is
+            primary_label = raw_label.value if hasattr(raw_label, 'value') else str(raw_label)
+            
+            secondary_raw = node["labels"][1:] if len(node.get("labels", [])) > 1 else []
+            secondary_labels = [l.value if hasattr(l, 'value') else str(l) for l in secondary_raw]
+            
+            if primary_label not in label_buckets:
+                label_buckets[primary_label] = []
+            
+            label_buckets[primary_label].append({
+                "props": node["props"],
+                "secondary_labels": secondary_labels
+            })
+        
+        # Execute separate MERGE queries for each label bucket
+        for label, bucket in label_buckets.items():
+            # Check if any nodes have secondary labels
+            has_secondary = any(item["secondary_labels"] for item in bucket)
+            
+            if has_secondary:
+                # Query with secondary label handling
+                query = f"""
+                UNWIND $batch AS row
+                MERGE (n:{label} {{id: row.props.id}})
+                SET n += row.props
+                WITH n, row.secondary_labels AS extras
+                CALL apoc.create.addLabels(n, extras) YIELD node
+                RETURN count(node) as count
+                """
+            else:
+                # Simple query - no secondary labels (most common case)
+                query = f"""
+                UNWIND $batch AS row
+                MERGE (n:{label} {{id: row.props.id}})
+                SET n += row.props
+                RETURN count(n) as count
+                """
+            
+            self.conn.execute_batch(query, bucket)
     
     def batch_merge_relationships(self, relationships_data: list) -> None:
         """
-        Create/merge multiple relationships using APOC for optimal performance.
-        Supports dynamic relationship types via apoc.merge.relationship.
+        Create/merge multiple relationships using native Cypher MATCH with static labels.
+        Groups data by (from_label, to_label) pairs to enable index usage.
         
         Args:
             relationships_data: List of dicts with 'from_id', 'to_id', 'rel_type', 'props',
-                               and optionally 'from_label', 'to_label' for index usage.
+                               and 'from_label', 'to_label' for index usage.
         """
         if not relationships_data:
             return
         
-        # Check if labels are provided (for index usage)
+        # Check if labels are provided
         has_labels = relationships_data and 'from_label' in relationships_data[0]
         
-        if has_labels:
-            # Use APOC to lookup nodes by label+id (uses indexes!)
-            query = """
-            UNWIND $batch AS row
-            CALL apoc.merge.node([row.from_label], {id: row.from_id}) YIELD node AS a
-            CALL apoc.merge.node([row.to_label], {id: row.to_id}) YIELD node AS b
-            CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
-            RETURN count(rel) as count
-            """
-        else:
+        if not has_labels:
             # Fallback: no labels (backward compatibility, but slower)
             query = """
             UNWIND $batch AS row
             MATCH (a {id: row.from_id})
             MATCH (b {id: row.to_id})
-            CALL apoc.merge.relationship(a, row.rel_type, {}, row.props, b) YIELD rel
-            RETURN count(rel) as count
+            MERGE (a)-[r]->(b)
+            SET r += row.props
+            RETURN count(r) as count
             """
-        self.conn.execute_batch(query, relationships_data)
+            self.conn.execute_batch(query, relationships_data)
+            return
+        
+        # Group by (from_label, to_label, rel_type) for static label queries
+        label_buckets: Dict[tuple, list] = {}
+        for rel in relationships_data:
+            # Extract enum values if present
+            from_lbl = rel["from_label"]
+            to_lbl = rel["to_label"]
+            from_label_str = from_lbl.value if hasattr(from_lbl, 'value') else str(from_lbl)
+            to_label_str = to_lbl.value if hasattr(to_lbl, 'value') else str(to_lbl)
+            
+            key = (from_label_str, to_label_str, rel["rel_type"])
+            if key not in label_buckets:
+                label_buckets[key] = []
+            label_buckets[key].append({
+                "from_id": rel["from_id"],
+                "to_id": rel["to_id"],
+                "props": rel.get("props", {})
+            })
+        
+        # Execute separate queries for each label combination
+        for (from_label, to_label, rel_type), bucket in label_buckets.items():
+            query = f"""
+            UNWIND $batch AS row
+            MATCH (a:{from_label} {{id: row.from_id}})
+            MATCH (b:{to_label} {{id: row.to_id}})
+            MERGE (a)-[r:{rel_type}]->(b)
+            SET r += row.props
+            RETURN count(r) as count
+            """
+            self.conn.execute_batch(query, bucket)
 
     
     # ========== Retrieval Methods ==========

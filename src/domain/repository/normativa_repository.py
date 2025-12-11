@@ -184,6 +184,30 @@ class NormativaRepository:
             "relationships_count": len(relationships_data)
         }
     
+    def _normalize_article_number(self, name: str) -> Optional[str]:
+        """
+        Extract normalized article number from name for O(1) exact lookups.
+        
+        Examples:
+            "Artículo 14" -> "14"
+            "Art. 1 bis" -> "1 bis"
+            "Artículo 154.1" -> "154"
+            "Disposición adicional primera" -> None
+        """
+        import re
+        if not name:
+            return None
+        
+        # Match: number + optional suffix (bis, ter, quater, etc.)
+        match = re.search(r'(\d+)(?:\s*(bis|ter|quater|quinquies|sexies|septies|octies|novies|[a-z]))?', name, re.IGNORECASE)
+        if match:
+            num = match.group(1)
+            suffix = match.group(2)
+            if suffix:
+                return f"{num} {suffix.lower()}"
+            return num
+        return None
+    
     def _collect_tree_data(self, node: Node, nodes_data: list, relationships_data: list, normativa_id: str = None):
         """
         Recursively collect node and relationship data for batch persistence.
@@ -224,6 +248,8 @@ class NormativaRepository:
                 props["full_text"] = self.text_builder.build_full_text(node)
                 # Store hierarchy path for context display
                 props["path"] = node.path or self.text_builder.build_hierarchy_path(node)
+                # Extract clean article number for O(1) exact lookups
+                props["clean_number"] = self._normalize_article_number(node.name)
             
             # Add to nodes batch
             nodes_data.append({
