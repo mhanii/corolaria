@@ -16,12 +16,15 @@ class TreeBuilder:
     LEVELS = [
         (0, NodeType.DISPOSICION, re.compile(r'^Disposición\s+(.+)', re.I)),
         (0, NodeType.LIBRO, re.compile(r'^LIBRO\s+(.+)', re.I)),
+        (0, NodeType.ANEXO, re.compile(r'^ANEXO(?:\s+([IVX]+|\d+|[A-Z]))?\.?$', re.I)),  # ANEXO, ANEXO I, ANEXO II, etc.
         (1, NodeType.TITULO, re.compile(r'^TÍTULO\s+(.+)', re.I)),
         (2, NodeType.CAPITULO, re.compile(r'^CAPÍTULO\s+(.+)', re.I)),
         (3, NodeType.SECCION, re.compile(r'^Sección\s+(primera|segunda|tercera|cuarta|quinta|sexta|séptima|octava|novena|décima|undécima|duodécima|\d+(?:\.\s*)?ª)(?:\s*\.?\s*(.*))?', re.I)),
         (4, NodeType.SUBSECCION, re.compile(r'^Subsección\s+(primera|segunda|tercera|cuarta|quinta|sexta|séptima|octava|novena|décima|undécima|duodécima|\d+(?:\.\s*)?ª)(?:\s*\.?\s*(.*))?', re.I)),
         (5, NodeType.ARTICULO_UNICO, re.compile(r'^(?:Artículo|Art\.)\s+único(?:\s*\.?\s*(.*))?', re.I)),
         (5, NodeType.ARTICULO, re.compile(r'^(?:Artículo|Art\.)\s+(\d+)(?:º|°)?(?:\s+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|[A-Za-z]))?(?:\s*\.)?', re.I)),
+        # Alphabetic article names: "Artículo cincuenta y uno", "Artículo primero"
+        (5, NodeType.ARTICULO, re.compile(r'^(?:Artículo|Articulo)\s+((?:cien(?:to)?|doscient[oa]s|trescient[oa]s|cuatrocient[oa]s|quinient[oa]s|seiscient[oa]s|setecient[oa]s|ochocient[oa]s|novecient[oa]s|veinti(?:un[oa]?|d[oó]s|tr[eé]s|cuatro|cinco|s[eé]is|siete|ocho|nueve)|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci(?:s[eé]is|siete|ocho|nueve)|veinte|primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|sext[oa]|s[eé]ptim[oa]|octav[oa]|noven[oa]|d[eé]cim[oa])(?:\s+y\s+(?:un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve))?)(?:\s*\.?\s*)?$', re.I)),
         (6, NodeType.APARTADO_NUMERICO, re.compile(r'^(\d+)\.\s+(.+)')),
         (8, NodeType.APARTADO_ALFA, re.compile(r'^([a-z])\)\s+(.+)', re.I)),
         (8, NodeType.ORDINAL_ALFA, re.compile(r'^(\d+\.+ª)\s*(.*)$', re.I)),
@@ -29,8 +32,9 @@ class TreeBuilder:
         (9, NodeType.PARRAFO, re.compile(r'^\s*(.+)')), # Should always be last because it matches con everything
     ]
 
-    def __init__(self, target_document_id: str):
+    def __init__(self, target_document_id: str, enable_table_parsing: bool = False):
         self.target_document_id = target_document_id
+        self.enable_table_parsing = enable_table_parsing
         self.root = Node(
             name="Content", 
             level=-1, 
@@ -76,6 +80,16 @@ class TreeBuilder:
 
         for element in version.content:
             if element.element_type == ElementType.BLOCKQUOTE:
+                continue
+            
+            # Handle TABLE elements - add content to current node's text only if enabled
+            if element.element_type == ElementType.TABLE:
+                # Tables are already stringified in data_processing.py
+                # Only save content if table parsing is enabled
+                if self.enable_table_parsing:
+                    text = element.content.strip() if element.content else ""
+                    if text and self.stack[-1] != self.root:
+                        self.stack[-1].add_text("\n[TABLA]\n" + text + "\n[/TABLA]\n")
                 continue
                 
             try:
@@ -135,8 +149,9 @@ class TreeBuilder:
                     else :
                         raise Exception(f"Error processing element: {element.content}. Error: {e}")
 
-            
-        while self.stack and self.stack[-1].level > block_level:
+        # Handle case where block_level is None (use -1 as safe default = root level)
+        safe_block_level = block_level if block_level is not None else -1
+        while self.stack and self.stack[-1].level is not None and self.stack[-1].level > safe_block_level:
             self.stack.pop()  
 
         return block_type, self.stack[-1]

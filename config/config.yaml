@@ -12,7 +12,7 @@ retrieval:
   strategy: "vector"
   index_name: "article_embeddings"
   min_score: 0.0  # No minimum score filter by default
-  max_refs: 3     # Maximum REFERS_TO articles to include per chunk
+  max_refs: 0     # Maximum REFERS_TO articles to include per chunk
 
 citations:
   format: "[{index}]"
@@ -25,9 +25,9 @@ conversation:
 
 version_context:
   # How many next versions to include recursively (0 = none, -1 = all)
-  next_version_depth: -1  # Get all subsequent versions
+  next_version_depth: 0  # Get all subsequent versions
   # How many previous versions to include (0 = none)
-  previous_version_depth: 1  # Get only immediate previous version
+  previous_version_depth: 0  # Get only immediate previous version
 
 # Observability Configuration
 observability:

@@ -14,22 +14,14 @@ from src.benchmarks.domain.schemas import (
     BenchmarkResult,
     QuestionResult,
 )
+from src.benchmarks.services.exam_prompt_builder import ExamPromptBuilder
 from src.domain.interfaces.llm_provider import LLMProvider, Message
+from src.domain.interfaces.context_collector import ContextCollector
 from src.utils.logger import step_logger
-
-
-# Exam-specific system prompt that instructs single-letter answers
-EXAM_SYSTEM_PROMPT = """Eres un experto jurídico que está realizando un examen oficial de oposiciones.
-
-INSTRUCCIONES CRÍTICAS:
-1. Lee la pregunta y las opciones cuidadosamente.
-2. Responde ÚNICAMENTE con la letra de la opción correcta (a, b, c o d).
-3. NO incluyas explicaciones, justificaciones ni texto adicional.
-4. Tu respuesta debe ser SOLO UNA LETRA.
-
-Ejemplo de respuesta correcta: "b"
-Ejemplo de respuesta INCORRECTA: "La respuesta es b porque..."
-"""
+from src.observability.benchmark_tracing import (
+    BenchmarkSessionTracer,
+    trace_question
+)
 
 
 class BenchmarkRunner:
@@ -38,29 +30,36 @@ class BenchmarkRunner:
     
     Can operate in two modes:
     - Direct LLM: Just questions to the LLM, no RAG context.
-    - With RAG: Uses the existing RAG pipeline to provide context.
+    - With RAG: Uses context_collector to retrieve relevant articles.
+                By default embeds ONLY the question text (not options).
+                Use embed_options=True to include options in embedding query.
     """
 
     def __init__(
         self,
         llm_provider: LLMProvider,
-        chat_service: Optional[Any] = None,  # LangGraphChatService or ChatService
+        context_collector: Optional[ContextCollector] = None,
         use_rag: bool = True,
+        embed_options: bool = False,
     ):
         """
         Initialize the benchmark runner.
         
         Args:
-            llm_provider: The LLM provider for direct queries.
-            chat_service: Optional chat service for RAG-based queries.
-            use_rag: Whether to use RAG context (requires chat_service).
+            llm_provider: The LLM provider for queries.
+            context_collector: Optional context collector for RAG-based queries.
+            use_rag: Whether to use RAG context (requires context_collector).
+            embed_options: If True, include answer options in embedding query.
+                          If False (default), embed only the question text.
         """
         self.llm_provider = llm_provider
-        self.chat_service = chat_service
-        self.use_rag = use_rag and chat_service is not None
+        self.context_collector = context_collector
+        self.use_rag = use_rag and context_collector is not None
+        self.embed_options = embed_options
+        self.prompt_builder = ExamPromptBuilder()
         
-        if use_rag and not chat_service:
-            step_logger.warning("[BenchmarkRunner] use_rag=True but no chat_service provided. Falling back to direct LLM.")
+        if use_rag and not context_collector:
+            step_logger.warning("[BenchmarkRunner] use_rag=True but no context_collector provided. Falling back to direct LLM.")
             self.use_rag = False
 
     def run_exam(
@@ -93,51 +92,68 @@ class BenchmarkRunner:
         
         step_logger.info(f"[BenchmarkRunner] Starting exam: {exam.name} ({len(exam.questions)} questions)")
         
-        results: List[QuestionResult] = []
-        correct_count = 0
-        incorrect_count = 0
-        unanswered_count = 0
-        error_count = 0
-        
-        for question in exam.questions:
-            try:
-                q_result = self._run_question_with_retry(question, params, max_retries=3)
-                results.append(q_result)
-                
-                if q_result.is_correct is None:
-                    unanswered_count += 1
-                elif q_result.is_correct:
-                    correct_count += 1
-                else:
-                    incorrect_count += 1
-                
-                step_logger.info(
-                    f"  Q{question.id}: model={q_result.model_answer}, "
-                    f"correct={q_result.correct_answer}, is_correct={q_result.is_correct}"
-                )
-            except Exception as e:
-                # Log error but continue with remaining questions
-                step_logger.error(f"  Q{question.id}: FAILED - {type(e).__name__}: {e}")
-                error_count += 1
-                results.append(QuestionResult(
-                    question_id=question.id,
-                    model_answer=None,
-                    correct_answer=question.correct_answer,
-                    is_correct=None,
-                    raw_response=f"ERROR: {e}",
-                ))
-        
-        execution_time_ms = (time.time() - start_time) * 1000
-        
-        result = BenchmarkResult(
-            run=run,
-            results=results,
-            total_questions=len(exam.questions),
-            correct_count=correct_count,
-            incorrect_count=incorrect_count,
-            unanswered_count=unanswered_count + error_count,
-            execution_time_ms=execution_time_ms,
-        )
+        # Wrap entire exam in a traced session
+        with BenchmarkSessionTracer(
+            exam_name=exam.name,
+            model_name=model_name or "unknown",
+            use_rag=self.use_rag,
+            parameters=params
+        ) as session:
+            results: List[QuestionResult] = []
+            correct_count = 0
+            incorrect_count = 0
+            unanswered_count = 0
+            error_count = 0
+            
+            for question in exam.questions:
+                try:
+                    q_result = self._run_question_with_retry(question, params, max_retries=3)
+                    results.append(q_result)
+                    
+                    if q_result.is_correct is None:
+                        unanswered_count += 1
+                    elif q_result.is_correct:
+                        correct_count += 1
+                    else:
+                        incorrect_count += 1
+                    
+                    step_logger.info(
+                        f"  Q{question.id}: model={q_result.model_answer}, "
+                        f"correct={q_result.correct_answer}, is_correct={q_result.is_correct}"
+                    )
+                except Exception as e:
+                    # Log error but continue with remaining questions
+                    step_logger.error(f"  Q{question.id}: FAILED - {type(e).__name__}: {e}")
+                    error_count += 1
+                    results.append(QuestionResult(
+                        question_id=question.id,
+                        model_answer=None,
+                        correct_answer=question.correct_answer,
+                        is_correct=None,
+                        raw_response=f"ERROR: {e}",
+                    ))
+            
+            execution_time_ms = (time.time() - start_time) * 1000
+            
+            result = BenchmarkResult(
+                run=run,
+                results=results,
+                total_questions=len(exam.questions),
+                correct_count=correct_count,
+                incorrect_count=incorrect_count,
+                unanswered_count=unanswered_count + error_count,
+                execution_time_ms=execution_time_ms,
+            )
+            
+            # Record final results in the trace
+            session.set_final_results(
+                correct=correct_count,
+                incorrect=incorrect_count,
+                unanswered=unanswered_count + error_count,
+                total=len(exam.questions),
+                score_percent=result.score,
+                execution_time_ms=execution_time_ms
+            )
         
         step_logger.info(
             f"[BenchmarkRunner] Exam complete. Score: {result.score:.1f}% "
@@ -197,21 +213,41 @@ class BenchmarkRunner:
         Returns:
             QuestionResult with model answer and correctness.
         """
-        # Build the question prompt
+        # Build the formatted question with options
         question_prompt = self._format_question_prompt(question)
         
-        if self.use_rag:
-            raw_response = self._query_with_rag(question_prompt, params)
-        else:
-            raw_response = self._query_direct(question_prompt)
-        
-        # Parse the model's answer
-        model_answer = self._extract_answer(raw_response)
-        
-        # Determine correctness
-        is_correct = None
-        if question.correct_answer and model_answer:
-            is_correct = model_answer.lower() == question.correct_answer.lower()
+        # Trace the question execution
+        with trace_question(
+            question_id=question.id,
+            question_text=question.text
+        ) as span:
+            if self.use_rag:
+                # Choose what to embed based on embed_options flag
+                if self.embed_options:
+                    # Include full formatted prompt with options
+                    query_for_rag = question_prompt
+                else:
+                    # Default: only the question text (more focused embedding)
+                    query_for_rag = question.text
+                raw_response = self._query_with_rag(query_for_rag, question_prompt, params)
+            else:
+                raw_response = self._query_direct(question_prompt)
+            
+            # Parse the model's answer
+            model_answer = self._extract_answer(raw_response)
+            
+            # Determine correctness
+            is_correct = None
+            if question.correct_answer and model_answer:
+                is_correct = model_answer.lower() == question.correct_answer.lower()
+            
+            # Record result in the trace (flags incorrect as ERROR)
+            span.set_result(
+                model_answer=model_answer,
+                correct_answer=question.correct_answer,
+                is_correct=is_correct,
+                raw_response=raw_response
+            )
         
         return QuestionResult(
             question_id=question.id,
@@ -222,8 +258,8 @@ class BenchmarkRunner:
         )
 
     def _format_question_prompt(self, question: Question) -> str:
-        """Format a question into a prompt string."""
-        lines = [f"Pregunta {question.id}: {question.text}", ""]
+        """Format a question into a prompt string with options."""
+        lines = [question.text, ""]
         
         for letter in sorted(question.options.keys()):
             lines.append(f"{letter}) {question.options[letter]}")
@@ -233,31 +269,59 @@ class BenchmarkRunner:
     def _query_direct(self, prompt: str) -> str:
         """Query the LLM directly without RAG context."""
         messages = [
-            Message(role="system", content=EXAM_SYSTEM_PROMPT),
             Message(role="user", content=prompt),
         ]
         
-        response = self.llm_provider.generate(messages)
+        response = self.llm_provider.generate(
+            messages,
+            system_prompt=self.prompt_builder.build_system_prompt()
+        )
         return response.content
 
-    def _query_with_rag(self, prompt: str, params: Dict[str, Any]) -> str:
-        """Query using the RAG pipeline (chat service)."""
-        # Prepend the exam instruction to the prompt
-        full_prompt = (
-            "IMPORTANTE: Responde ÚNICAMENTE con una letra (a, b, c o d). "
-            "No incluyas explicaciones.\n\n" + prompt
-        )
+    def _query_with_rag(self, query_for_rag: str, formatted_question: str, params: Dict[str, Any]) -> str:
+        """
+        Query using RAG context collection.
         
+        Args:
+            query_for_rag: Clean question text to use for embedding/retrieval
+            formatted_question: Full formatted question with options for LLM
+            params: Parameters including top_k
+        """
         top_k = params.get("top_k", 5)
         
-        # Use the chat service which internally uses RAG
-        response = self.chat_service.chat(
-            query=full_prompt,
-            conversation_id=None,  # Each question is independent
-            top_k=top_k,
+        # Step 1: Collect context using ONLY the clean question text
+        # This ensures we embed the semantic question, not the exam format/options
+        step_logger.info(f"[BenchmarkRunner] Collecting context for: '{query_for_rag[:80]}...'")
+        context_result = self.context_collector.collect(
+            query=query_for_rag,
+            top_k=top_k
         )
         
-        return response.response
+        # Step 2: Build context string using ExamPromptBuilder
+        context_str = self.prompt_builder.build_context(context_result.chunks)
+        step_logger.info(f"[BenchmarkRunner] Retrieved {len(context_result.chunks)} chunks for question")
+        
+        # Step 3: Build the full user message with context + question
+        if context_str:
+            full_prompt = f"""CONTEXTO LEGAL RELEVANTE:
+{context_str}
+
+---
+
+{formatted_question}"""
+        else:
+            full_prompt = formatted_question
+        
+        # Step 4: Send to LLM with ExamPromptBuilder's system prompt
+        messages = [
+            Message(role="user", content=full_prompt),
+        ]
+        
+        response = self.llm_provider.generate(
+            messages,
+            system_prompt=self.prompt_builder.build_system_prompt()
+        )
+        return response.content
 
     def _extract_answer(self, raw_response: str) -> Optional[str]:
         """

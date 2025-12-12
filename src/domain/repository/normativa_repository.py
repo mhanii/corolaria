@@ -4,6 +4,7 @@ from src.domain.models.normativa import NormativaCons, Version
 from src.domain.models.common.node import Node, NodeType, ArticleNode, ArticleElementNode
 from src.domain.interfaces.graph_adapter import GraphAdapter
 from src.domain.services.article_text_builder import ArticleTextBuilder
+from src.utils.spanish_number_converter import normalize_article_number
 
 class NormativaRepository:
     """High-level domain operations for legal documents"""
@@ -188,25 +189,16 @@ class NormativaRepository:
         """
         Extract normalized article number from name for O(1) exact lookups.
         
+        Now handles both numeric and Spanish written numbers.
+        
         Examples:
             "Artículo 14" -> "14"
             "Art. 1 bis" -> "1 bis"
             "Artículo 154.1" -> "154"
+            "Artículo cincuenta y uno" -> "51"
             "Disposición adicional primera" -> None
         """
-        import re
-        if not name:
-            return None
-        
-        # Match: number + optional suffix (bis, ter, quater, etc.)
-        match = re.search(r'(\d+)(?:\s*(bis|ter|quater|quinquies|sexies|septies|octies|novies|[a-z]))?', name, re.IGNORECASE)
-        if match:
-            num = match.group(1)
-            suffix = match.group(2)
-            if suffix:
-                return f"{num} {suffix.lower()}"
-            return num
-        return None
+        return normalize_article_number(name)
     
     def _collect_tree_data(self, node: Node, nodes_data: list, relationships_data: list, normativa_id: str = None):
         """
@@ -231,8 +223,11 @@ class NormativaRepository:
             props = {
                 "id": node.id,
                 "name": node.name,
-                "text": node.text
             }
+            
+            # Add text only for non-ArticleNodes (ArticleNodes use full_text instead)
+            if not isinstance(node, ArticleNode):
+                props["text"] = node.text
             
             # Add ArticleNode-specific metadata
             if isinstance(node, ArticleNode):
@@ -302,17 +297,17 @@ class NormativaRepository:
             if node.previous_version:
                 relationships_data.append({
                     "from_id": node.previous_version.id,
-                    "from_label": "articulo",
+                    "from_label": node.previous_version.node_type,
                     "to_id": node.id,
-                    "to_label": "articulo",
+                    "to_label": node.node_type,
                     "rel_type": "NEXT_VERSION",
                     "props": {}
                 })
                 relationships_data.append({
                     "from_id": node.id,
-                    "from_label": "articulo",
+                    "from_label": node.node_type,
                     "to_id": node.previous_version.id,
-                    "to_label": "articulo",
+                    "to_label": node.previous_version.node_type,
                     "rel_type": "PREVIOUS_VERSION",
                     "props": {}
                 })

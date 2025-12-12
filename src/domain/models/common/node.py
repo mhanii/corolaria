@@ -19,6 +19,7 @@ class NodeType(str,Enum):
     ORDINAL_ALFA = "ordinal_alfa"
     ORDINAL_NUMERICO = "ordinal_numerico"
     DISPOSICION = "disposicion"
+    ANEXO = "anexo"  # Appendix - typically contains tables
 
     DELETED = "deleted"  # For removed nodes
 

@@ -5,7 +5,7 @@ class NodeFactory:
     def __init__(self):
         self.next_node_id = 1
         self.structure_names = (NodeType.LIBRO,NodeType.TITULO,NodeType.CAPITULO,NodeType.SECCION,NodeType.SUBSECCION,NodeType.DISPOSICION,NodeType.ROOT)
-        self.article_names = (NodeType.ARTICULO, NodeType.ARTICULO_UNICO)
+        self.article_names = (NodeType.ARTICULO, NodeType.ARTICULO_UNICO, NodeType.ANEXO)
         self.article_element_names = (NodeType.PARRAFO, NodeType.APARTADO_NUMERICO, NodeType.APARTADO_ALFA, NodeType.ORDINAL_NUMERICO, NodeType.ORDINAL_ALFA)
     
         self.article_element_registery = map

@@ -24,7 +24,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime
 from time import perf_counter
-from typing import Optional
+from typing import List, Optional
 
 from dotenv import load_dotenv
 
@@ -38,6 +38,46 @@ from .ingestion_context import IngestionContext
 
 # Ingestion-specific Phoenix project name
 INGESTION_PROJECT_NAME = "coloraria-ingestion"
+
+
+async def fetch_law_ids_from_api(offset: int = 0, limit: int = 100) -> List[str]:
+    """
+    Fetch law IDs from BOE API legislación consolidada endpoint.
+    
+    Args:
+        offset: Start position for pagination
+        limit: Maximum number of laws to fetch
+        
+    Returns:
+        List of law identifiers (e.g., ['BOE-A-2024-11291', ...])
+    """
+    from src.infrastructure.http.http_client import BOEHTTPClient
+    
+    step_logger.info(f"[Automatic] Fetching law IDs from BOE API (offset={offset}, limit={limit})")
+    
+    async with BOEHTTPClient() as client:
+        # Use XML format for the list endpoint
+        response = await client.get(
+            endpoint="/legislacion-consolidada",
+            params={"offset": offset, "limit": limit},
+            accept_format="application/xml"
+        )
+        
+        # Extract identificador from each item
+        law_ids = []
+        data = response.get("data", {})
+        items = data.get("item", [])
+        
+        # Ensure items is always a list
+        if isinstance(items, dict):
+            items = [items]
+        
+        for item in items:
+            if isinstance(item, dict) and "identificador" in item:
+                law_ids.append(item["identificador"])
+        
+        step_logger.info(f"[Automatic] Fetched {len(law_ids)} law IDs from BOE API")
+        return law_ids
 
 
 @contextmanager
@@ -298,19 +338,19 @@ Examples:
     parser.add_argument(
         "--cpu-workers",
         type=int,
-        default=5,
+        default=12,
         help="Number of CPU/parser workers in decoupled mode (default: 5)"
     )
     parser.add_argument(
         "--network-workers",
         type=int,
-        default=20,
+        default=4,
         help="Number of network/embedder workers in decoupled mode (default: 20)"
     )
     parser.add_argument(
         "--disk-workers",
         type=int,
-        default=2,
+        default=12,
         help="Number of disk/writer workers in decoupled mode (default: 2)"
     )
     parser.add_argument(
@@ -352,11 +392,34 @@ Examples:
         help="Write result to JSON file"
     )
     
+    # Automatic mode arguments
+    parser.add_argument(
+        "--automatic",
+        action="store_true",
+        help="Fetch law IDs automatically from BOE API instead of file"
+    )
+    parser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Start offset for BOE API pagination (default: 0)"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum laws to fetch from BOE API (default: 100)"
+    )
+    
     args = parser.parse_args()
     
     # Validate arguments
-    if not args.law_id and not args.rollback and not args.batch:
-        parser.error("Either --law-id, --batch, or --rollback is required")
+    if not args.law_id and not args.rollback and not args.batch and not args.automatic:
+        parser.error("Either --law-id, --batch, --automatic, or --rollback is required")
+    
+    # Automatic mode is mutually exclusive with batch and law-id
+    if args.automatic and (args.batch or args.law_id):
+        parser.error("Cannot use --automatic with --law-id or --batch")
     
     # Create config
     config = IngestionConfig.from_env()
@@ -413,7 +476,81 @@ Examples:
             step_logger.info(f"  Total: {result.successful}/{result.total_documents} successful")
             step_logger.info(f"  Nodes: {result.total_nodes}")
             step_logger.info(f"  Reference links: {result.total_reference_links}")
-            step_logger.info(f"  Duration: {result.duration_seconds:.2f}s")
+            step_logger.info(f"  Wall-clock time: {result.duration_seconds:.2f}s")
+            
+            # Wall-clock phase durations (actual elapsed time per phase)
+            step_logger.info(f"  Phase durations (wall-clock):")
+            step_logger.info(f"    Parse:  {result.phase_parse_duration:.2f}s")
+            step_logger.info(f"    Embed:  {result.phase_embed_duration:.2f}s")
+            step_logger.info(f"    Save:   {result.phase_save_duration:.2f}s")
+            step_logger.info(f"    Link:   {result.link_duration:.2f}s")
+            
+            # Aggregate totals (sum of per-doc times - shows CPU time spent)
+            step_logger.info(f"  Aggregate totals (sum of per-doc times):")
+            step_logger.info(f"    Parse:  {result.total_parse_duration:.2f}s")
+            step_logger.info(f"    Embed:  {result.total_embed_duration:.2f}s")
+            step_logger.info(f"    Save:   {result.total_save_duration:.2f}s")
+            
+            if result.failed > 0:
+                step_logger.warning(f"  Failed: {result.failed} documents")
+                for doc in result.document_results:
+                    if not doc.success:
+                        step_logger.warning(f"    - {doc.law_id}: {doc.error_message}")
+        
+        elif args.automatic:
+            # Automatic mode: fetch law IDs from BOE API
+            import asyncio
+            
+            # Fetch law IDs from API
+            law_ids = asyncio.run(fetch_law_ids_from_api(args.offset, args.limit))
+            
+            if not law_ids:
+                step_logger.error("No law IDs fetched from BOE API")
+                sys.exit(1)
+            
+            step_logger.info(f"Automatic mode: {len(law_ids)} law IDs to process")
+            
+            # Use same orchestrator as batch mode
+            from src.ingestion.orchestrator import DecoupledIngestionOrchestrator
+            
+            step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
+            if args.skip_embeddings:
+                step_logger.info("Skip embeddings: Graph-only mode (no embeddings)")
+            elif args.simulate:
+                step_logger.info("Simulation mode: Using fake embeddings")
+            
+            orchestrator = DecoupledIngestionOrchestrator(
+                cpu_workers=args.cpu_workers,
+                network_workers=args.network_workers,
+                disk_workers=args.disk_workers,
+                scatter_chunk_size=args.scatter_chunk_size,
+                skip_embeddings=args.skip_embeddings,
+                simulate_embeddings=args.simulate,
+                config=config
+            )
+            
+            result = asyncio.run(orchestrator.run(law_ids))
+            result_dict = result.to_dict()
+            
+            # Print summary
+            step_logger.info(f"✓ Automatic ingestion complete")
+            step_logger.info(f"  Total: {result.successful}/{result.total_documents} successful")
+            step_logger.info(f"  Nodes: {result.total_nodes}")
+            step_logger.info(f"  Reference links: {result.total_reference_links}")
+            step_logger.info(f"  Wall-clock time: {result.duration_seconds:.2f}s")
+            
+            # Wall-clock phase durations
+            step_logger.info(f"  Phase durations (wall-clock):")
+            step_logger.info(f"    Parse:  {result.phase_parse_duration:.2f}s")
+            step_logger.info(f"    Embed:  {result.phase_embed_duration:.2f}s")
+            step_logger.info(f"    Save:   {result.phase_save_duration:.2f}s")
+            step_logger.info(f"    Link:   {result.link_duration:.2f}s")
+            
+            # Aggregate totals
+            step_logger.info(f"  Aggregate totals (sum of per-doc times):")
+            step_logger.info(f"    Parse:  {result.total_parse_duration:.2f}s")
+            step_logger.info(f"    Embed:  {result.total_embed_duration:.2f}s")
+            step_logger.info(f"    Save:   {result.total_save_duration:.2f}s")
             
             if result.failed > 0:
                 step_logger.warning(f"  Failed: {result.failed} documents")

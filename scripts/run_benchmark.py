@@ -33,6 +33,8 @@ from src.utils.logger import step_logger
 from src.benchmarks.domain.schemas import Exam, BenchmarkResult
 # Import LLMProvider type for type hinting
 from src.domain.interfaces.llm_provider import LLMProvider
+# Phoenix tracing for observability
+from src.observability import setup_phoenix_tracing, shutdown_phoenix_tracing
 
 
 def convert_pdf_if_needed(file_path: str, output_dir: str = None) -> str:
@@ -79,7 +81,7 @@ def create_llm_provider(model_name: str = None):
     
     # Default to env var if not provided, else generic default
     if not model_name:
-        model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+        model_name = os.getenv("LLM_MODEL", "gemini-2.0-flash")
         
     return LLMFactory.create(
         provider=os.getenv("LLM_PROVIDER", "gemini"),
@@ -90,7 +92,6 @@ def create_llm_provider(model_name: str = None):
         # MAX_TOKENS errors with empty content.
         max_tokens=int(os.getenv("LLM_MAX_TOKENS", "8192"))
     )
-
 
 def create_embedding_provider():
     """Create the embedding provider using the factory pattern."""
@@ -104,22 +105,16 @@ def create_embedding_provider():
     )
 
 
-def create_chat_service(llm_provider, top_k: int = 5, use_exam_prompt: bool = True):
+def create_context_collector():
     """
-    Create the full RAG chat service following codebase patterns.
+    Create the RAG context collector for benchmarks.
     
-    Args:
-        llm_provider: The LLM provider to use.
-        top_k: Number of chunks to retrieve.
-        use_exam_prompt: If True, uses an exam-specific prompt (no citations).
+    Uses RAGCollector directly to retrieve relevant legal articles
+    based on the question text embedding.
     """
     from src.infrastructure.graphdb.connection import Neo4jConnection
     from src.infrastructure.graphdb.adapter import Neo4jAdapter
-    from src.domain.services.conversation_service import ConversationService
-    from src.domain.services.langgraph_chat_service import LangGraphChatService
-    from src.ai.citations.citation_engine import CitationEngine
-    from src.benchmarks.services.exam_prompt_builder import ExamPromptBuilder
-    from src.ai.prompts.prompt_builder import PromptBuilder
+    from src.ai.context_collectors import RAGCollector
     
     # Create Neo4j connection
     connection = Neo4jConnection(
@@ -132,24 +127,11 @@ def create_chat_service(llm_provider, top_k: int = 5, use_exam_prompt: bool = Tr
     # Create embedding provider
     embedding_provider = create_embedding_provider()
     
-    # Create conversation service
-    conversation_service = ConversationService(
-        max_history_messages=int(os.getenv("MAX_HISTORY_MESSAGES", "10")),
-        conversation_ttl_hours=int(os.getenv("CONVERSATION_TTL_HOURS", "24"))
-    )
-    
-    # Use exam-specific prompt builder if requested
-    prompt_builder = ExamPromptBuilder() if use_exam_prompt else PromptBuilder()
-    
-    return LangGraphChatService(
-        llm_provider=llm_provider,
+    return RAGCollector(
         neo4j_adapter=neo4j_adapter,
         embedding_provider=embedding_provider,
-        conversation_service=conversation_service,
-        citation_engine=CitationEngine(),
-        prompt_builder=prompt_builder,
-        retrieval_top_k=top_k,
-        index_name=os.getenv("RETRIEVAL_INDEX_NAME", "article_embeddings")
+        index_name=os.getenv("RETRIEVAL_INDEX_NAME", "article_embeddings"),
+        enrich=False
     )
 
 
@@ -158,31 +140,28 @@ def run_single_benchmark(
     model_name: str, 
     top_k: int, 
     use_rag: bool = True,
-    llm_provider: Optional[LLMProvider] = None
+    llm_provider: Optional[LLMProvider] = None,
+    embed_options: bool = False
 ) -> BenchmarkResult:
     """Run a single benchmark configuration."""
-    step_logger.info(f"--- Running Benchmark: Model={model_name}, RAG={use_rag}, TopK={top_k} ---")
+    step_logger.info(f"--- Running Benchmark: Model={model_name}, RAG={use_rag}, TopK={top_k}, EmbedOptions={embed_options} ---")
     
     # Create the LLM provider if not provided
     if not llm_provider:
         step_logger.info(f"Creating new LLM Provider for {model_name}")
         llm_provider = create_llm_provider(model_name)
-    else:
-        # Check if we need to check consistency? Assuming caller knows what they are doing.
-        pass
     
-    # Create chat service if RAG is enabled
-    chat_service = None
+    # Create context collector if RAG is enabled
+    context_collector = None
     if use_rag:
-        # Note: We create a fresh service each time to ensure clean state and correct config
-        # even if we reuse the LLM provider.
-        chat_service = create_chat_service(llm_provider, top_k=top_k, use_exam_prompt=True)
+        context_collector = create_context_collector()
     
     # Create the runner
     runner = BenchmarkRunner(
         llm_provider=llm_provider,
-        chat_service=chat_service,
+        context_collector=context_collector,
         use_rag=use_rag,
+        embed_options=embed_options,
     )
     
     # Run the benchmark
@@ -195,7 +174,7 @@ def run_single_benchmark(
     return result
 
 
-def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None) -> Optional[Dict]:
+def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None, embed_options=False) -> Optional[Dict]:
     """Wrapper to run benchmark safely in a thread."""
     try:
         # We need to act carefully with global resources in threads if any,
@@ -207,7 +186,8 @@ def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None) -> O
             model_name=model_name, 
             top_k=top_k, 
             use_rag=use_rag,
-            llm_provider=llm_provider
+            llm_provider=llm_provider,
+            embed_options=embed_options
         )
         return res.to_dict()
     except Exception as e:
@@ -259,8 +239,30 @@ def main():
         action="store_true",
         help="Run matrix benchmark (multiple models x multiple top_k)",
     )
+    parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Enable Phoenix tracing for observability (benchmark tags)",
+    )
+    parser.add_argument(
+        "--embed-options",
+        action="store_true",
+        help="Include answer options in embedding query (default: question text only)",
+    )
     
     args = parser.parse_args()
+    
+    # Setup Phoenix tracing if requested
+    tracing_enabled = False
+    if args.trace:
+        tracing_enabled = setup_phoenix_tracing(
+            project_name="coloraria-benchmark",
+            check_connection=True
+        )
+        if tracing_enabled:
+            step_logger.info("[Benchmark] Phoenix tracing enabled - traces will be tagged with 'benchmark'")
+        else:
+            step_logger.warning("[Benchmark] Phoenix server not available - continuing without tracing")
     
     # Convert PDF to text if needed
     text_file = convert_pdf_if_needed(args.exam, args.text_output_dir)
@@ -340,8 +342,14 @@ def main():
         
     else:
         # Standard Single Run
-        model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
-        res = run_single_benchmark(exam, model_name=model_name, top_k=args.top_k, use_rag=not args.no_rag)
+        model_name = os.getenv("LLM_MODEL", "gemini-2.0-flash")
+        res = run_single_benchmark(
+            exam, 
+            model_name=model_name, 
+            top_k=args.top_k, 
+            use_rag=not args.no_rag,
+            embed_options=args.embed_options
+        )
         results_collection.append(res.to_dict())
 
     # Output Aggregated Results
@@ -380,6 +388,11 @@ def main():
         
         print(f"{model:<30} | {rag:<5} | {top_k:<5} | {score:>5.1f}% | {time_s:>7.1f}")
     print("=" * 80)
+    
+    # Shutdown Phoenix tracing if it was enabled
+    if tracing_enabled:
+        shutdown_phoenix_tracing()
+        step_logger.info("[Benchmark] Phoenix tracing shutdown complete")
 
 
 if __name__ == "__main__":

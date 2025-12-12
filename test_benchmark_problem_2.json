@@ -1,0 +1,722 @@
+[
+  {
+    "run": {
+      "run_id": "992455d1-ed0f-404e-8d88-8e69e2fc25d0",
+      "exam_name": "TEST_2025",
+      "model_name": "gemini-2.0-flash",
+      "use_rag": true,
+      "timestamp": "2025-12-12T18:00:54.358325",
+      "parameters": {
+        "top_k": 5
+      }
+    },
+    "results": [
+      {
+        "question_id": 1,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 2,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 3,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado trata sobre la Ley Orgánica del Poder Judicial en España y no contiene información sobre la Convención sobre la eliminación de todas las formas de discriminación contra la mujer, el Comité para la eliminación de la discriminación contra la mujer (CEDAW) o el Protocolo Facultativo de la Convención.\n"
+      },
+      {
+        "question_id": 4,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 5,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c [cite:1]\n"
+      },
+      {
+        "question_id": 6,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 7,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 8,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 9,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 10,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 11,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 12,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 13,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 14,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 15,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 16,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 17,
+        "model_answer": "a",
+        "correct_answer": "d",
+        "is_correct": false,
+        "raw_response": "Sin información suficiente para responder.\n"
+      },
+      {
+        "question_id": 18,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 19,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 20,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 21,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 22,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 23,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 24,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 25,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 26,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 27,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 28,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 29,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 30,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 31,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 32,
+        "model_answer": "a",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 33,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 34,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "The provided context does not contain the \"Ley de Ordenación de la Edificación\" nor does it define the specific timeframes for liability related to building defects. Therefore, I cannot answer this question.\n"
+      },
+      {
+        "question_id": 35,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 36,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 37,
+        "model_answer": "b",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 38,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 39,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 40,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 41,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 42,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 43,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 44,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta basándome únicamente en el contexto proporcionado.\n"
+      },
+      {
+        "question_id": 45,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b [cite:2, 3]\n"
+      },
+      {
+        "question_id": 46,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 47,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 48,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 49,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "El contexto proporcionado no contiene información sobre el Reglamento (UE) nº 650/2012 de sucesiones ni su artículo 10.\n"
+      },
+      {
+        "question_id": 50,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a\n"
+      },
+      {
+        "question_id": 51,
+        "model_answer": "d",
+        "correct_answer": "b",
+        "is_correct": false,
+        "raw_response": "The provided context does not contain information about how the Penal Code considers a penalty that could be considered both \"leve\" (minor) and \"menos grave\" (less serious).\n"
+      },
+      {
+        "question_id": 52,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta basándome en el contexto proporcionado.\n"
+      },
+      {
+        "question_id": 53,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "The provided context does not contain information about the error of the subject in relation to the illegality of the act, or Article 14.1 of the Penal Code. Therefore, I cannot answer this question.\n"
+      },
+      {
+        "question_id": 54,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 55,
+        "model_answer": "d",
+        "correct_answer": "b",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no incluye el artículo 22 del Código Penal ni información sobre la circunstancia agravante de reincidencia.\n"
+      },
+      {
+        "question_id": 56,
+        "model_answer": "d",
+        "correct_answer": "b",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta basándome únicamente en el contexto proporcionado. El contexto no menciona la conspiración y proposición para delinquir en relación con los delitos mencionados.\n"
+      },
+      {
+        "question_id": 57,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "El contexto proporcionado no contiene información sobre el período de tiempo antes de la apertura del procedimiento penal para presumir que los bienes adquiridos por el condenado proceden de su actividad delictiva.\n"
+      },
+      {
+        "question_id": 58,
+        "model_answer": "b",
+        "correct_answer": "d",
+        "is_correct": false,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 59,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 60,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "The provided context does not contain the answer to this question.\n"
+      },
+      {
+        "question_id": 61,
+        "model_answer": "b",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "Based on the provided context, I cannot answer this question. The context does not include Article 6 of the Penal Code or information about the duration and severity of security measures relative to penalties.\n"
+      },
+      {
+        "question_id": 62,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 63,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "No puedo responder a esta pregunta basándome únicamente en el contexto proporcionado.\n"
+      },
+      {
+        "question_id": 64,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no incluye el art. 140.1 del Código Penal ni información sobre las circunstancias que habilitan el castigo del asesinato con pena de prisión permanente revisable.\n"
+      },
+      {
+        "question_id": 65,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no menciona el artículo 197.7 del Código Penal ni las circunstancias que agravarían la pena en ese delito.\n"
+      },
+      {
+        "question_id": 66,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "The provided text does not contain information about Article 165 of the Penal Code or the specific circumstances that would aggravate the penalty for illegal detention and kidnapping.\n"
+      },
+      {
+        "question_id": 67,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "No puedo responder a esta pregunta basándome únicamente en el contexto proporcionado.\n"
+      },
+      {
+        "question_id": 68,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no incluye el art. 178.1 del Código Penal ni información relacionada con el consentimiento de la víctima en el Código Penal.\n"
+      },
+      {
+        "question_id": 69,
+        "model_answer": "d",
+        "correct_answer": "b",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta.\n"
+      },
+      {
+        "question_id": 70,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no contiene información sobre el delito de robo en casa habitada previsto en el artículo 241 del Código Penal.\n"
+      },
+      {
+        "question_id": 71,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "The provided context does not contain information about Article 288 of the Penal Code or Article 31 bis/ter/37 bis. Therefore, I cannot answer this question.\n"
+      },
+      {
+        "question_id": 72,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no incluye el Código Penal ni información sobre el artículo 308.1 del Código Penal.\n"
+      },
+      {
+        "question_id": 73,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta.\n"
+      },
+      {
+        "question_id": 74,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "The provided context does not contain information about Article 369.1 3º of the Penal Code or Article 368 of the same code.\n"
+      },
+      {
+        "question_id": 75,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "The provided context does not contain the definition of \"moneda\" according to Article 387 of the Código Penal.\n"
+      },
+      {
+        "question_id": 76,
+        "model_answer": "d",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no incluye el artículo 426 del Código Penal ni información relacionada con el delito de cohecho o exenciones de pena por dicho delito.\n"
+      },
+      {
+        "question_id": 77,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no contiene información sobre delitos contra las instituciones del Estado.\n"
+      },
+      {
+        "question_id": 78,
+        "model_answer": "d",
+        "correct_answer": "a",
+        "is_correct": false,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no contiene información sobre las penas para los delitos de detención ilegal cometidos por funcionarios públicos o particulares.\n"
+      },
+      {
+        "question_id": 79,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "No puedo responder a esta pregunta. El contexto proporcionado no contiene información sobre el artículo 557.1 del Código Penal ni sobre los delitos de desórdenes públicos.\n"
+      },
+      {
+        "question_id": 80,
+        "model_answer": "d",
+        "correct_answer": "b",
+        "is_correct": false,
+        "raw_response": "No se puede responder a la pregunta con la información proporcionada.\n"
+      },
+      {
+        "question_id": 81,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 82,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 83,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 84,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b [cite:1]article text[/cite]\n"
+      },
+      {
+        "question_id": 85,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 86,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 87,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b [cite:1]article text[/cite]\n"
+      },
+      {
+        "question_id": 88,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 89,
+        "model_answer": "b",
+        "correct_answer": "c",
+        "is_correct": false,
+        "raw_response": "b [cite:1]article text[/cite]\n"
+      },
+      {
+        "question_id": 90,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b [cite:2]article text[/cite]\n"
+      },
+      {
+        "question_id": 91,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 92,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 93,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 94,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c\n"
+      },
+      {
+        "question_id": 95,
+        "model_answer": "d",
+        "correct_answer": "d",
+        "is_correct": true,
+        "raw_response": "d\n"
+      },
+      {
+        "question_id": 96,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c [cite:2]article text[/cite]\n"
+      },
+      {
+        "question_id": 97,
+        "model_answer": "c",
+        "correct_answer": "c",
+        "is_correct": true,
+        "raw_response": "c [cite:1]article text[/cite]\n"
+      },
+      {
+        "question_id": 98,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b\n"
+      },
+      {
+        "question_id": 99,
+        "model_answer": "a",
+        "correct_answer": "a",
+        "is_correct": true,
+        "raw_response": "a [cite:1]article text[/cite]\n"
+      },
+      {
+        "question_id": 100,
+        "model_answer": "b",
+        "correct_answer": "b",
+        "is_correct": true,
+        "raw_response": "b [cite:2]Artículo 970[/cite]\n"
+      }
+    ],
+    "total_questions": 100,
+    "correct_count": 73,
+    "incorrect_count": 27,
+    "unanswered_count": 0,
+    "score_percent": 73.0,
+    "execution_time_ms": 120217.33784675598
+  }
+]

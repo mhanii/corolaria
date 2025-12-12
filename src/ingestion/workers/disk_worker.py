@@ -38,7 +38,8 @@ def save_to_neo4j_sync(
         change_repo = ChangeRepository(adapter)
         change_repo.save_change_events(embedded.change_events, normativa_id=save_result["doc_id"])
     
-    total_duration = embedded.parse_duration + embedded.embed_duration + (perf_counter() - start_time)
+    save_duration = perf_counter() - start_time
+    total_duration = embedded.parse_duration + embedded.embed_duration + save_duration
     
     return DocumentResult(
         law_id=embedded.law_id,
@@ -46,5 +47,8 @@ def save_to_neo4j_sync(
         nodes_created=save_result["nodes_created"],
         relationships_created=save_result["relationships_created"],
         articles_count=save_result.get("tree_nodes", 0),
+        parse_duration=embedded.parse_duration,
+        embed_duration=embedded.embed_duration,
+        save_duration=save_duration,
         duration_seconds=total_duration
     )

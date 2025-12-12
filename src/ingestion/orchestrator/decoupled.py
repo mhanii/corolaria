@@ -73,6 +73,14 @@ class DecoupledIngestionOrchestrator:
         
         step_logger.info(f"Stage 1: Launching workers (CPU={self.cpu_workers}, Network={self.network_workers}, Disk={self.disk_workers})...")
         
+        # Phase timing markers
+        phase_parse_start = perf_counter()
+        phase_embed_start = 0.0
+        phase_save_start = 0.0
+        phase_parse_end = 0.0
+        phase_embed_end = 0.0
+        phase_save_end = 0.0
+        
         with ThreadPoolExecutor(max_workers=self.cpu_workers, thread_name_prefix="CPU") as cpu_pool, \
              ThreadPoolExecutor(max_workers=self.network_workers, thread_name_prefix="Net") as network_pool, \
              ThreadPoolExecutor(max_workers=self.disk_workers, thread_name_prefix="Disk") as disk_pool:
@@ -94,31 +102,49 @@ class DecoupledIngestionOrchestrator:
             
             # Wait for CPU (producers)
             await asyncio.gather(*cpu_tasks)
+            phase_parse_end = perf_counter()
+            phase_embed_start = phase_parse_end  # Embed phase starts when parse ends
             step_logger.info("[Decoupled] CPU workers complete. Sending poison pills to network workers...")
             
             # Signal Network workers to stop
             for _ in range(self.network_workers):
                 await self._embed_queue.put(POISON_PILL)
             await asyncio.gather(*network_tasks)
+            phase_embed_end = perf_counter()
+            phase_save_start = phase_embed_end  # Save phase starts when embed ends
             step_logger.info("[Decoupled] Network workers complete. Sending poison pills to disk workers...")
             
             # Signal Disk workers to stop
             for _ in range(self.disk_workers):
                 await self._save_queue.put(POISON_PILL)
             await asyncio.gather(*disk_tasks)
+            phase_save_end = perf_counter()
             step_logger.info("[Decoupled] Disk workers complete.")
             
         step_logger.info("Stage 2: Processing complete. Creating vector index...")
         self.resource_manager.create_vector_index()
         
+        link_duration = 0.0
         if not self.skip_embeddings:
             step_logger.info("Stage 3: Linking references...")
+            link_start = perf_counter()
             linker = BulkReferenceLinker(self.resource_manager.adapter)
             linker.link_all_pending()
+            link_duration = perf_counter() - link_start
         
         duration = perf_counter() - start_time
         successful = sum(1 for r in self._results if r.success)
         failed = sum(1 for r in self._results if not r.success)
+        
+        # Aggregate stage timings (sum of per-doc times)
+        total_parse = sum(r.parse_duration for r in self._results)
+        total_embed = sum(r.embed_duration for r in self._results)
+        total_save = sum(r.save_duration for r in self._results)
+        
+        # Wall-clock phase durations
+        phase_parse = phase_parse_end - phase_parse_start
+        phase_embed = phase_embed_end - phase_embed_start if phase_embed_start > 0 else 0.0
+        phase_save = phase_save_end - phase_save_start if phase_save_start > 0 else 0.0
         
         self.resource_manager.close()
         
@@ -130,6 +156,13 @@ class DecoupledIngestionOrchestrator:
             total_relationships=sum(r.relationships_created for r in self._results),
             total_reference_links=0,  # Updated by linker if run
             duration_seconds=duration,
+            total_parse_duration=total_parse,
+            total_embed_duration=total_embed,
+            total_save_duration=total_save,
+            link_duration=link_duration,
+            phase_parse_duration=phase_parse,
+            phase_embed_duration=phase_embed,
+            phase_save_duration=phase_save,
             document_results=self._results,
             dictionary_stats=dictionary_stats
         )
@@ -142,9 +175,12 @@ class DecoupledIngestionOrchestrator:
         
         for law_id in law_ids:
             try:
+                # Use functools.partial to pass the flag
+                from functools import partial
+                parse_fn = partial(parse_document_sync, enable_table_parsing=self.config.enable_table_parsing)
                 parsed = await loop.run_in_executor(
                     pool,
-                    parse_document_sync,
+                    parse_fn,
                     law_id
                 )
                 

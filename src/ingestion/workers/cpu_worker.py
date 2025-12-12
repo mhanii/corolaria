@@ -10,7 +10,7 @@ from src.ingestion.models import ParsedDocument
 from src.utils.logger import step_logger
 
 
-def parse_document_sync(law_id: str) -> Optional[ParsedDocument]:
+def parse_document_sync(law_id: str, enable_table_parsing: bool = False) -> Optional[ParsedDocument]:
     """
     Synchronous document parsing (runs in CPU thread pool).
     
@@ -18,6 +18,7 @@ def parse_document_sync(law_id: str) -> Optional[ParsedDocument]:
     
     Args:
         law_id: BOE document identifier (e.g., "BOE-A-1978-31229")
+        enable_table_parsing: Whether to save table content to nodes (default False)
         
     Returns:
         ParsedDocument if successful, None if fetch/parse failed
@@ -35,8 +36,8 @@ def parse_document_sync(law_id: str) -> Optional[ParsedDocument]:
         step_logger.warning(f"[CPU] {law_id}: No data from API")
         return None
     
-    # Parse to domain model
-    processor = DataProcessor(name="processor")
+    # Parse to domain model (with table parsing flag)
+    processor = DataProcessor(name="processor", enable_table_parsing=enable_table_parsing)
     normativa, change_events = processor.process(raw_data)
     
     if not normativa:

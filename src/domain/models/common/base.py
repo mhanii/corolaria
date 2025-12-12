@@ -113,6 +113,7 @@ class BlockType(str,Enum):
     PARTE_FINAL = "parte_final"
     PREAMBULO = "preambulo"
     INSTRUMENTO = "instrumento"
+    ANEXO = "anexo"  # Appendix blocks
     # This needs more thinking
     def __str__(self):
         return self.value

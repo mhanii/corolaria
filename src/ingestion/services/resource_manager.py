@@ -31,7 +31,7 @@ class ResourceManager:
         
         # Embedding Config
         self.embedding_config = EmbeddingConfig(
-            model_name="models/embedding-001",
+            model_name="models/gemini-embedding-001",
             dimensions=768,
             similarity="cosine",
             task_type="RETRIEVAL_DOCUMENT"

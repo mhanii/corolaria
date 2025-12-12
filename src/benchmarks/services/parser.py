@@ -38,6 +38,67 @@ class ExamParserService:
         r"^(\d+)[\.\s]+([A-Da-d])\s*$",
         re.MULTILINE
     )
+    
+    # PDF artifact patterns to remove (headers, footers, page numbers)
+    PDF_ARTIFACT_PATTERNS = [
+        # BOE header pattern (captures various date formats and contexts)
+        re.compile(
+            r"Acuerdo de \d+ de \w+ de \d{4} de la Comisión de Selección[^\.]*\.[^\n]*",
+            re.IGNORECASE
+        ),
+        # Acuerdo header in answer key section (more flexible pattern)
+        re.compile(
+            r"Acuerdo de \d+ de \w+ de \d{4} del Tribunal calificador[^\n]*(?:\n[^\n]*)*?(?=\d+\s*[A-D]|\Z)",
+            re.IGNORECASE
+        ),
+        # Exercise header pattern
+        re.compile(
+            r"PRIMER EJERCICIO\s*[–—-]\s*\d+\s+DE\s+\w+\s+DE\s+\d{4}",
+            re.IGNORECASE
+        ),
+        # Page number pattern
+        re.compile(
+            r"P[áa]gina\s+\d+",
+            re.IGNORECASE
+        ),
+        # Answer key header institutional names (multi-line headers from PDF)
+        # Use flexible whitespace (\s+) between words
+        re.compile(
+            r"CONSEJO\s+GENERAL\s+DEL\s+(?:PODER\s+JUDICIAL)?",
+            re.IGNORECASE
+        ),
+        re.compile(
+            r"FISCALÍA\s+GENERAL\s+(?:DEL\s+ESTADO)?",
+            re.IGNORECASE
+        ),
+        re.compile(
+            r"MINISTERIO\s+DE\s+LA\s+PRESIDENCIA[^\.]*?CORTES",
+            re.IGNORECASE | re.DOTALL
+        ),
+        re.compile(
+            r"Comisi[oó]n\s+de\s+Selecci[oó]n",
+            re.IGNORECASE
+        ),
+    ]
+
+    def _clean_pdf_artifacts(self, text: str) -> str:
+        """
+        Remove PDF artifacts (headers, footers, page numbers) from text.
+        
+        Args:
+            text: Raw text that may contain PDF artifacts
+            
+        Returns:
+            Cleaned text with artifacts removed
+        """
+        for pattern in self.PDF_ARTIFACT_PATTERNS:
+            text = pattern.sub("", text)
+        
+        # Clean up any resulting double spaces or multiple newlines
+        text = re.sub(r"  +", " ", text)
+        text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
+        
+        return text.strip()
 
     def parse_text(self, text: str, exam_name: str = "Unnamed Exam", source_file: Optional[str] = None) -> Exam:
         """
@@ -141,8 +202,8 @@ class ExamParserService:
             if q_text:  # Only add if we have valid question text
                 questions.append(Question(
                     id=q_number,
-                    text=q_text.strip(),
-                    options=options,
+                    text=self._clean_pdf_artifacts(q_text.strip()),
+                    options={k: self._clean_pdf_artifacts(v) for k, v in options.items()},
                 ))
         
         return questions

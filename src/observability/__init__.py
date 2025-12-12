@@ -9,6 +9,11 @@ from src.observability.pipeline_tracing import (
     trace_step,
     PipelineTracer
 )
+from src.observability.benchmark_tracing import (
+    get_benchmark_tracer,
+    trace_question,
+    BenchmarkSessionTracer
+)
 
 __all__ = [
     "setup_phoenix_tracing", 
@@ -16,5 +21,8 @@ __all__ = [
     "is_tracing_enabled",
     "get_pipeline_tracer",
     "trace_step",
-    "PipelineTracer"
+    "PipelineTracer",
+    "get_benchmark_tracer",
+    "trace_question",
+    "BenchmarkSessionTracer"
 ]

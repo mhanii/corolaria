@@ -33,7 +33,7 @@ class ChunkEnricher:
         max_refs: Maximum REFERS_TO articles to include per chunk
     """
     
-    DEFAULT_MAX_REFS = 3
+    DEFAULT_MAX_REFS = 0 # just for testing
     
     def __init__(self, adapter: GraphAdapter, max_refs: int = DEFAULT_MAX_REFS):
         """

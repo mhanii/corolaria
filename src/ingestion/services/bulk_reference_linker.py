@@ -20,6 +20,7 @@ from src.domain.services.reference_extractor import (
 )
 from src.infrastructure.graphdb.adapter import Neo4jAdapter
 from src.utils.logger import step_logger
+from src.utils.spanish_number_converter import normalize_article_number
 
 
 @dataclass
@@ -57,37 +58,74 @@ class BulkReferenceLinker:
         # Cache for normativa existence checks
         self._normativa_cache: Dict[str, bool] = {}
     
-    def link_all_pending(self) -> int:
+    def link_all_pending(self, max_workers: int = 6) -> int:
         """
         Process all articles and create reference links.
+        
+        Uses concurrent batch processing for improved performance.
+        
+        Args:
+            max_workers: Max concurrent batch processing threads (default: 6)
         
         Returns:
             Total number of links created
         """
-        total_links = 0
-        offset = 0
-        batch_num = 0
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+        
+        # Thread-safe stats
+        stats_lock = threading.Lock()
         stats = LinkingStats()
+        total_links = 0
         
-        step_logger.info("[BulkLinker] Starting bulk reference linking...")
+        step_logger.info(f"[BulkLinker] Starting bulk reference linking (workers={max_workers})...")
         
+        # First, fetch all batches
+        all_batches = []
+        offset = 0
         while True:
-            # Fetch next batch of articles
             articles = self._fetch_article_batch(offset)
-            
             if not articles:
                 break
-                
-            batch_num += 1
-            batch_links = self._process_batch(articles, stats)
-            total_links += batch_links
-            
-            step_logger.info(
-                f"[BulkLinker] Batch {batch_num}: "
-                f"{len(articles)} articles, {batch_links} links created"
-            )
-            
+            all_batches.append(articles)
             offset += self.batch_size
+        
+        if not all_batches:
+            step_logger.info("[BulkLinker] No articles to process.")
+            return 0
+        
+        step_logger.info(f"[BulkLinker] Fetched {len(all_batches)} batches ({sum(len(b) for b in all_batches)} articles)")
+        
+        # Process batches concurrently
+        def process_batch_wrapper(batch_idx: int, batch: List[Dict[str, Any]]) -> int:
+            """Wrapper for thread-safe batch processing."""
+            local_stats = LinkingStats()
+            links_created = self._process_batch(batch, local_stats)
+            
+            # Merge stats thread-safely
+            with stats_lock:
+                stats.articles_processed += local_stats.articles_processed
+                stats.references_found += local_stats.references_found
+                stats.internal_links_created += local_stats.internal_links_created
+                stats.external_links_created += local_stats.external_links_created
+                stats.unresolved_references += local_stats.unresolved_references
+            
+            step_logger.info(f"[BulkLinker] Batch {batch_idx + 1}/{len(all_batches)}: {len(batch)} articles, {links_created} links")
+            return links_created
+        
+        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="Linker") as executor:
+            futures = {
+                executor.submit(process_batch_wrapper, i, batch): i
+                for i, batch in enumerate(all_batches)
+            }
+            
+            for future in as_completed(futures):
+                try:
+                    links = future.result()
+                    total_links += links
+                except Exception as e:
+                    batch_idx = futures[future]
+                    step_logger.error(f"[BulkLinker] Batch {batch_idx + 1} failed: {e}")
         
         step_logger.info(
             f"[BulkLinker] Complete. "
@@ -244,20 +282,15 @@ class BulkReferenceLinker:
         return None
     
     def _normalize_article_number(self, article_number: str) -> str:
-        """Normalize article number to match clean_number format."""
+        """
+        Normalize article number to match clean_number format.
+        
+        Now handles both numeric and Spanish written numbers.
+        """
         num = article_number.strip().rstrip('º\u00aa')
-        match = re.search(
-            r'(\d+)(?:\s*(bis|ter|quater|quinquies|sexies|septies|octies|novies|[a-z]))?',
-            num, 
-            re.IGNORECASE
-        )
-        if match:
-            base = match.group(1)
-            suffix = match.group(2)
-            if suffix:
-                return f"{base} {suffix.lower()}"
-            return base
-        return num
+        result = normalize_article_number(num)
+        # Fall back to cleaned input if normalization fails
+        return result if result else num
     
     def _find_article_in_normativa(
         self,

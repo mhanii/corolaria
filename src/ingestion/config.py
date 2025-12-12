@@ -64,10 +64,13 @@ class IngestionConfig:
     embeddings_cache_path: str = "data/embeddings_cache.db"
     
     # Worker pool configuration (for DecoupledIngestionOrchestrator)
-    cpu_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_CPU_WORKERS", "5")))
-    network_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_NETWORK_WORKERS", "20")))
-    disk_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_DISK_WORKERS", "2")))
+    cpu_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_CPU_WORKERS", "12")))
+    network_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_NETWORK_WORKERS", "4")))
+    disk_workers: int = field(default_factory=lambda: int(os.getenv("INGESTION_DISK_WORKERS", "12")))
     scatter_chunk_size: int = field(default_factory=lambda: int(os.getenv("INGESTION_SCATTER_CHUNK_SIZE", "500")))
+    
+    # Feature flags
+    enable_table_parsing: bool = field(default_factory=lambda: os.getenv("INGESTION_ENABLE_TABLE_PARSING", "false").lower() == "true")
     
     @classmethod
     def from_env(cls) -> "IngestionConfig":

@@ -45,18 +45,19 @@ class QRAGCollector(ContextCollector):
     
     QUERY_GENERATION_PROMPT = '''Eres un generador de consultas de búsqueda para un sistema RAG de documentos legales españoles.
 
-TU ÚNICO PROPÓSITO: Generar consultas para buscar ARTÍCULOS DE LEYES españolas.
+TU ÚNICO PROPÓSITO: Generar consultas para buscar leyes españolas.
 
 ENTRADA: Una pregunta del usuario sobre derecho español
 SALIDA: Un JSON array de strings con consultas de búsqueda optimizadas
 
 REGLAS ESTRICTAS:
-1. Las consultas deben buscar ARTÍCULOS LEGALES específicos (Constitución, Código Civil, Código Penal, Estatutos, Leyes Orgánicas, etc.)
+1. Las consultas deben hablar con conceptos jurídicos mencionados en la pregunta
 2. Si la pregunta es simple (un tema), genera UNA sola consulta
 3. Si tiene múltiples temas legales, genera consultas separadas (máximo {max_queries})
-4. Las consultas deben usar TERMINOLOGÍA JURÍDICA precisa
-5. NO generes consultas redundantes o similares entre sí
-6. Responde SOLO con el JSON array, sin explicaciones
+4. Si hay más de un concepto jurídico, como preguntas tipo test, cada consulta debe hablar sobre un concepto
+5. Las consultas deben usar TERMINOLOGÍA JURÍDICA precisa, pero al mismo modo deben ser preguntas.
+6. Solo menciona leyes especificos si esta en la pregunta.
+7. Responde SOLO con el JSON array, sin explicaciones
 
 PROHIBIDO - NO generes consultas para:
 - Búsquedas tipo Google ("cómo hacer...", "pasos para...", "redactar documento")
@@ -68,20 +69,20 @@ Si la pregunta NO es sobre legislación española o no se puede convertir en bú
 
 EJEMPLOS CORRECTOS:
 Usuario: "¿Qué dice la constitución sobre igualdad?"
-Salida: ["artículo 14 constitución española igualdad"]
+Salida: ["¿Qué dice la constitución sobre igualdad?"]
 
 Usuario: "Obligaciones del arrendador y arrendatario"
-Salida: ["obligaciones arrendador código civil", "obligaciones arrendatario código civil"]
+Salida: ["¿Qué obligaciones tiene el arrendador?", "¿Qué obligaciones tiene el arrendatario?"]
 
 Usuario: "¿Cuál es el plazo de prescripción de deudas?"
-Salida: ["prescripción deudas código civil plazos"]
+Salida: ["¿Cuál es el plazo de prescripción de deudas?", "¿Cuál es son los tipos de deudas?", "¿El plazo de prescripción varía según el tipo de deuda?"]
 
 Usuario: "Derechos fundamentales y libertad de expresión"
-Salida: ["derechos fundamentales constitución título primero", "libertad expresión artículo 20 constitución"]
+Salida: ["Cuales son los derechos fundamentales?", "Libertad de expresión"]
 
 EJEMPLOS INCORRECTOS (no generar):
 Usuario: "Cómo redactar un contrato" → NO es búsqueda de artículos
-Usuario: "Pasos para divorciarse" → NO es búsqueda de artículos (buscar "divorcio código civil" sí sería válido)
+Usuario: "Pasos para divorciarse" → NO es búsqueda de artículos (buscar "¿Cuales son los pasos para divorciarse?" sí sería válido)
 
 Usuario: "{user_query}"
 Salida:'''
@@ -93,7 +94,8 @@ Salida:'''
         llm_provider: LLMProvider,
         index_name: str = "article_embeddings",
         max_queries: int = 5,
-        max_results: int = 10
+        max_results: int = 10,
+        enrich: bool = True
     ):
         """
         Initialize the QRAG context collector.
@@ -105,6 +107,8 @@ Salida:'''
             index_name: Name of the vector index (default: "article_embeddings")
             max_queries: Maximum queries the LLM can generate (default: 5)
             max_results: Final limit after merging results (default: 10)
+            enrich: Whether to apply ChunkEnricher (version hopping, reference expansion).
+                    Default True. Set False for raw vector search results.
         """
         self._neo4j_adapter = neo4j_adapter
         self._embedding_provider = embedding_provider
@@ -112,11 +116,12 @@ Salida:'''
         self._index_name = index_name
         self._max_queries = max_queries
         self._max_results = max_results
-        self._enricher = ChunkEnricher(neo4j_adapter)
+        self._enrich = enrich
+        self._enricher = ChunkEnricher(neo4j_adapter) if enrich else None
         
         step_logger.info(
             f"[QRAGCollector] Initialized with index '{index_name}', "
-            f"max_queries={max_queries}, max_results={max_results}"
+            f"max_queries={max_queries}, max_results={max_results}, enrich={enrich}"
         )
     
     @property
@@ -147,8 +152,11 @@ Salida:'''
         index_name = kwargs.get("index_name", self._index_name)
         max_queries = kwargs.get("max_queries", self._max_queries)
         max_results = kwargs.get("max_results", self._max_results)
-        max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
-        self._enricher.max_refs = max_refs
+        
+        # Configure enricher if enabled
+        if self._enricher:
+            max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
+            self._enricher.max_refs = max_refs
         
         # Use proper context manager for tracing
         if _tracer:
@@ -212,8 +220,9 @@ Salida:'''
                 all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
                 final_chunks = all_chunks[:max_results]
                 
-                # Step 4: Enrich chunks with validity checking and reference expansion
-                final_chunks = self._enricher.enrich_chunks(final_chunks)
+                # Step 4: Enrich chunks with validity checking and reference expansion (if enabled)
+                if self._enricher:
+                    final_chunks = self._enricher.enrich_chunks(final_chunks)
                 
                 step_logger.info(f"[QRAGCollector] Final chunks after enrichment: {len(final_chunks)}")
                 
@@ -280,8 +289,9 @@ Salida:'''
             all_chunks.sort(key=lambda x: x.get("score", 0), reverse=True)
             final_chunks = all_chunks[:max_results]
             
-            # Enrich chunks with validity checking and reference expansion
-            final_chunks = self._enricher.enrich_chunks(final_chunks)
+            # Enrich chunks with validity checking and reference expansion (if enabled)
+            if self._enricher:
+                final_chunks = self._enricher.enrich_chunks(final_chunks)
             
             step_logger.info(f"[QRAGCollector] Final chunks after enrichment: {len(final_chunks)}")
             

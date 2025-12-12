@@ -70,9 +70,9 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         self.simulate = simulate
         self.client = None
         
-        # Rate limiter: 3000 articles per minute (shared across all providers)
+        # Rate limiter: 1500 articles per minute (shared across all providers)
         self.rate_limiter = rate_limiter or SlidingWindowRateLimiter(
-            max_requests=3000,
+            max_requests=1450,
             window_seconds=60.0
         )
         
@@ -137,7 +137,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         bin-packing with token limits. This method just handles the API call
         with internal batching at 225 items max.
         """
-        BATCH_SIZE = 225  # Matches EmbeddingGenerator's MAX_ITEMS_PER_BATCH
+        BATCH_SIZE = 100  # Matches EmbeddingGenerator's MAX_ITEMS_PER_BATCH
         all_embeddings = []
         total_batches = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
         mode_str = "SIM" if self.simulate else "API"

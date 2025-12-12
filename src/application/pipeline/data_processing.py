@@ -21,13 +21,14 @@ from src.domain.services.utils.print_tree import print_tree
 from .base import Step
 import re
 from src.utils.logger import output_logger
+from src.utils.table_stringifier import stringify_element_content
 
 
 
 class DataProcessor(Step):
-    def __init__(self, name: str, *args): # For now you must specify the id.
+    def __init__(self, name: str, enable_table_parsing: bool = False, *args):
         super().__init__(name)
-
+        self.enable_table_parsing = enable_table_parsing
         self.prohibited_types = {"nota_inicial", "nota_final","nota", "firma", "indice", "portada"}
         
 
@@ -201,7 +202,11 @@ class DataProcessor(Step):
                 continue
             materias.append(Materia(materia_id))
 
-        referencias = analysis.get("referencias", [])
+        referencias = analysis.get("referencias", {})
+        
+        # Handle edge case where referencias might be a list or None
+        if not isinstance(referencias, dict):
+            referencias = {}
 
         ref_anteriores = [Referencia(id_norma=ref.get("id_norma",None),type=ReferenciaType.ANTERIOR,relacion=RelacionesAnteriores.from_string(ref.get("relacion",None)),text=ref.get("texto")) for ref in referencias.get("anteriores", [])]
         ref_posteriores = [Referencia(id_norma=ref.get("id_norma",None),type=ReferenciaType.POSTERIOR,relacion=RelacionesPosteriores.from_string(ref.get("relacion",None)),text=ref.get("texto")) for ref in referencias.get("posteriores", [])]
@@ -241,7 +246,10 @@ class DataProcessor(Step):
             if k in known_meta or k.startswith("@"):
                 continue
             items = v if isinstance(v, list) else [v]
-            processed_elements += [Element(element_type=ElementType(k), content=item) for item in items]
+            for item in items:
+                # Convert table dicts (and other non-string content) to strings
+                content = stringify_element_content(item)
+                processed_elements.append(Element(element_type=ElementType(k), content=content))
 
         version = Version(
             id_norma=id_norma,
@@ -270,8 +278,8 @@ class DataProcessor(Step):
         processed_metadata = self.process_metadata(metadata)
         processed_analysis = self.process_analysis(analysis)
 
-        # Initialize TreeBuilder with proper document ID
-        self.content_tree = TreeBuilder(processed_metadata.id)
+        # Initialize TreeBuilder with proper document ID and table parsing flag
+        self.content_tree = TreeBuilder(processed_metadata.id, enable_table_parsing=self.enable_table_parsing)
 
         preprocessed_content = self.preprocessing(content=content)
         

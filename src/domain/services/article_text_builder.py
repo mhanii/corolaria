@@ -123,10 +123,11 @@ class ArticleTextBuilder:
         Build full context string for semantic embeddings.
         
         Format:
+
         Documento: {Title} ({ID})
         Contexto: {Libro > Título > Capítulo}
         Artículo: {Número}
-        Estado: {Vigencia}
+        Estado: {Vigencia} (NL)
         Contenido:
         {Texto del artículo}
         
@@ -164,7 +165,12 @@ class ArticleTextBuilder:
         return f"{doc_info}\n{context_line}\n{article_line}\n{state_line}\nContenido:\n{content_text}"
     
     def _build_state_line(self, article: ArticleNode) -> str:
-        """Build the vigencia state line for an article."""
+        """Build the vigencia state line for an article.
+        
+        Uses semantically rich Spanish phrasing for better RAG embedding.
+        We only describe the state, not the reason (derogation vs modification),
+        since ArticleNode only has dates, not explicit reason flags.
+        """
         start_date = self._format_date_human(article.fecha_vigencia)
         
         is_active = True
@@ -172,12 +178,15 @@ class ArticleTextBuilder:
             is_active = False
         
         if not is_active and article.fecha_caducidad:
+            # Article has an end date - could be derogation, modification, or natural expiry
             end_date = self._format_date_human(article.fecha_caducidad)
-            return f"Estado: Vigente desde {start_date} hasta {end_date}"
+            return f"Estado: Este artículo ya no está en vigor. Estuvo vigente desde {start_date} hasta {end_date}."
         elif not is_active:
-            return f"Estado: No vigente (desde {start_date})"
+            # Article was replaced by a newer version (has next_version but no end date)
+            return f"Estado: Este artículo ha sido modificado. Existe una versión más reciente. Estuvo vigente desde {start_date}."
         else:
-            return f"Estado: Vigente desde {start_date}"
+            # Article is currently active
+            return f"Estado: Este artículo está actualmente vigente desde {start_date}. Se encuentra en vigor."
     
     def _format_date_human(self, date_str: Optional[str]) -> str:
         """Format a date string to Spanish human-readable format."""

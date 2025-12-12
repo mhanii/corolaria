@@ -38,7 +38,8 @@ class RAGCollector(ContextCollector):
         self, 
         neo4j_adapter: GraphAdapter,
         embedding_provider: EmbeddingProvider,
-        index_name: str = "article_embeddings"
+        index_name: str = "article_embeddings",
+        enrich: bool = True
     ):
         """
         Initialize the RAG context collector.
@@ -47,13 +48,16 @@ class RAGCollector(ContextCollector):
             neo4j_adapter: Graph adapter for database queries (implements GraphAdapter)
             embedding_provider: Provider to generate query embeddings
             index_name: Name of the vector index (default: "article_embeddings")
+            enrich: Whether to apply ChunkEnricher (version hopping, reference expansion).
+                    Default True. Set False for raw vector search results.
         """
         self._neo4j_adapter = neo4j_adapter
         self._embedding_provider = embedding_provider
         self._index_name = index_name
-        self._enricher = ChunkEnricher(neo4j_adapter)
+        self._enrich = enrich
+        self._enricher = ChunkEnricher(neo4j_adapter) if enrich else None
         
-        step_logger.info(f"[RAGCollector] Initialized with index '{index_name}'")
+        step_logger.info(f"[RAGCollector] Initialized with index '{index_name}', enrich={enrich}")
     
     @property
     def name(self) -> str:
@@ -80,8 +84,11 @@ class RAGCollector(ContextCollector):
         """
         # Allow overrides via kwargs
         index_name = kwargs.get("index_name", self._index_name)
-        max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
-        self._enricher.max_refs = max_refs
+        
+        # Configure enricher if enabled
+        if self._enricher:
+            max_refs = kwargs.get("max_refs", ChunkEnricher.DEFAULT_MAX_REFS)
+            self._enricher.max_refs = max_refs
         
         step_logger.info(f"[RAGCollector] Generating embedding for query...")
         
@@ -107,8 +114,9 @@ class RAGCollector(ContextCollector):
                     index_name=index_name
                 )
                 
-                # Enrich chunks with validity checking and reference expansion
-                chunks = self._enricher.enrich_chunks(chunks)
+                # Enrich chunks with validity checking and reference expansion (if enabled)
+                if self._enricher:
+                    chunks = self._enricher.enrich_chunks(chunks)
                 
                 # Record output attributes
                 span.set_attribute("output.chunks_count", len(chunks))
@@ -143,8 +151,9 @@ class RAGCollector(ContextCollector):
                 index_name=index_name
             )
             
-            # Enrich chunks with validity checking and reference expansion
-            chunks = self._enricher.enrich_chunks(chunks)
+            # Enrich chunks with validity checking and reference expansion (if enabled)
+            if self._enricher:
+                chunks = self._enricher.enrich_chunks(chunks)
             
             step_logger.info(f"[RAGCollector] Retrieved {len(chunks)} chunks")
             

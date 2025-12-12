@@ -1,0 +1,777 @@
+1- Some documents have alphabetic numbering:
+
+
+    Artículo cincuenta y uno
+    Los miembros del Ministerio Fiscal tendrán derecho al cargo y a la promoción en la Carrera en las condiciones legalmente establecidas. Los cargos del Ministerio Fiscal llevarán anejos los honores que reglamentariamente se establezcan.
+
+    Artículo cincuenta y dos
+    Los miembros del Ministerio Fiscal gozarán de los permisos y licencias, y del régimen de recompensas, que reglamentariamente se establezcan, inspirados unos y otros en lo dispuesto para Jueces y Magistrados por la Ley Orgánica del Poder Judicial.
+
+
+    Artículo cincuenta y tres
+    El régimen retributivo de los miembros del Ministerio Fiscal se regirá por ley y estarán equiparados en retribuciones a los miembros de la Carrera Judicial. Asimismo gozarán, en los términos legales, de la adecuada asistencia y Seguridad Social.
+
+
+    Artículo cincuenta y cuatro
+    De acuerdo con lo establecido en el artículo ciento veintisiete de la Constitución se reconoce el derecho de asociación profesional de los Fiscales, que se ejercerá libremente en el ámbito del artículo veintidós de la Constitución y que se ajustará a las reglas siguientes:
+    ....
+
+2- Some documents have tables:
+        <version id_norma="BOE-A-2018-9268" fecha_publicacion="20180704" fecha_vigencia="20180705">
+          <p class="anexo">ANEXO</p>
+          <p class="parrafo_2">Las tasas y exacciones parafiscales unificadas a que se refiere el artículo décimo de la Ley 17/1975, de 2 de mayo, sobre creación del Organismo autónomo «Registro de la Propiedad Industrial», aplicadas a servicios, prestaciones y actividades del Registro de la Propiedad Industrial derivados de la presente Ley, serán las siguientes:</p>
+          <table class="tabla">
+            <tbody>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+                <td>
+                  <p class="cabeza_tabla">Euros</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro">
+                    <em>Tarifa primera. Adquisición y defensa de derechos</em>
+                  </p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">1.1 Solicitudes:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por la solicitud de una demanda de depósito de patente de invención o modelo de utilidad, ya sea directamente o como consecuencia de la división de una solicitud inclusive la inserción de la solicitud en el «Boletín Oficial de la Propiedad Industrial»</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">100,38</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de cambio de modalidad de protección</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">10,30</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de informe sobre el estado de la técnica</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">684,65</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de examen sustantivo</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">389,77</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por la presentación de un recurso o solicitud de revisión</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">88,09</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de resolución urgente de un expediente</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">47,39</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de restablecimiento de derechos</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">105,35</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de revocación o limitación</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">74,19</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Recurso o solicitud de revisión</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">88,09</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de inscripción en el Registro Especial de Agentes de la Propiedad Industrial</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">74,01</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud para la Tramitación de certificados complementarios de protección de medicamentos-productos fitosanitarios (CCP)</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">517,21</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por solicitud de prórroga de certificados complementarios de protección de medicamentos</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">517,21</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">1.2 Prioridad:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por cada prioridad reivindicada en materia de patentes y modelos de utilidad</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">19,65</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">1.3 Modificaciones:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por cualquier modificación del expediente, ya sean a la solicitud, descripción o reivindicaciones, ya sean aportaciones posteriores de documentos o rectificación de errores materiales, aritméticos o de hecho y en general por cualquier modificación en supuestos autorizados por la Ley</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">23,19</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">1.4 Contestación a suspenso<em>:</em></p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por contestación a suspenso provocado por defectos formales de cualquier tipo de expediente tramitado en virtud de la presente Ley</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">42,06</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">1.5 Oposiciones:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por presentación de oposiciones a la concesión de expedientes de patentes y modelos de utilidad</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">43,27</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro">
+                    <em>Tarifa segunda. </em>
+                    <em>Mantenimiento y transmisión de derechos</em>
+                  </p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.1 Anualidades:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">3.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">18,48</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">4.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">23,06</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">5.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">44,11</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">6.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">65,10</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">7.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">107,47</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">8.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">133,78</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">9.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">167,88</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">10.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">216,06</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">11.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">270,82</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">12.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">317,98</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">13.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">365,05</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">14.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">412,56</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">15.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">440,59</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">16.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">458,85</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">17.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">490,00</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">18.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">490,00</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">19.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">490,00</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">20.ª</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">490,00</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.1.1 Tasas de mantenimiento de certificados complementarios de protección de medicamentos y de productos fitosanitarios:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">CCP de duración igual o inferior a un año</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">803,93</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">CCP de duración igual o inferior a dos años</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">1.688,24</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">CCP de duración igual o inferior a tres años</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">2.661,05</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">CCP de duración igual o inferior a cuatro años</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">3.731,05</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">CCP de duración igual o inferior a cinco años</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">4.908,12</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Prórroga de CCP de duración igual o inferior a un año</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">803,93</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.2 Demoras y regularización:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por demoras en los pagos de anualidad, recargos del 25 por 100, dentro de los tres primeros meses, y del 50 por 100, dentro de los tres siguientes, hasta un máximo de seis meses de demora. No obstante, en los siguientes seis meses y hasta un máximo de tiempo que coincida con la fecha aniversario de la siguiente anualidad, el interesado podrá regularizar el pago de la anualidad no pagada abonando la tasa de regularización establecida en este apartado.</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por la regularización en el pago de las anualidades prevista en el artículo 184.3</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">100,00</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.3 Explotación y licencias:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por la tramitación de expedientes de puesta en explotación de patentes y modelos de utilidad</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">21,87</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por la tramitación de cada uno de los ofrecimientos de licencias de pleno derecho o licencia obligatoria en los casos previstos por la Ley</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">19,68</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por mediación de la Oficina para la obtención de una licencia contractual</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">131,14</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.4 Transferencias:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por tramitación de expedientes de inscripción de transmisiones o de cesiones o modificaciones. Por cada registro efectuado</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">13,24</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">2.5 Por la inscripción de cambio de nombre del titular:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por cada registro afectado</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">16,38</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro">
+                    <em>Tarifa tercera. Otros servicios</em>
+                  </p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">3.1 Por cada certificación de datos registrados relativos a patentes, modelos de utilidad o certificados complementarios de protección o sus prórrogas, así como por la expedición de copia autorizada de cada uno de los documentos permitidos por la Ley</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">20,60</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">3.2 Consulta y vista de un expediente</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">3,56</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Copia de documentos de un expediente</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">11,38</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Por cada página que exceda de 10</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">1,13</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Anuncio en «BOPI» de interposición de recurso contencioso administrativo</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">142,24</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Anuncio en «BOPI» de fallo de recurso contencioso administrativo</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">142,24</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">3.3 Por la solicitud de informes periciales previstos en el art. 120.7</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">2.400</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro">
+                    <em>Tarifa cuarta</em>
+                  </p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">4.1 Patentes europeas:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Publicación de las reivindicaciones</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">107, 80</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Publicación de un fascículo (hasta 22 páginas) </p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">320,93</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Página adicional fascículo</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">12,90</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">4.2 Patentes internacionales:</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Tasa de transmisión</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">74,25</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Tasa por transmisión de documento de prioridad</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">29,69</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Tasa de examen preliminar internacional</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">583,65</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <p class="cuerpo_tabla_izq">Tasa adicional de examen preliminar internacional</p>
+                </td>
+                <td>
+                  <p class="cuerpo_tabla_der">583,65</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <blockquote class="siempreSeVe">Véase, en cuanto a la modificación de los importes de las tasas contenidas en este Anexo, el art. 96 de la Ley 6/2018, de 3 de julio. <a class="refPost">Ref. BOE-A-2018-9268#ar-90</a></blockquote>
+        </version>
+        <version id_norma="BOE-A-2018-9268" fecha_publicacion="20180704" fecha_vigencia="20180705">
+          <p class="anexo">ANEXO</p>
+          <p class="parrafo_2">Las tasas y exacciones parafiscales unificadas a que se refiere el artículo décimo de la Ley 17/1975, de 2 de mayo, sobre creación del Organismo autónomo «Registro de la Propiedad Industrial», aplicadas a servicios, prestaciones y actividades del Registro de la Propiedad Industrial derivados de la presente Ley, serán las siguientes:</p>
+          <table class="tabla">
+            <tbody>
+            <tr>
+                <td>
+                  <p class="cuerpo_tabla_centro"> </p>
+                </td>
+                <td>
+                  <p class="cabeza_tabla">Euros</p>
+                </td>
+              </tr>
+              <tr>
+              ....
+            </tbody>
+          </table>
+        </version>
+
+        Are parsed like this:
+                {'@class': 'tabla', 'tr': [{'td': [{'p': ''}, {'p': 'Euros'}]}, {'td': [{'p': 'Tarifa primera. Adquisición y defensa de derechos'}, {'p': ''}]}, {'td': [{'p': '1.1 Solicitudes:'}, {'p': ''}]}, {'td': [{'p': 'Por la solicitud de una demanda de depósito de patente de invención o modelo de utilidad, ya sea directamente o como consecuencia de la división de una solicitud inclusive la inserción de la solicitud en el «Boletín Oficial de la Propiedad Industrial»'}, {'p': '100,38'}]}, {'td': [{'p': 'Por solicitud de cambio de modalidad de protección'}, {'p': '10,30'}]}, {'td': [{'p': 'Por solicitud de informe sobre el estado de la técnica'}, {'p': '684,65'}]}, {'td': [{'p': 'Por solicitud de examen sustantivo'}, {'p': '389,77'}]}, {'td': [{'p': 'Por la presentación de un recurso o solicitud de revisión'}, {'p': '88,09'}]}, {'td': [{'p': 'Por solicitud de resolución urgente de un expediente'}, {'p': '47,39'}]}, {'td': [{'p': 'Por solicitud de restablecimiento de derechos'}, {'p': '105,35'}]}, {'td': [{'p': 'Por solicitud de revocación o limitación'}, {'p': '74,19'}]}, {'td': [{'p': 'Recurso o solicitud de revisión'}, {'p': '88,09'}]}, {'td': [{'p': 'Por solicitud de inscripción en el Registro Especial de Agentes de la Propiedad Industrial'}, {'p': '74,01'}]}, {'td': [{'p': 'Por solicitud para la Tramitación de certificados complementarios de protección de medicamentos-productos fitosanitarios (CCP)'}, {'p': '517,21'}]}, {'td': [{'p': 'Por solicitud de prórroga de certificados complementarios de protección de medicamentos'}, {'p': '517,21'}]}, {'td': [{'p': '1.2 Prioridad:'}, {'p': ''}]}, {'td': [{'p': 'Por cada prioridad reivindicada en materia de patentes y modelos de utilidad'}, {'p': '19,65'}]}, {'td': [{'p': '1.3 Modificaciones:'}, {'p': ''}]}, {'td': [{'p': 'Por cualquier modificación del expediente, ya sean a la solicitud, descripción o reivindicaciones, ya sean aportaciones posteriores de documentos o rectificación de errores materiales, aritméticos o de hecho y en general por cualquier modificación en supuestos autorizados por la Ley'}, {'p': '23,19'}]}, {'td': [{'p': '1.4 Contestación a suspenso :'}, {'p': ''}]}, {'td': [{'p': 'Por contestación a suspenso provocado por defectos formales de cualquier tipo de expediente tramitado en virtud de la presente Ley'}, {'p': '42,06'}]}, {'td': [{'p': '1.5 Oposiciones:'}, {'p': ''}]}, {'td': [{'p': 'Por presentación de oposiciones a la concesión de expedientes de patentes y modelos de utilidad'}, {'p': '43,27'}]}, {'td': [{'p': 'Tarifa segunda. Mantenimiento y transmisión de derechos'}, {'p': ''}]}, {'td': [{'p': '2.1 Anualidades:'}, {'p': ''}]}, {'td': [{'p': '3.ª'}, {'p': '18,48'}]}, {'td': [{'p': '4.ª'}, {'p': '23,06'}]}, {'td': [{'p': '5.ª'}, {'p': '44,11'}]}, {'td': [{'p': '6.ª'}, {'p': '65,10'}]}, {'td': [{'p': '7.ª'}, {'p': '107,47'}]}, {'td': [{'p': '8.ª'}, {'p': '133,78'}]}, {'td': [{'p': '9.ª'}, {'p': '167,88'}]}, {'td': [{'p': '10.ª'}, {'p': '216,06'}]}, {'td': [{'p': '11.ª'}, {'p': '270,82'}]}, {'td': [{'p': '12.ª'}, {'p': '317,98'}]}, {'td': [{'p': '13.ª'}, {'p': '365,05'}]}, {'td': [{'p': '14.ª'}, {'p': '412,56'}]}, {'td': [{'p': '15.ª'}, {'p': '440,59'}]}, {'td': [{'p': '16.ª'}, {'p': '458,85'}]}, {'td': [{'p': '17.ª'}, {'p': '490,00'}]}, {'td': [{'p': '18.ª'}, {'p': '490,00'}]}, {'td': [{'p': '19.ª'}, {'p': '490,00'}]}, {'td': [{'p': '20.ª'}, {'p': '490,00'}]}, {'td': [{'p': '2.1.1 Tasas de mantenimiento de certificados complementarios de protección de medicamentos y de productos fitosanitarios:'}, {'p': ''}]}, {'td': [{'p': 'CCP de duración igual o inferior a un año'}, {'p': '803,93'}]}, {'td': [{'p': 'CCP de duración igual o inferior a dos años'}, {'p': '1.688,24'}]}, {'td': [{'p': 'CCP de duración igual o inferior a tres años'}, {'p': '2.661,05'}]}, {'td': [{'p': 'CCP de duración igual o inferior a cuatro años'}, {'p': '3.731,05'}]}, {'td': [{'p': 'CCP de duración igual o inferior a cinco años'}, {'p': '4.908,12'}]}, {'td': [{'p': 'Prórroga de CCP de duración igual o inferior a un año'}, {'p': '803,93'}]}, {'td': [{'p': '2.2 Demoras y regularización:'}, {'p': ''}]}, {'td': [{'p': 'Por demoras en los pagos de anualidad, recargos del\xa025 por\xa0100, dentro de los tres primeros meses, y del\xa050 por\xa0100, dentro de los tres siguientes, hasta un máximo de seis meses de demora. No obstante, en los siguientes seis meses y hasta un máximo de tiempo que coincida con la fecha aniversario de la siguiente anualidad, el interesado podrá regularizar el pago de la anualidad no pagada abonando la tasa de regularización establecida en este apartado.'}, {'p': ''}]}, {'td': [{'p': 'Por la regularización en el pago de las anualidades prevista en el artículo\xa0184.3'}, {'p': '100,00'}]}, {'td': [{'p': '2.3 Explotación y licencias:'}, {'p': ''}]}, {'td': [{'p': 'Por la tramitación de expedientes de puesta en explotación de patentes y modelos de utilidad'}, {'p': '21,87'}]}, {'td': [{'p': 'Por la tramitación de cada uno de los ofrecimientos de licencias de pleno derecho o licencia obligatoria en los casos previstos por la Ley'}, {'p': '19,68'}]}, {'td': [{'p': 'Por mediación de la Oficina para la obtención de una licencia contractual'}, {'p': '131,14'}]}, {'td': [{'p': '2.4 Transferencias:'}, {'p': ''}]}, {'td': [{'p': 'Por tramitación de expedientes de inscripción de transmisiones o de cesiones o modificaciones. Por cada registro efectuado'}, {'p': '13,24'}]}, {'td': [{'p': '2.5 Por la inscripción de cambio de nombre del titular:'}, {'p': ''}]}, {'td': [{'p': 'Por cada registro afectado'}, {'p': '16,38'}]}, {'td': [{'p': 'Tarifa tercera. Otros servicios'}, {'p': ''}]}, {'td': [{'p': '3.1 Por cada certificación de datos registrados relativos a patentes, modelos de utilidad o certificados complementarios de protección o sus prórrogas, así como por la expedición de copia autorizada de cada uno de los documentos permitidos por la Ley'}, {'p': '20,60'}]}, {'td': [{'p': '3.2 Consulta y vista de un expediente'}, {'p': '3,56'}]}, {'td': [{'p': 'Copia de documentos de un expediente'}, {'p': '11,38'}]}, {'td': [{'p': 'Por cada página que exceda de\xa010'}, {'p': '1,13'}]}, {'td': [{'p': 'Anuncio en «BOPI» de interposición de recurso contencioso administrativo'}, {'p': '142,24'}]}, {'td': [{'p': 'Anuncio en «BOPI» de fallo de recurso contencioso administrativo'}, {'p': '142,24'}]}, {'td': [{'p': '3.3 Por la solicitud de informes periciales previstos en el art.\xa0120.7'}, {'p': '2.400'}]}, {'td': [{'p': 'Tarifa cuarta'}, {'p': ''}]}, {'td': [{'p': '4.1 Patentes europeas:'}, {'p': ''}]}, {'td': [{'p': 'Publicación de las reivindicaciones'}, {'p': '107, 80'}]}, {'td': [{'p': 'Publicación de un fascículo (hasta\xa022 páginas)'}, {'p': '320,93'}]}, {'td': [{'p': 'Página adicional fascículo'}, {'p': '12,90'}]}, {'td': [{'p': '4.2 Patentes internacionales:'}, {'p': ''}]}, {'td': [{'p': 'Tasa de transmisión'}, {'p': '74,25'}]}, {'td': [{'p': 'Tasa por transmisión de documento de prioridad'}, {'p': '29,69'}]}, {'td': [{'p': 'Tasa de examen preliminar internacional'}, {'p': '583,65'}]}, {'td': [{'p': 'Tasa adicional de examen preliminar internacional'}, {'p': '583,65'}]}]}
+
+
+
+text: "Las tasas y exacciones parafiscales unificadas a que se refiere el artículo décimo de la Ley 17/1975, de 2 de mayo, sobre creación del Organismo autónomo «Registro de la Propiedad Industrial», aplicadas a servicios, prestaciones y actividades del Registro de la Propiedad Industrial derivados de la presente Ley, serán las siguientes:
+[TABLA]
+Euros
+Tarifa primera. Adquisición y defensa de derechos
+1.1 Solicitudes:
+Por la solicitud de una demanda de depósito de patente de invención o modelo de utilidad, ya sea directamente o como consecuencia de la división de una solicitud inclusive la inserción de la solicitud en el «Boletín Oficial de la Propiedad Industrial»: 100,38
+Por solicitud de cambio de modalidad de protección: 10,30
+Por solicitud de informe sobre el estado de la técnica: 684,65
+Por solicitud de examen sustantivo: 389,77
+Por la presentación de un recurso o solicitud de revisión: 88,09
+Por solicitud de resolución urgente de un expediente: 47,39
+Por solicitud de restablecimiento de derechos: 105,35
+Por solicitud de revocación o limitación: 74,19
+Recurso o solicitud de revisión: 88,09
+Por solicitud de inscripción en el Registro Especial de Agentes de la Propiedad Industrial: 74,01
+Por solicitud para la Tramitación de certificados complementarios de protección de medicamentos-productos fitosanitarios (CCP): 517,21
+Por solicitud de prórroga de certificados complementarios de protección de medicamentos: 517,21
+1.2 Prioridad:
+Por cada prioridad reivindicada en materia de patentes y modelos de utilidad: 19,65
+1.3 Modificaciones:
+Por cualquier modificación del expediente, ya sean a la solicitud, descripción o reivindicaciones, ya sean aportaciones posteriores de documentos o rectificación de errores materiales, aritméticos o de hecho y en general por cualquier modificación en supuestos autorizados por la Ley: 23,19
+1.4 Contestación a suspenso :
+Por contestación a suspenso provocado por defectos formales de cualquier tipo de expediente tramitado en virtud de la presente Ley: 42,06
+1.5 Oposiciones:
+Por presentación de oposiciones a la concesión de expedientes de patentes y modelos de utilidad: 43,27
+Tarifa segunda. Mantenimiento y transmisión de derechos
+2.1 Anualidades:
+3.ª: 18,48
+4.ª: 23,06
+5.ª: 44,11
+6.ª: 65,10
+7.ª: 107,47
+8.ª: 133,78
+9.ª: 167,88
+10.ª: 216,06
+11.ª: 270,82
+12.ª: 317,98
+13.ª: 365,05
+14.ª: 412,56
+15.ª: 440,59
+16.ª: 458,85
+17.ª: 490,00
+18.ª: 490,00
+19.ª: 490,00
+20.ª: 490,00
+2.1.1 Tasas de mantenimiento de certificados complementarios de protección de medicamentos y de productos fitosanitarios:
+CCP de duración igual o inferior a un año: 803,93
+CCP de duración igual o inferior a dos años: 1.688,24
+CCP de duración igual o inferior a tres años: 2.661,05
+CCP de duración igual o inferior a cuatro años: 3.731,05
+CCP de duración igual o inferior a cinco años: 4.908,12
+Prórroga de CCP de duración igual o inferior a un año: 803,93
+2.2 Demoras y regularización:
+Por demoras en los pagos de anualidad, recargos del 25 por 100, dentro de los tres primeros meses, y del 50 por 100, dentro de los tres siguientes, hasta un máximo de seis meses de demora. No obstante, en los siguientes seis meses y hasta un máximo de tiempo que coincida con la fecha aniversario de la siguiente anualidad, el interesado podrá regularizar el pago de la anualidad no pagada abonando la tasa de regularización establecida en este apartado.
+Por la regularización en el pago de las anualidades prevista en el artículo 184.3: 100,00
+2.3 Explotación y licencias:
+Por la tramitación de expedientes de puesta en explotación de patentes y modelos de utilidad: 21,87
+Por la tramitación de cada uno de los ofrecimientos de licencias de pleno derecho o licencia obligatoria en los casos previstos por la Ley: 19,68
+Por mediación de la Oficina para la obtención de una licencia contractual: 131,14
+2.4 Transferencias:
+Por tramitación de expedientes de inscripción de transmisiones o de cesiones o modificaciones. Por cada registro efectuado: 13,24
+2.5 Por la inscripción de cambio de nombre del titular:
+Por cada registro afectado: 16,38
+Tarifa tercera. Otros servicios
+3.1 Por cada certificación de datos registrados relativos a patentes, modelos de utilidad o certificados complementarios de protección o sus prórrogas, así como por la expedición de copia autorizada de cada uno de los documentos permitidos por la Ley: 20,60
+3.2 Consulta y vista de un expediente: 3,56
+Copia de documentos de un expediente: 11,38
+Por cada página que exceda de 10: 1,13
+Anuncio en «BOPI» de interposición de recurso contencioso administrativo: 142,24
+Anuncio en «BOPI» de fallo de recurso contencioso administrativo: 142,24
+3.3 Por la solicitud de informes periciales previstos en el art. 120.7: 2.400
+Tarifa cuarta
+4.1 Patentes europeas:
+Publicación de las reivindicaciones: 107, 80
+Publicación de un fascículo (hasta 22 páginas): 320,93
+Página adicional fascículo: 12,90
+4.2 Patentes internacionales:
+Tasa de transmisión: 74,25
+Tasa por transmisión de documento de prioridad: 29,69
+Tasa de examen preliminar internacional: 583,65
+Tasa adicional de examen preliminar internacional: 583,65
+[/TABLA]
+"
+          
