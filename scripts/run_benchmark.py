@@ -93,19 +93,26 @@ def create_llm_provider(model_name: str = None):
         max_tokens=int(os.getenv("LLM_MAX_TOKENS", "8192"))
     )
 
-def create_embedding_provider():
+def create_embedding_provider(cache_path: str = None):
     """Create the embedding provider using the factory pattern."""
     from src.ai.embeddings.factory import EmbeddingFactory
+    from src.ai.embeddings.sqlite_cache import SQLiteEmbeddingCache
+    
+    # Create cache if path provided
+    cache = None
+    if cache_path:
+        cache = SQLiteEmbeddingCache(cache_path)
     
     return EmbeddingFactory.create(
         provider="gemini",
         model="models/gemini-embedding-001",
         dimensions=768,
-        task_type="RETRIEVAL_QUERY"  # Query type for benchmarks
+        task_type="RETRIEVAL_QUERY",  # Query type for benchmarks
+        cache=cache
     )
 
 
-def create_context_collector():
+def create_context_collector(cache_path: str = None):
     """
     Create the RAG context collector for benchmarks.
     
@@ -124,8 +131,8 @@ def create_context_collector():
     )
     neo4j_adapter = Neo4jAdapter(connection)
     
-    # Create embedding provider
-    embedding_provider = create_embedding_provider()
+    # Create embedding provider with cache
+    embedding_provider = create_embedding_provider(cache_path)
     
     return RAGCollector(
         neo4j_adapter=neo4j_adapter,
@@ -141,10 +148,12 @@ def run_single_benchmark(
     top_k: int, 
     use_rag: bool = True,
     llm_provider: Optional[LLMProvider] = None,
-    embed_options: bool = False
+    embed_options: bool = False,
+    multi_query: bool = False,
+    cache_path: str = None
 ) -> BenchmarkResult:
     """Run a single benchmark configuration."""
-    step_logger.info(f"--- Running Benchmark: Model={model_name}, RAG={use_rag}, TopK={top_k}, EmbedOptions={embed_options} ---")
+    step_logger.info(f"--- Running Benchmark: Model={model_name}, RAG={use_rag}, TopK={top_k}, EmbedOptions={embed_options}, MultiQuery={multi_query} ---")
     
     # Create the LLM provider if not provided
     if not llm_provider:
@@ -154,7 +163,7 @@ def run_single_benchmark(
     # Create context collector if RAG is enabled
     context_collector = None
     if use_rag:
-        context_collector = create_context_collector()
+        context_collector = create_context_collector(cache_path)
     
     # Create the runner
     runner = BenchmarkRunner(
@@ -162,6 +171,7 @@ def run_single_benchmark(
         context_collector=context_collector,
         use_rag=use_rag,
         embed_options=embed_options,
+        multi_query=multi_query,
     )
     
     # Run the benchmark
@@ -174,7 +184,7 @@ def run_single_benchmark(
     return result
 
 
-def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None, embed_options=False) -> Optional[Dict]:
+def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None, embed_options=False, multi_query=False, cache_path=None) -> Optional[Dict]:
     """Wrapper to run benchmark safely in a thread."""
     try:
         # We need to act carefully with global resources in threads if any,
@@ -187,7 +197,9 @@ def safe_run_benchmark(exam, model_name, top_k, use_rag, llm_provider=None, embe
             top_k=top_k, 
             use_rag=use_rag,
             llm_provider=llm_provider,
-            embed_options=embed_options
+            embed_options=embed_options,
+            multi_query=multi_query,
+            cache_path=cache_path
         )
         return res.to_dict()
     except Exception as e:
@@ -248,6 +260,21 @@ def main():
         "--embed-options",
         action="store_true",
         help="Include answer options in embedding query (default: question text only)",
+    )
+    parser.add_argument(
+        "--multi-query",
+        action="store_true",
+        help="Embed question + each option separately, retrieve chunks for each, deduplicate results",
+    )
+    parser.add_argument(
+        "--cache-path",
+        default="data/exam_embedding_cache.db",
+        help="Path to embedding cache database (default: data/exam_embedding_cache.db)",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable embedding cache",
     )
     
     args = parser.parse_args()
@@ -343,12 +370,15 @@ def main():
     else:
         # Standard Single Run
         model_name = os.getenv("LLM_MODEL", "gemini-2.0-flash")
+        cache_path = None if args.no_cache else args.cache_path
         res = run_single_benchmark(
             exam, 
             model_name=model_name, 
             top_k=args.top_k, 
             use_rag=not args.no_rag,
-            embed_options=args.embed_options
+            embed_options=args.embed_options,
+            multi_query=args.multi_query,
+            cache_path=cache_path
         )
         results_collection.append(res.to_dict())
 

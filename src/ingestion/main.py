@@ -289,6 +289,90 @@ def rollback_ingestion(law_id: str, config: Optional[IngestionConfig] = None) ->
         )
 
 
+def run_eu_ingestion(
+    celex: str,
+    language: str = "ES",
+    config: Optional[IngestionConfig] = None,
+    dry_run: bool = False
+) -> IngestionResult:
+    """
+    Run the EU ingestion pipeline for a specific EUR-Lex document.
+    
+    Args:
+        celex: CELEX number (e.g., "32016R0679" for GDPR, "12016P/TXT" for Charter)
+        language: 2-letter language code (ES, EN, FR, etc.)
+        config: Optional configuration override
+        dry_run: If True, skip database writes (parse only)
+        
+    Returns:
+        IngestionResult with status and statistics
+    """
+    config = config or IngestionConfig.from_env()
+    load_dotenv()
+    
+    started_at = datetime.now()
+    start_time = perf_counter()
+    step_results = []
+    
+    step_logger.info(f"[EU Ingestion] Starting ingestion for {celex} ({language})")
+    
+    try:
+        # Import EU pipeline
+        from src.application.pipeline.eu_doc2graph import EUDoc2Graph
+        
+        # Create and run the pipeline
+        pipeline = EUDoc2Graph(celex=celex, language=language)
+        
+        try:
+            if dry_run:
+                step_logger.info("[EU Ingestion] DRY RUN - Parsing only")
+                # In dry-run, we still run but log the preview
+            
+            result = pipeline.run(None)
+            
+            # Collect step results if available
+            if hasattr(pipeline, 'step_timings'):
+                for step_name, timing in pipeline.step_timings.items():
+                    step_results.append(StepResult(
+                        step_name=step_name,
+                        status="success",
+                        duration_seconds=timing
+                    ))
+            
+            duration = perf_counter() - start_time
+            
+            # Extract node count from result if available
+            nodes_created = 0
+            if result and hasattr(result, 'nodes_created'):
+                nodes_created = result.nodes_created
+            
+            return IngestionResult(
+                law_id=celex,
+                status=IngestionStatus.SUCCESS,
+                started_at=started_at,
+                completed_at=datetime.now(),
+                duration_seconds=duration,
+                step_results=step_results,
+                nodes_created=nodes_created
+            )
+                
+        finally:
+            pipeline.close()
+            
+    except Exception as e:
+        duration = perf_counter() - start_time
+        step_logger.error(f"[EU Ingestion] Failed: {e}", exc_info=True)
+        
+        return IngestionResult(
+            law_id=celex,
+            status=IngestionStatus.FAILED,
+            started_at=started_at,
+            completed_at=datetime.now(),
+            duration_seconds=duration,
+            error_message=str(e)
+        )
+
+
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -298,6 +382,12 @@ def main():
 Examples:
   Ingest a single law:
     python -m src.ingestion.main --law-id BOE-A-1978-31229
+
+  Ingest an EU document:
+    python -m src.ingestion.main --source eu --celex 32016R0679
+
+  Ingest the EU Charter:
+    python -m src.ingestion.main --source eu --celex 12016P/TXT
 
   Batch ingest from file (one law ID per line):
     python -m src.ingestion.main --batch laws.txt --semaphore 10
@@ -411,10 +501,33 @@ Examples:
         help="Maximum laws to fetch from BOE API (default: 100)"
     )
     
+    # EU source arguments
+    parser.add_argument(
+        "--source",
+        type=str,
+        choices=["boe", "eu"],
+        default="boe",
+        help="Document source: 'boe' (default) or 'eu' for EUR-Lex"
+    )
+    parser.add_argument(
+        "--celex",
+        type=str,
+        help="CELEX number for EU document (e.g., 32016R0679 for GDPR)"
+    )
+    parser.add_argument(
+        "--language",
+        type=str,
+        default="ES",
+        help="Language for EU documents (default: ES)"
+    )
+    
     args = parser.parse_args()
     
     # Validate arguments
-    if not args.law_id and not args.rollback and not args.batch and not args.automatic:
+    if args.source == "eu":
+        if not args.celex and not args.rollback:
+            parser.error("--celex is required when --source eu is specified")
+    elif not args.law_id and not args.rollback and not args.batch and not args.automatic:
         parser.error("Either --law-id, --batch, --automatic, or --rollback is required")
     
     # Automatic mode is mutually exclusive with batch and law-id
@@ -557,6 +670,22 @@ Examples:
                 for doc in result.document_results:
                     if not doc.success:
                         step_logger.warning(f"    - {doc.law_id}: {doc.error_message}")
+        
+        elif args.source == "eu" and args.celex:
+            # EU document ingestion
+            result = run_eu_ingestion(args.celex, args.language, config, dry_run=args.dry_run)
+            result_dict = result.to_dict()
+            
+            # Print summary
+            if result.status == IngestionStatus.SUCCESS:
+                step_logger.info(f"✓ EU Ingestion successful")
+                step_logger.info(f"  CELEX: {args.celex}")
+                step_logger.info(f"  Duration: {result.duration_seconds:.2f}s")
+                step_logger.info(f"  Nodes: {result.nodes_created}")
+            else:
+                step_logger.error(f"✗ EU Ingestion failed")
+                step_logger.error(f"  Error: {result.error_message}")
+                sys.exit(1)
         
         else:
             result = run_ingestion(args.law_id, config, dry_run=args.dry_run)

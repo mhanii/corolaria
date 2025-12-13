@@ -33,6 +33,7 @@ class BenchmarkRunner:
     - With RAG: Uses context_collector to retrieve relevant articles.
                 By default embeds ONLY the question text (not options).
                 Use embed_options=True to include options in embedding query.
+                Use multi_query=True to embed question + each option separately.
     """
 
     def __init__(
@@ -41,6 +42,7 @@ class BenchmarkRunner:
         context_collector: Optional[ContextCollector] = None,
         use_rag: bool = True,
         embed_options: bool = False,
+        multi_query: bool = False,
     ):
         """
         Initialize the benchmark runner.
@@ -51,11 +53,14 @@ class BenchmarkRunner:
             use_rag: Whether to use RAG context (requires context_collector).
             embed_options: If True, include answer options in embedding query.
                           If False (default), embed only the question text.
+            multi_query: If True, embed question + each option separately,
+                        retrieve chunks for each, and deduplicate results.
         """
         self.llm_provider = llm_provider
         self.context_collector = context_collector
         self.use_rag = use_rag and context_collector is not None
         self.embed_options = embed_options
+        self.multi_query = multi_query
         self.prompt_builder = ExamPromptBuilder()
         
         if use_rag and not context_collector:
@@ -222,14 +227,18 @@ class BenchmarkRunner:
             question_text=question.text
         ) as span:
             if self.use_rag:
-                # Choose what to embed based on embed_options flag
-                if self.embed_options:
+                # Choose what to embed based on multi_query and embed_options flags
+                if self.multi_query:
+                    # Multi-query mode: embed question + each option separately
+                    raw_response = self._query_with_multi_rag(question, question_prompt, params)
+                elif self.embed_options:
                     # Include full formatted prompt with options
                     query_for_rag = question_prompt
+                    raw_response = self._query_with_rag(query_for_rag, question_prompt, params)
                 else:
                     # Default: only the question text (more focused embedding)
                     query_for_rag = question.text
-                raw_response = self._query_with_rag(query_for_rag, question_prompt, params)
+                    raw_response = self._query_with_rag(query_for_rag, question_prompt, params)
             else:
                 raw_response = self._query_direct(question_prompt)
             
@@ -313,6 +322,77 @@ class BenchmarkRunner:
             full_prompt = formatted_question
         
         # Step 4: Send to LLM with ExamPromptBuilder's system prompt
+        messages = [
+            Message(role="user", content=full_prompt),
+        ]
+        
+        response = self.llm_provider.generate(
+            messages,
+            system_prompt=self.prompt_builder.build_system_prompt()
+        )
+        return response.content
+
+    def _query_with_multi_rag(self, question: Question, formatted_question: str, params: Dict[str, Any]) -> str:
+        """
+        Query using multi-query RAG: embed question + each option separately.
+        
+        Args:
+            question: The Question object with text and options
+            formatted_question: Full formatted question with options for LLM
+            params: Parameters including top_k
+        """
+        chunks_per_query = params.get("chunks_per_query", 5)
+        
+        # Build queries: question text + each option
+        queries = [question.text]
+        for letter in sorted(question.options.keys()):
+            queries.append(question.options[letter])
+        
+        step_logger.info(f"[BenchmarkRunner] Multi-query mode: {len(queries)} queries (question + {len(queries)-1} options)")
+        
+        # Collect chunks from all queries
+        all_chunks: Dict[str, Dict[str, Any]] = {}  # article_id -> chunk (keep highest score)
+        
+        for i, query_text in enumerate(queries):
+            query_label = "question" if i == 0 else f"option_{chr(ord('a') + i - 1)}"
+            step_logger.info(f"[BenchmarkRunner] Collecting context for {query_label}: '{query_text[:50]}...'")
+            
+            context_result = self.context_collector.collect(
+                query=query_text,
+                top_k=chunks_per_query
+            )
+            
+            # Deduplicate: keep chunk with highest score for each article_id
+            for chunk in context_result.chunks:
+                article_id = chunk.get("article_id", chunk.get("id", id(chunk)))
+                existing = all_chunks.get(article_id)
+                if existing is None or chunk.get("score", 0) > existing.get("score", 0):
+                    all_chunks[article_id] = chunk
+        
+        # Sort by score descending and take top results
+        final_chunks = sorted(
+            all_chunks.values(),
+            key=lambda c: c.get("score", 0),
+            reverse=True
+        )
+        
+        step_logger.info(f"[BenchmarkRunner] Multi-query retrieved {len(final_chunks)} unique chunks (deduplicated)")
+        
+        # Build context string using ExamPromptBuilder
+        context_str = self.prompt_builder.build_context(final_chunks)
+        
+        # Build the full user message with context + question
+        if context_str:
+            full_prompt = f"""CONTEXTO LEGAL RELEVANTE:
+{context_str}
+
+---
+
+{formatted_question}"""
+        else:
+            full_prompt = formatted_question
+        
+        # Send to LLM with ExamPromptBuilder's system prompt
         messages = [
             Message(role="user", content=full_prompt),
         ]

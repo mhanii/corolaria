@@ -62,7 +62,8 @@ class BulkReferenceLinker:
         """
         Process all articles and create reference links.
         
-        Uses concurrent batch processing for improved performance.
+        Uses concurrent batch processing - each worker fetches and processes
+        its own batch to avoid memory issues with large datasets.
         
         Args:
             max_workers: Max concurrent batch processing threads (default: 6)
@@ -71,61 +72,84 @@ class BulkReferenceLinker:
             Total number of links created
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+        from queue import Queue
         import threading
         
         # Thread-safe stats
         stats_lock = threading.Lock()
         stats = LinkingStats()
-        total_links = 0
+        total_links_lock = threading.Lock()
+        total_links = [0]  # Use list for mutable reference
+        
+        # Queue of offsets for workers to process
+        offset_queue: Queue[int] = Queue()
         
         step_logger.info(f"[BulkLinker] Starting bulk reference linking (workers={max_workers})...")
         
-        # First, fetch all batches
-        all_batches = []
-        offset = 0
-        while True:
-            articles = self._fetch_article_batch(offset)
-            if not articles:
-                break
-            all_batches.append(articles)
-            offset += self.batch_size
+        # First, count total articles to determine number of batches
+        count_query = """
+        MATCH (a:articulo)-[:PART_OF]->(n:Normativa)
+        WHERE a.full_text IS NOT NULL
+        RETURN count(a) as total
+        """
+        result = self.adapter.run_query_single(count_query, {})
+        total_articles = result["total"] if result else 0
         
-        if not all_batches:
+        if total_articles == 0:
             step_logger.info("[BulkLinker] No articles to process.")
             return 0
         
-        step_logger.info(f"[BulkLinker] Fetched {len(all_batches)} batches ({sum(len(b) for b in all_batches)} articles)")
+        num_batches = (total_articles + self.batch_size - 1) // self.batch_size
+        step_logger.info(f"[BulkLinker] {total_articles} articles in {num_batches} batches")
         
-        # Process batches concurrently
-        def process_batch_wrapper(batch_idx: int, batch: List[Dict[str, Any]]) -> int:
-            """Wrapper for thread-safe batch processing."""
-            local_stats = LinkingStats()
-            links_created = self._process_batch(batch, local_stats)
-            
-            # Merge stats thread-safely
-            with stats_lock:
-                stats.articles_processed += local_stats.articles_processed
-                stats.references_found += local_stats.references_found
-                stats.internal_links_created += local_stats.internal_links_created
-                stats.external_links_created += local_stats.external_links_created
-                stats.unresolved_references += local_stats.unresolved_references
-            
-            step_logger.info(f"[BulkLinker] Batch {batch_idx + 1}/{len(all_batches)}: {len(batch)} articles, {links_created} links")
-            return links_created
+        # Populate offset queue
+        for batch_idx in range(num_batches):
+            offset_queue.put(batch_idx * self.batch_size)
         
+        # Worker function - fetches AND processes its own batch
+        def worker():
+            while True:
+                try:
+                    offset = offset_queue.get_nowait()
+                except:
+                    break  # Queue empty, done
+                
+                # Fetch batch
+                articles = self._fetch_article_batch(offset)
+                if not articles:
+                    offset_queue.task_done()
+                    continue
+                
+                # Process batch
+                local_stats = LinkingStats()
+                links_created = self._process_batch(articles, local_stats)
+                
+                # Merge stats thread-safely
+                with stats_lock:
+                    stats.articles_processed += local_stats.articles_processed
+                    stats.references_found += local_stats.references_found
+                    stats.internal_links_created += local_stats.internal_links_created
+                    stats.external_links_created += local_stats.external_links_created
+                    stats.unresolved_references += local_stats.unresolved_references
+                
+                with total_links_lock:
+                    total_links[0] += links_created
+                
+                batch_num = offset // self.batch_size + 1
+                step_logger.info(f"[BulkLinker] Batch {batch_num}/{num_batches}: {len(articles)} articles, {links_created} links")
+                
+                offset_queue.task_done()
+        
+        # Launch workers
         with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="Linker") as executor:
-            futures = {
-                executor.submit(process_batch_wrapper, i, batch): i
-                for i, batch in enumerate(all_batches)
-            }
+            futures = [executor.submit(worker) for _ in range(max_workers)]
             
+            # Wait for all workers to complete
             for future in as_completed(futures):
                 try:
-                    links = future.result()
-                    total_links += links
+                    future.result()
                 except Exception as e:
-                    batch_idx = futures[future]
-                    step_logger.error(f"[BulkLinker] Batch {batch_idx + 1} failed: {e}")
+                    step_logger.error(f"[BulkLinker] Worker failed: {e}")
         
         step_logger.info(
             f"[BulkLinker] Complete. "
@@ -135,7 +159,7 @@ class BulkReferenceLinker:
             f"Unresolved: {stats.unresolved_references}"
         )
         
-        return total_links
+        return total_links[0]
     
     def _fetch_article_batch(self, offset: int) -> List[Dict[str, Any]]:
         """

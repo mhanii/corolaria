@@ -5,13 +5,16 @@ Supports both real API calls and simulation mode for stress testing.
 Simulation mode generates fake embeddings with realistic latency to stress-test 
 the pipeline architecture without incurring API costs.
 """
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import os
 import time
 import random
 from src.domain.interfaces.embedding_provider import EmbeddingProvider
 from src.ai.embeddings.rate_limiter import SlidingWindowRateLimiter
 from src.utils.logger import step_logger, output_logger
+
+if TYPE_CHECKING:
+    from src.domain.interfaces.embedding_cache import EmbeddingCache
 
 try:
     from google import genai
@@ -63,9 +66,10 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         dimensions: int = 768, 
         task_type: str = "RETRIEVAL_DOCUMENT",
         simulate: bool = False,
-        rate_limiter: Optional[SlidingWindowRateLimiter] = None
+        rate_limiter: Optional[SlidingWindowRateLimiter] = None,
+        cache: Optional["EmbeddingCache"] = None
     ):
-        super().__init__(model, dimensions)
+        super().__init__(model, dimensions, cache)
         self.task_type = task_type
         self.simulate = simulate
         self.client = None
@@ -79,7 +83,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         if simulate:
             step_logger.info(
                 f"Initialized GeminiEmbeddingProvider in SIMULATION mode "
-                f"(model={model}, dimensions={dimensions})"
+                f"(model={model}, dimensions={dimensions}, cache={'enabled' if cache else 'disabled'})"
             )
         else:
             if genai is None:
@@ -93,7 +97,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
             self.client = genai.Client(api_key=api_key)
             step_logger.info(
                 f"Initialized GeminiEmbeddingProvider with model={model}, "
-                f"dimensions={dimensions}, task_type={task_type}"
+                f"dimensions={dimensions}, task_type={task_type}, cache={'enabled' if cache else 'disabled'}"
             )
 
     def _simulate_embedding(self) -> List[float]:
@@ -107,7 +111,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         return [self._simulate_embedding() for _ in range(batch_size)]
 
     @_retry_with_backoff
-    def get_embedding(self, text: str) -> List[float]:
+    def _generate_embedding(self, text: str) -> List[float]:
         """
         Generate embedding for a single text.
         Retries on transient errors with exponential backoff.
@@ -129,7 +133,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         output_logger.info(f"--- [GeminiProvider] Generated Embedding ---\nSize: {len(embedding)}\nPreview: {embedding[:5]}...\n")
         return embedding
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
         Generate embeddings for a batch of texts.
         

@@ -118,7 +118,7 @@ class ArticleTextBuilder:
         
         return ", ".join(formatted)
     
-    def build_context_string(self, normativa: 'NormativaCons', article: ArticleNode) -> str:
+    def build_context_string(self, normativa, article: ArticleNode) -> str:
         """
         Build full context string for semantic embeddings.
         
@@ -132,14 +132,15 @@ class ArticleTextBuilder:
         {Texto del artículo}
         
         Args:
-            normativa: The parent normativa document
+            normativa: The parent normativa document (NormativaCons or EUNormativa)
             article: The article node
             
         Returns:
             Complete context string for embedding
         """
-        # 1. Document info
-        doc_info = f"Documento: {normativa.metadata.titulo} ({normativa.id})"
+        # 1. Document info - handle both BOE (titulo) and EU (title)
+        title = getattr(normativa.metadata, 'titulo', None) or getattr(normativa.metadata, 'title', normativa.id)
+        doc_info = f"Documento: {title} ({normativa.id})"
         
         # 2. Hierarchy context (use > separator for embeddings)
         hierarchy = article.get_hierarchy_path()

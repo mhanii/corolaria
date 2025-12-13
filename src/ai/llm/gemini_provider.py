@@ -119,7 +119,7 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
     def __init__(
         self, 
         model: str = "gemini-2.5-flash",
-        temperature: float = 0.3,
+        temperature: float = 1,
         max_tokens: int = 8192,
         api_key: Optional[str] = None
     ):
