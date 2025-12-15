@@ -44,7 +44,7 @@ def get_user_repository():
 )
 async def login(
     request: LoginRequest,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo = Depends(get_user_repository)
 ) -> TokenResponse:
     """
     Authenticate user and return JWT token.
@@ -126,7 +126,7 @@ async def login(
 )
 async def get_current_user(
     token_payload: TokenPayload = Depends(get_current_user_from_token),
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo = Depends(get_user_repository)
 ) -> UserInfoResponse:
     """
     Get current user information.
