@@ -458,10 +458,10 @@ inference = [
     { name = "langsmith" },
     { name = "openinference-instrumentation-google-genai" },
     { name = "openinference-instrumentation-langchain" },
+    { name = "openinference-instrumentation-openai" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "pymysql" },
-    { name = "python-bcrypt" },
     { name = "sqlalchemy" },
 ]
 
@@ -503,10 +503,10 @@ inference = [
     { name = "langsmith", specifier = ">=0.4.59" },
     { name = "openinference-instrumentation-google-genai", specifier = ">=0.1.0" },
     { name = "openinference-instrumentation-langchain", specifier = ">=0.1.0" },
+    { name = "openinference-instrumentation-openai", specifier = ">=0.1.0" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "pymysql", specifier = ">=1.1.0" },
-    { name = "python-bcrypt", specifier = "==0.3.2" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
 ]
 ingestion = []
@@ -1454,6 +1454,24 @@ wheels = [
 ]
 
 [[package]]
+name = "openinference-instrumentation-openai"
+version = "0.1.41"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openinference-instrumentation" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "typing-extensions" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/66/06/77b2fe7171336f71313936daf1b644a9968da85ff0b473a03ca05cc3d5c1/openinference_instrumentation_openai-0.1.41.tar.gz", hash = "sha256:ef4db680986a613b1639720f9beaa315c9e388c20bc985dbbbdf0f4df007c6e9", size = 22848, upload-time = "2025-12-04T19:58:35.349Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/db/48f1f540d335f98fa67891e9c25ad56020be7e7b2c0d4fd5014875fe5ddf/openinference_instrumentation_openai-0.1.41-py3-none-any.whl", hash = "sha256:6fad453446835e51333b660882eacababbf1052689ca53cba444a7d97fa2e910", size = 30273, upload-time = "2025-12-04T19:58:34.17Z" },
+]
+
+[[package]]
 name = "openinference-semantic-conventions"
 version = "0.1.25"
 source = { registry = "https://pypi.org/simple" }
@@ -1977,12 +1995,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/85/89/0a712ca22930b8c71
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/78/ffd13a516219129cef6a754a11ba2a1c0d69f1e281af4f6bca9ed5327219/pystache-0.6.8-py3-none-any.whl", hash = "sha256:7211e000974a6e06bce2d4d5cad8df03bcfffefd367209117376e4527a1c3cb8", size = 82051, upload-time = "2025-03-18T11:54:45.813Z" },
 ]
-
-[[package]]
-name = "python-bcrypt"
-version = "0.3.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5e/7f/78b41e3c70ac95673eec60cdc4f4f11d84c7ce4966689ab8ecfca1185eca/python-bcrypt-0.3.2.tar.gz", hash = "sha256:b203ef09dd6543869ccedcf349aac39506db29dd5053ded315a829b9625214aa", size = 19388, upload-time = "2017-02-16T19:56:23.861Z" }
 
 [[package]]
 name = "python-dateutil"

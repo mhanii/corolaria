@@ -36,11 +36,18 @@ class MariaDBUserRepository:
             step_logger.warning(f"[UserRepo] Username already exists: {username}")
             return None
         
-        # Hash password
-        password_hash = bcrypt.hashpw(
-            password.encode('utf-8'), 
-            bcrypt.gensalt()
-        ).decode('utf-8')
+        # Hash password - handle both bcrypt and python-bcrypt versions
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        try:
+            # Modern bcrypt (>=4.0.0) expects bytes
+            hashed = bcrypt.hashpw(password_bytes, salt)
+        except TypeError:
+            # Old python-bcrypt expects str
+            hashed = bcrypt.hashpw(password, salt)
+        
+        # Ensure we have a string for storage
+        password_hash = hashed.decode('utf-8') if isinstance(hashed, bytes) else hashed
         
         # Create user
         user = User(
