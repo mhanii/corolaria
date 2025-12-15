@@ -22,8 +22,43 @@ async def lifespan(app: FastAPI):
     """Application lifespan - setup and teardown."""
     # Startup
     step_logger.info("[API] Starting up Coloraria API...")
+    
+    # 1. Initialize Phoenix tracing
     setup_phoenix_tracing(project_name="coloraria-rag")
+    
+    # 2. Initialize MariaDB connection
+    try:
+        from src.infrastructure.database import get_database_connection
+        db = get_database_connection()
+        step_logger.info("[API] ✓ MariaDB connection initialized")
+    except Exception as e:
+        step_logger.error(f"[API] ✗ MariaDB connection failed: {e}")
+    
+    # 3. Initialize Neo4j connection
+    try:
+        import os
+        from src.infrastructure.graphdb.connection import Neo4jConnection
+        neo4j_conn = Neo4jConnection(
+            uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+            user=os.getenv("NEO4J_USER", "neo4j"),
+            password=os.getenv("NEO4J_PASSWORD", "password")
+        )
+        # Test connection
+        neo4j_conn.verify_connectivity()
+        step_logger.info("[API] ✓ Neo4j connection initialized")
+    except Exception as e:
+        step_logger.error(f"[API] ✗ Neo4j connection failed: {e}")
+    
+    # 4. Initialize LLM provider (uses singleton from dependencies)
+    try:
+        from src.api.v1.dependencies import get_llm_provider
+        llm = get_llm_provider()  # Initializes and caches the singleton
+        step_logger.info("[API] ✓ LLM provider initialized")
+    except Exception as e:
+        step_logger.error(f"[API] ✗ LLM provider failed: {e}")
+    
     yield
+    
     # Shutdown
     step_logger.info("[API] Shutting down Coloraria API...")
     shutdown_phoenix_tracing()

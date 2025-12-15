@@ -141,23 +141,33 @@ _chroma_store = None
 def get_llm_provider():
     """
     Dependency that provides LLM provider (cached singleton).
-    Uses Gemini by default, configurable via LLM_PROVIDER env var.
+    
+    Uses ResilientLLMProvider (with fallback) if llm.resilient.enabled=true in config.
+    Otherwise falls back to direct LLMFactory with LLM_PROVIDER env var.
     
     Returns:
-        LLMProvider instance
+        LLMProvider instance (ResilientLLMProvider or direct provider)
     """
     global _llm_provider
     
     if _llm_provider is None:
-        from src.ai.llm.factory import LLMFactory
-        config = get_config()
-        
-        _llm_provider = LLMFactory.create(
-            provider=config.llm_provider,
-            model=config.llm_model,
-            temperature=config.llm_temperature,
-            max_tokens=config.llm_max_tokens
-        )
+        # Try ResilientLLMProvider first (Main → Backup → Fallback)
+        try:
+            from src.ai.llm.resilient_provider import ResilientLLMProvider
+            _llm_provider = ResilientLLMProvider()
+            step_logger.info("[Dependencies] Using ResilientLLMProvider with fallback chain")
+        except ValueError as e:
+            # ResilientLLMProvider requires config - fall back to direct factory
+            step_logger.info(f"[Dependencies] ResilientLLMProvider not enabled, using direct factory: {e}")
+            from src.ai.llm.factory import LLMFactory
+            config = get_config()
+            
+            _llm_provider = LLMFactory.create(
+                provider=config.llm_provider,
+                model=config.llm_model,
+                temperature=config.llm_temperature,
+                max_tokens=config.llm_max_tokens
+            )
     
     return _llm_provider
 
