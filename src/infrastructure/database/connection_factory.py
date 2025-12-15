@@ -53,29 +53,28 @@ def get_database_connection(config: Optional[dict] = None) -> DatabaseConnection
 
 def _create_mariadb_connection(config: Optional[dict]) -> DatabaseConnection:
     """Create MariaDB connection from config or environment."""
+    from urllib.parse import quote_plus
     from src.infrastructure.database.mariadb_connection import MariaDBConnection
     from src.infrastructure.database.mariadb_schema import init_mariadb_schema
     
-    # Try URI from environment first
+    # Try explicit URI from environment first
     uri = os.getenv("MARIADB_URI")
     
-    if uri:
-        connection = MariaDBConnection.get_instance(uri=uri)
-    elif config and "database" in config and "mariadb" in config["database"]:
-        # Build from config
-        mariadb_config = config["database"]["mariadb"]
-        connection = MariaDBConnection.get_instance(
-            host=mariadb_config.get("host", "mariadb"),
-            port=mariadb_config.get("port", 3306),
-            database=mariadb_config.get("database", "coloraria"),
-            user=mariadb_config.get("user", "coloraria_user"),
-            password=os.getenv("MARIADB_PASSWORD", mariadb_config.get("password", "")),
-            pool_size=mariadb_config.get("pool_size", 10),
-            pool_recycle=mariadb_config.get("pool_recycle", 3600)
-        )
-    else:
-        # Default fallback
-        connection = MariaDBConnection.get_instance()
+    if not uri:
+        # Build URI dynamically from individual env vars (with URL encoding for special chars)
+        host = os.getenv("MARIADB_HOST", "mariadb")
+        port = os.getenv("MARIADB_PORT", "3306")
+        database = os.getenv("MARIADB_DATABASE", "coloraria")
+        user = os.getenv("MARIADB_USER", "coloraria_user")
+        password = os.getenv("MARIADB_PASSWORD", "")
+        
+        # URL-encode the password to handle special characters like @, #, :, etc.
+        encoded_password = quote_plus(password)
+        
+        uri = f"mysql+pymysql://{user}:{encoded_password}@{host}:{port}/{database}"
+        step_logger.info(f"[Database] Built MariaDB URI: mysql+pymysql://{user}:***@{host}:{port}/{database}")
+    
+    connection = MariaDBConnection.get_instance(uri=uri)
     
     # Auto-initialize schema (creates tables if they don't exist)
     try:

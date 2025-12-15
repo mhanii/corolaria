@@ -12,6 +12,10 @@ class Neo4jConnection:
         if self._driver:
             self._driver.close()
     
+    def verify_connectivity(self):
+        """Verify the connection to Neo4j is working."""
+        self._driver.verify_connectivity()
+    
     def execute_query(self, query: str, parameters: dict = None):
         record = self._driver.execute_query(
         query,
