@@ -210,11 +210,12 @@ class CitationEngine:
         """
         Extract used citations from response and populate display_text.
         
-        Unlike the old system, we don't reindex - we just filter to used citations
-        and capture the display text from each citation in the response.
+        Handles two citation formats:
+        1. Complete: [cite:key]display text[/cite]
+        2. Standalone: [cite:key] (no closing tag, common when LLM references inline)
         
         Args:
-            response: LLM response text with [cite:key]text[/cite] format
+            response: LLM response text with citation markers
             citations: All available citations
             
         Returns:
@@ -225,20 +226,20 @@ class CitationEngine:
         # Build a map of cite_key -> citation for quick lookup
         citation_map = {c.cite_key: c for c in citations}
         
-        # Find all citation matches in response
-        matches = self.CITATION_PATTERN.findall(response)
-        
         # Track used citations and their display texts
         used_citations = []
         seen_keys = set()
         
-        for cite_key, display_text in matches:
+        # Pattern 1: Complete citations [cite:key]text[/cite]
+        complete_pattern = re.compile(r'\[cite:([^\]]+)\](.+?)\[/cite\]', re.DOTALL)
+        complete_matches = complete_pattern.findall(response)
+        
+        for cite_key, display_text in complete_matches:
             cite_key = cite_key.strip()
             display_text = display_text.strip()
             
             if cite_key in citation_map and cite_key not in seen_keys:
                 seen_keys.add(cite_key)
-                # Create a copy with display_text populated
                 original = citation_map[cite_key]
                 used_citation = Citation(
                     cite_key=original.cite_key,
@@ -251,11 +252,41 @@ class CitationEngine:
                     score=original.score,
                     metadata=original.metadata,
                     version_context=original.version_context,
-                    index=len(used_citations) + 1  # Legacy sequential index
+                    index=len(used_citations) + 1
                 )
                 used_citations.append(used_citation)
             elif cite_key not in citation_map:
                 step_logger.warning(f"[CitationEngine] Unknown cite_key in response: {cite_key}")
+        
+        # Pattern 2: Standalone citations [cite:key] without closing tag
+        # These appear when LLM just adds a reference inline without wrapping text
+        standalone_pattern = re.compile(r'\[cite:([^\]]+)\](?!\s*[^\[]*\[/cite\])')
+        standalone_matches = standalone_pattern.findall(response)
+        
+        for cite_key in standalone_matches:
+            cite_key = cite_key.strip()
+            
+            if cite_key in citation_map and cite_key not in seen_keys:
+                seen_keys.add(cite_key)
+                original = citation_map[cite_key]
+                # Use normativa_title as display_text for standalone citations
+                used_citation = Citation(
+                    cite_key=original.cite_key,
+                    article_id=original.article_id,
+                    article_number=original.article_number,
+                    article_text=original.article_text,
+                    normativa_title=original.normativa_title,
+                    article_path=original.article_path,
+                    display_text=original.normativa_title,  # Fallback display text
+                    score=original.score,
+                    metadata=original.metadata,
+                    version_context=original.version_context,
+                    index=len(used_citations) + 1
+                )
+                used_citations.append(used_citation)
+                step_logger.info(f"[CitationEngine] Matched standalone citation: {cite_key}")
+            elif cite_key not in citation_map and cite_key not in seen_keys:
+                step_logger.warning(f"[CitationEngine] Unknown standalone cite_key: {cite_key}")
         
         step_logger.info(f"[CitationEngine] Extracted {len(used_citations)} citations from response")
         

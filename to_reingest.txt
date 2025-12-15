@@ -1,0 +1,7 @@
+2025-12-15 02:09:36,500 - [WARNING] - step_logger -   Failed: 3 documents
+2025-12-15 02:09:36,500 - [WARNING] - step_logger -     - BOE-A-1986-27647: '_cython_3_1_4.cython_function_or_method' object has no attribute 'startswith'
+2025-12-15 02:09:36,500 - [WARNING] - step_logger -     - BOE-A-1967-16485: 'h5' is not a valid ElementType
+2025-12-15 02:09:36,501 - [WARNING] - step_logger -     - BON-n-1999-90001: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. ', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}]}}
+2025-12-15 01:16:04,176 - [ERROR] - step_logger - [CPU] BOE-A-1986-27647 failed: '_cython_3_1_4.cython_function_or_method' object has no attribute 'startswith'
+2025-12-15 01:36:42,438 - [ERROR] - step_logger - [CPU] BOE-A-1967-16485 failed: 'h5' is not a valid ElementType
+2025-12-15 01:50:02,459 - [ERROR] - neo4j.io - [#D5D2]  _: <CONNECTION> error: Failed to read from defunct connection IPv4Address(('neo4j', 7687)) (ResolvedIPv4Address(('10.0.2.2', 7687))): ConnectionResetError(104, 'Connection reset by peer')

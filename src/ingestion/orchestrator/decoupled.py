@@ -39,6 +39,7 @@ class DecoupledIngestionOrchestrator:
         scatter_chunk_size: int = 500,
         skip_embeddings: bool = False,
         simulate_embeddings: bool = False,
+        embedding_cache: bool = True,
         config: Optional[IngestionConfig] = None
     ):
         self.cpu_workers = cpu_workers
@@ -49,7 +50,7 @@ class DecoupledIngestionOrchestrator:
         self.skip_embeddings = skip_embeddings
         
         self.config = config or IngestionConfig.from_env()
-        self.resource_manager = ResourceManager(self.config, simulate_embeddings)
+        self.resource_manager = ResourceManager(self.config, simulate_embeddings, embedding_cache)
         
         # Queues
         self._embed_queue: asyncio.Queue = asyncio.Queue(maxsize=queue_maxsize)

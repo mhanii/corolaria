@@ -238,18 +238,21 @@ def normalize_article_number(name: str) -> Optional[str]:
         return None
     
     # First, try numeric pattern (existing behavior)
-    # Match: number + optional suffix (bis, ter, quater, etc.)
+    # Match: number (with optional dots) + optional suffix (bis, ter, quater, etc.)
+    # "1.428" → "1428", "544 ter" → "544 ter"
     match = re.search(
-        r'(\d+)(?:\s*(bis|ter|quater|quinquies|sexies|septies|octies|novies|[a-z]))?',
+        r'(\d+(?:\.\d+)*)(?:\s*(bis|ter|quater|quinquies|sexies|septies|octies|novies))?',
         name, 
         re.IGNORECASE
     )
     if match:
         num = match.group(1)
         suffix = match.group(2)
+        # Remove dots from article number (1.428 → 1428)
+        clean_num = num.replace('.', '')
         if suffix:
-            return f"{num} {suffix.lower()}"
-        return num
+            return f"{clean_num} {suffix.lower()}"
+        return clean_num
     
     # No numeric match - try Spanish written number
     # Extract the number part after "Artículo" or "Art."

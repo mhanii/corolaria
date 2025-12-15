@@ -40,6 +40,7 @@ class ReferenceType(Enum):
     JUDICIAL = "judicial"           # STC, STS, SAN, STSJ
     ABBREVIATED = "abbreviated"     # LOPJ, LEC, LECrim, etc.
     EU_LEGISLATION = "eu_legislation"  # Directive, Regulation
+    EU_TREATY = "eu_treaty"         # TFUE, TUE
     UNKNOWN = "unknown"
 
 
@@ -168,14 +169,18 @@ class ReferenceExtractor:
         """Compile all regex patterns for reference extraction."""
         
         # Common building blocks - article number pattern
-        # Must use word boundary (\b) to prevent matching "808" within "1808"
+        # Distinguishes thousand separators from apartados:
+        # - "1.428" → captures "1.428" (3 digits after dot = thousand separator)
+        # - "12.2" → captures "12" (1-2 digits after dot = apartado, not captured)
+        # - "149.1.23.ª" → captures "149" (apartados chain, not captured)
         self._article_num = r"""
             (?P<article_num>
                 \d+                           # Base number: 14, 149, 1902
-                (?:[\.,]\d+)*                 # Subsections: 149.1.23 or 149,1
-                (?:[\.,][ªº]|º|ª)?            # Ordinal markers: 23.ª, 4º, .º
+                (?:\.\d{3})*                  # Thousand separators (captured): 1.428, 10.000
                 (?:\s*(?:bis|ter|qu[aá]ter|quinquies|sexies|septies|octies))?  # Latin suffixes
             )
+            (?:[\.,]\d{1,2})*                 # Apartados (NOT captured): .1, .23, ,2
+            (?:[\.,][ªº]|º|ª)?                # Ordinal markers (NOT captured): .ª, º
         """
         
         # Month names for date parsing
@@ -239,13 +244,16 @@ class ReferenceExtractor:
         )
         
         # Pattern 3: Abbreviated law references
-        # "art. 14 CE", "art. 1902 CC", "según la LOPJ"
+        # "art. 14 CE", "art. 1902 CC", "art. 1.428 de la LEC", "según la LOPJ"
+        # Note: Negative lookbehind (?<!\() prevents matching CE in "Reglamento (CE)"
         self._abbreviated_pattern = re.compile(
             r"""
             (?:
-                # With article number
-                (?:art[íi]culo|art\.?)\s*""" + self._article_num + r"""\s+
+                # With article number: "art. 14 CE" or "artículo 1.428 de la LEC"
+                (?:art[íi]culo|art\.?)\s*""" + self._article_num + r"""
+                (?:\s+(?:del?\s+)?(?:la\s+|el\s+)?)?  # Optional "de la", "del", "de", etc.
             )?
+            (?<!\()  # Negative lookbehind: not preceded by (
             (?P<abbreviation>
                 CE | CC | CP | ET |
                 LEC | LECrim | LECr |
@@ -316,8 +324,8 @@ class ReferenceExtractor:
             re.VERBOSE | re.UNICODE
         )
         
-        # Pattern 6: EU Legislation
-        # "Directiva 2006/123/CE", "Reglamento (UE) 2016/679"
+        # Pattern 6: EU legislation
+        # "Directiva 2006/123/CE", "Reglamento (UE) 2016/679", "Reglamento (CE) n.º 1221/2009"
         self._eu_pattern = re.compile(
             r"""
             (?P<eu_type>
@@ -327,7 +335,27 @@ class ReferenceExtractor:
             )
             \s*
             (?:\([A-Z]+\)\s*)?    # Optional (UE), (CE), etc.
+            (?:n\.?º?\s*)?        # Optional "n.º" prefix
             (?P<eu_number>\d{2,4}/\d+(?:/[A-Z]+)?)
+            """,
+            re.IGNORECASE | re.VERBOSE | re.UNICODE
+        )
+        
+        # Pattern 6b: EU Treaties (TFUE, TUE)
+        # "artículos 101 y 102 del Tratado de Funcionamiento de la Unión Europea"
+        # "artículo 2 del Tratado de la Unión Europea"
+        self._eu_treaty_pattern = re.compile(
+            r"""
+            (?:
+                (?:los\s+)?(?:art[íi]culos?|arts?\.?)\s*
+                (?P<article_list>\d+(?:\s*(?:,|y)\s*\d+)*)\s+
+            )?
+            (?:del?\s+)?
+            (?P<treaty_name>
+                Tratado\s+de\s+Funcionamiento\s+de\s+la\s+Uni[oó]n\s+Europea |
+                Tratado\s+de\s+la\s+Uni[oó]n\s+Europea |
+                TFUE | TUE
+            )
             """,
             re.IGNORECASE | re.VERBOSE | re.UNICODE
         )
@@ -397,6 +425,11 @@ class ReferenceExtractor:
         for match in self._eu_pattern.finditer(text):
             ref = self._parse_eu_match(match)
             add_match(ref)
+        
+        # 2b. EU Treaties (TFUE, TUE with article references)
+        for match in self._eu_treaty_pattern.finditer(text):
+            ref = self._parse_eu_treaty_match(match)
+            add_match(ref)
 
         # 3. Judicial decisions
         for match in self._judicial_pattern.finditer(text):
@@ -434,12 +467,44 @@ class ReferenceExtractor:
         if result.unresolved_references:
             self._log_unresolved(result)
         
-        logger.info(
+        logger.debug(
             f"Extracted {len(result.references)} references from {source_document_id}, "
             f"{len(result.unresolved_references)} unresolved"
         )
         
         return result
+
+    # ... (skipping methods in between to next match) ...
+
+    def _log_unresolved(self, result: ExtractionResult) -> None:
+        """Log unresolved references to JSON file for debugging."""
+        self.unresolved_log_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Load existing data or create new
+        if self.unresolved_log_path.exists():
+            with open(self.unresolved_log_path, 'r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    data = {"unresolved": []}
+        else:
+            data = {"unresolved": []}
+        
+        # Append new unresolved references
+        for ref in result.unresolved_references:
+            entry = {
+                "source_document": result.source_document_id,
+                "extraction_time": result.extraction_timestamp,
+                "reference": ref.to_dict()
+            }
+            data["unresolved"].append(entry)
+        
+        # Write back
+        with open(self.unresolved_log_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        logger.debug(f"Logged {len(result.unresolved_references)} unresolved references")
+
     
     def _parse_full_law_match(self, match: re.Match) -> ExtractedReference:
         """Parse a full law citation match."""
@@ -475,6 +540,29 @@ class ReferenceExtractor:
             reference_type=ReferenceType.EU_LEGISLATION,
             law_type=match.group("eu_type"),
             law_number=match.group("eu_number"),
+            is_external=True,
+            start_pos=match.start(),
+            end_pos=match.end()
+        )
+    
+    def _parse_eu_treaty_match(self, match: re.Match) -> ExtractedReference:
+        """Parse an EU treaty match (TFUE, TUE)."""
+        treaty_name = match.group("treaty_name")
+        article_list = match.group("article_list") if match.group("article_list") else None
+        
+        # Normalize treaty name to abbreviation
+        if "funcionamiento" in treaty_name.lower():
+            abbrev = "TFUE"
+        elif "unión" in treaty_name.lower() or "union" in treaty_name.lower():
+            abbrev = "TUE"
+        else:
+            abbrev = treaty_name.upper()
+        
+        return ExtractedReference(
+            raw_text=match.group(0),
+            reference_type=ReferenceType.EU_TREATY,
+            article_number=article_list,
+            abbreviation=abbrev,
             is_external=True,
             start_pos=match.start(),
             end_pos=match.end()
@@ -698,4 +786,4 @@ class ReferenceExtractor:
         with open(self.unresolved_log_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"Logged {len(result.unresolved_references)} unresolved references")
+        logger.debug(f"Logged {len(result.unresolved_references)} unresolved references")

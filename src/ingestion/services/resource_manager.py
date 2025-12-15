@@ -18,17 +18,16 @@ from src.ai.indexing.factory import IndexerFactory
 
 
 class ResourceManager:
-    def __init__(self, config: IngestionConfig, simulate_embeddings: bool = False):
+    def __init__(self, config: IngestionConfig, simulate_embeddings: bool = False, use_cache: bool = True):
         self.config = config
         self.simulate_embeddings = simulate_embeddings
-        
+        self.use_cache = use_cache
         # Resources
         self.connection: Optional[Neo4jConnection] = None
         self.adapter: Optional[Neo4jAdapter] = None
         self.embedding_cache: Optional[SQLiteEmbeddingCache] = None
         self.embedding_provider: Any = None
         self.indexer: Any = None
-        
         # Embedding Config
         self.embedding_config = EmbeddingConfig(
             model_name="models/gemini-embedding-001",
@@ -39,6 +38,8 @@ class ResourceManager:
 
     async def initialize(self):
         """Initialize all shared resources."""
+        from src.utils.logger import step_logger
+        
         # 1. Neo4j
         self.connection = Neo4jConnection(
             self.config.neo4j.uri,
@@ -48,8 +49,13 @@ class ResourceManager:
         self.adapter = Neo4jAdapter(self.connection)
         self.adapter.ensure_constraints()
         
-        # 2. Embedding Cache
-        self.embedding_cache = SQLiteEmbeddingCache("data/embeddings_cache.db")
+        # 2. Embedding Cache (conditional)
+        if self.use_cache:
+            self.embedding_cache = SQLiteEmbeddingCache("data/embeddings_cache.db")
+            step_logger.info("[ResourceManager] Embedding cache: ENABLED (SQLite)")
+        else:
+            self.embedding_cache = None
+            step_logger.info("[ResourceManager] Embedding cache: DISABLED (--clean mode)")
         
         # 3. Embedding Provider
         self.embedding_provider = EmbeddingFactory.create(
@@ -57,7 +63,8 @@ class ResourceManager:
             model=self.embedding_config.model_name,
             dimensions=self.embedding_config.dimensions,
             task_type=self.embedding_config.task_type,
-            simulate=self.simulate_embeddings
+            simulate=self.simulate_embeddings,
+            cache=self.embedding_cache
         )
         
         # 4. Indexer

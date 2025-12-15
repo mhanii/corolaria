@@ -1,0 +1,48 @@
+# Docker Compose for Coloraria API (Development)
+# Mounts source code for hot-reload - connects to external infrastructure network
+#
+# Prerequisites: 
+#   docker compose -f docker-compose.infrastructure.yml up -d
+#
+# Usage:
+#   docker compose -f docker-compose.api.dev.yml up -d
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      # Database (MariaDB via infrastructure network)
+      DATABASE_TYPE: ${DATABASE_TYPE:-mariadb}
+      MARIADB_URI: mysql+pymysql://coloraria_user:${MARIADB_PASSWORD:-coloraria_pass}@mariadb:3306/coloraria
+
+      # Neo4j connection
+      NEO4J_URI: neo4j://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
+
+      # Google AI
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+      # Observability (Phoenix on infrastructure network)
+      PHOENIX_ENABLED: ${PHOENIX_ENABLED:-true}
+      PHOENIX_ENDPOINT: ${PHOENIX_ENDPOINT:-http://phoenix:6006}
+    volumes:
+      # Shared data directory
+      - ${SHARED_DATA_PATH:-./data}:/app/data
+      # Mount source code (DEV ONLY - hot reload)
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./scripts:/app/scripts:ro
+    networks:
+      - coloraria
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  coloraria:
+    name: coloraria_network
+    external: true

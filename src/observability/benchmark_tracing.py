@@ -142,7 +142,7 @@ class BenchmarkSessionTracer:
     Usage:
         with BenchmarkSessionTracer(
             exam_name="OposicionesExam",
-            model_name="gemini-2.5-flash",
+            model_name="gemini-model-name",
             use_rag=True
         ) as session:
             # ... run all questions

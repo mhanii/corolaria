@@ -105,24 +105,32 @@ async def _async_retry_with_backoff(coro_func):
 class GeminiLLMProvider(LLMProvider):
     """
     LLM provider using Google Gemini models via google.genai SDK.
-    Default model: gemini-2.5-flash (fast, cost-effective)
-    Alternative: gemini-1.5-pro (more capable)
+    Default model: Loaded from config (e.g. gemini-2.5-flash)
     
     Uses the new google.genai SDK which is properly instrumented by
     openinference-instrumentation-google-genai for Phoenix token tracking.
     """
     
-    DEFAULT_SYSTEM_PROMPT = """You are a legal assistant answering questions based solely on provided context.
-Always cite sources using [cite:ID]article text[/cite] format where ID matches the source identifier.
-Be concise and accurate. If context lacks relevant info, say so clearly."""
-    
     def __init__(
         self, 
-        model: str = "gemini-2.5-flash",
-        temperature: float = 1,
-        max_tokens: int = 8192,
+        model: str = None,
+        temperature: float = None,
+        max_tokens: int = None,
         api_key: Optional[str] = None
     ):
+        # Load config for defaults
+        from src.config import get_llm_config, get_prompt
+        config = get_llm_config()
+        
+        self.default_system_prompt = get_prompt(
+            "llm_default_system_prompt",
+            "You are a legal assistant. Cite sources."
+        )
+        
+        model = model or config.get("model", "gemini-2.5-flash")
+        temperature = temperature if temperature is not None else config.get("temperature", 0.3)
+        max_tokens = max_tokens if max_tokens is not None else config.get("max_tokens", 8192)
+        
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
         
         if genai is None:
@@ -185,7 +193,7 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         Returns:
             LLMResponse with generated content
         """
-        system = system_prompt or self.DEFAULT_SYSTEM_PROMPT
+        system = system_prompt or self.default_system_prompt
         
         # Build prompt with context
         prompt_parts = []
@@ -278,8 +286,10 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         **kwargs
     ) -> LLMResponse:
         """
-        Async generation using Gemini.
-        Note: Currently wraps sync call; Gemini SDK async support is limited.
+        Async generation using Gemini's async API.
+        
+        Uses client.aio.models.generate_content for true async operation
+        that doesn't block the event loop.
         
         Args:
             messages: Conversation history
@@ -290,9 +300,111 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         Returns:
             LLMResponse with generated content
         """
-        # Gemini SDK doesn't have full async support yet
-        # Using sync version for now
-        return self.generate(messages, context, system_prompt, **kwargs)
+        import asyncio
+        
+        system = system_prompt or self.default_system_prompt
+        
+        # Build prompt with context
+        prompt_parts = []
+        
+        if context:
+            prompt_parts.append(f"{system}\n\n---\nCONTEXT:\n{context}\n---\n")
+        else:
+            prompt_parts.append(f"{system}\n\n")
+        
+        for msg in messages:
+            if msg.role == "user":
+                prompt_parts.append(f"User: {msg.content}\n")
+            elif msg.role == "assistant":
+                prompt_parts.append(f"Assistant: {msg.content}\n")
+        
+        full_prompt = "".join(prompt_parts)
+        
+        step_logger.info(f"[GeminiLLMProvider] Async generating response (prompt_len={len(full_prompt)})")
+        
+        # Retry logic for async
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                # Use async API: client.aio.models.generate_content
+                response = await self._client.aio.models.generate_content(
+                    model=self._model_name,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=self._temperature,
+                        safety_settings=self._safety_settings
+                    )
+                )
+                
+                # Extract usage info
+                usage = {}
+                if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                    usage = {
+                        "prompt_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0),
+                        "completion_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0),
+                        "total_tokens": getattr(response.usage_metadata, 'total_token_count', 0)
+                    }
+                    step_logger.info(f"[GeminiLLMProvider] Token usage: {usage}")
+                
+                # Handle response
+                finish_reason = "stop"
+                content = ""
+                
+                if response.candidates:
+                    candidate = response.candidates[0]
+                    finish_reason_raw = getattr(candidate, 'finish_reason', None)
+                    
+                    if finish_reason_raw:
+                        if hasattr(finish_reason_raw, 'name'):
+                            finish_reason = finish_reason_raw.name.lower()
+                        else:
+                            finish_reason = str(finish_reason_raw).lower()
+                    
+                    if finish_reason == "safety":
+                        step_logger.warning("[GeminiLLMProvider] Response blocked by safety filters")
+                        content = ("Lo siento, no puedo responder a esa pregunta porque el contenido "
+                                   "ha sido bloqueado por los filtros de seguridad. Por favor, reformula "
+                                   "tu consulta de manera diferente.")
+                    elif candidate.content and candidate.content.parts:
+                        content = candidate.content.parts[0].text
+                    else:
+                        content = ""
+                else:
+                    content = "No se pudo generar una respuesta. Por favor, intenta de nuevo."
+                
+                step_logger.info(f"[GeminiLLMProvider] Async generated response (len={len(content)})")
+                
+                return LLMResponse(
+                    content=content,
+                    model=self.model,
+                    usage=usage,
+                    finish_reason=finish_reason,
+                    metadata={"provider": "gemini", "async": True}
+                )
+                
+            except Exception as e:
+                last_exception = e
+                error_str = str(e).lower()
+                
+                is_transient = any(x in error_str for x in [
+                    '429', 'resource_exhausted', 'rate limit', 'quota',
+                    '503', 'unavailable', 'overloaded',
+                    '500', '502', '504', 'server error',
+                    'timeout', 'connection'
+                ])
+                
+                if not is_transient or attempt == MAX_RETRIES - 1:
+                    step_logger.error(f"[GeminiLLMProvider] Async generation failed: {e}")
+                    raise
+                
+                delay = BASE_DELAY * (2 ** attempt)
+                step_logger.warning(
+                    f"[GeminiLLMProvider] Transient error in async, retrying in {delay}s "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
+                await asyncio.sleep(delay)
+        
+        raise last_exception
     
     def generate_stream(
         self, 
@@ -320,7 +432,7 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         Returns:
             LLMResponse with final content and usage (via generator return)
         """
-        system = system_prompt or self.DEFAULT_SYSTEM_PROMPT
+        system = system_prompt or self.default_system_prompt
         
         # Build prompt with context
         prompt_parts = []
@@ -431,14 +543,13 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         **kwargs
     ):
         """
-        Async streaming generation using Gemini.
+        Async streaming generation using Gemini's native async streaming API.
+        
+        Uses client.aio.models.generate_content_stream for true async streaming
+        that doesn't block the event loop. Each chunk is fetched asynchronously.
         
         Includes automatic retry with exponential backoff for transient errors
-        like 429 RESOURCE_EXHAUSTED and 503 UNAVAILABLE. If an error occurs
-        during streaming, the entire operation is retried from the beginning.
-        
-        Note: Gemini SDK async streaming support is limited.
-        This wraps the sync streaming for async contexts.
+        like 429 RESOURCE_EXHAUSTED and 503 UNAVAILABLE.
         
         Args:
             messages: Conversation history
@@ -451,7 +562,7 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         """
         import asyncio
         
-        system = system_prompt or self.DEFAULT_SYSTEM_PROMPT
+        system = system_prompt or self.default_system_prompt
         
         # Build prompt with context
         prompt_parts = []
@@ -476,8 +587,8 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         
         for attempt in range(MAX_RETRIES):
             try:
-                # Use streaming API
-                response_stream = self._client.models.generate_content_stream(
+                # Use TRUE async streaming API: client.aio.models.generate_content_stream
+                response_stream = await self._client.aio.models.generate_content_stream(
                     model=self._model_name,
                     contents=full_prompt,
                     config=types.GenerateContentConfig(
@@ -490,8 +601,8 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
                 usage = {}
                 finish_reason = "stop"
                 
-                # Iterate through stream - errors here will also trigger retry
-                for chunk in response_stream:
+                # Async iteration through stream - truly non-blocking
+                async for chunk in response_stream:
                     if chunk.candidates:
                         candidate = chunk.candidates[0]
                         if candidate.content and candidate.content.parts:
@@ -513,9 +624,6 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
                             "completion_tokens": getattr(chunk.usage_metadata, 'candidates_token_count', 0),
                             "total_tokens": getattr(chunk.usage_metadata, 'total_token_count', 0)
                         }
-                    
-                    # Yield control to event loop periodically
-                    await asyncio.sleep(0)
                 
                 # Success! Streaming completed without error
                 final_content = "".join(full_content)
@@ -526,7 +634,7 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
                     model=self.model,
                     usage=usage,
                     finish_reason=finish_reason,
-                    metadata={"provider": "gemini", "streaming": True}
+                    metadata={"provider": "gemini", "streaming": True, "async": True}
                 )
                 
                 # Yield final response marker
@@ -558,3 +666,108 @@ Be concise and accurate. If context lacks relevant info, say so clearly."""
         # All retries exhausted
         if last_exception:
             raise last_exception
+
+    # ----------------------------------------------------------------------
+    # Batch Processing Methods
+    # ----------------------------------------------------------------------
+
+    def create_batch_job(
+        self,
+        dataset_source: str,
+        display_name: Optional[str] = None
+    ) -> Any:
+        """
+        Create a batch prediction job using Google Gemini.
+        
+        Args:
+            dataset_source: URI of the input dataset (e.g., gs://... or format supported by SDK or File API URI)
+                           For google.genai SDK, this might be a File object name or GCS URI.
+            display_name: Optional name for the job
+            
+        Returns:
+            Job object or job info
+        """
+        step_logger.info(f"[GeminiLLMProvider] Creating batch job: {display_name} source={dataset_source}")
+        
+        # Using the new google.genai SDK batch API
+        # Reference: client.batches.create(...)
+        
+        try:
+             # Assuming we are using the 'batches' service in the new SDK
+             # If dataset_source is a local file, we might need to upload it first using client.files.upload
+             # But here we assume the caller handles file upload if needed and passes the URI/name
+             
+             job = self._client.batches.create(
+                 model=self._model_name,
+                 src=dataset_source,
+                 config=types.CreateBatchJobConfig(
+                     display_name=display_name
+                 )
+             )
+             step_logger.info(f"[GeminiLLMProvider] Batch job created: {job.name} (state={job.state})")
+             return job
+        except Exception as e:
+            step_logger.error(f"[GeminiLLMProvider] Failed to create batch job: {e}")
+            raise
+
+    def get_batch_job(self, job_name: str) -> Any:
+        """Get the status of a batch job."""
+        try:
+            return self._client.batches.get(name=job_name)
+        except Exception as e:
+            step_logger.error(f"[GeminiLLMProvider] Failed to get batch job {job_name}: {e}")
+            raise
+
+    def list_batch_jobs(self, limit: int = 10) -> List[Any]:
+        """List recent batch jobs."""
+        try:
+            return list(self._client.batches.list(config=types.ListBatchJobsConfig(page_size=limit)))
+        except Exception as e:
+            step_logger.error(f"[GeminiLLMProvider] Failed to list batch jobs: {e}")
+            raise
+
+    def upload_file_for_batch(self, file_path: str) -> str:
+        """
+        Upload a local file to be used for batch processing.
+        Returns the file reference/URI.
+        """
+        try:
+            step_logger.info(f"[GeminiLLMProvider] Uploading file for batch: {file_path}")
+            
+            # Determine mime_type
+            mime_type = None
+            if file_path.endswith(".jsonl"):
+                mime_type = "application/json"
+            
+            # The new SDK uses 'file' argument for path/file-like object
+            # and requires mime_type if it can't be inferred
+            kwargs = {"file": file_path}
+            if mime_type:
+                kwargs["config"] = types.UploadFileConfig(mime_type=mime_type)
+
+            # Note: SDK signature for upload might vary. 
+            # Trying plain arguments if config object is not the way (SDK dependent).
+            # Some versions use `mime_type` directly in upload().
+            # Let's try passing mime_type directly if supported, or via config.
+            # Based on common client patterns: client.files.upload(file=..., config=...)
+            
+            # However, looking at the user error, the SDK seems to be `google.genai`.
+            # Let's try passing mime_type as a direct kwarg to upload() first if possible, 
+            # or try to set it via the config param if that fails?
+            # Actually, standard google.genai often takes `config=...`.
+            
+            # SAFEST APPROACH based on "please set the `mime_type` argument" error:
+            # The error says "please set the `mime_type` argument".
+            # This implies `upload(..., mime_type=...)`.
+            
+            if mime_type:
+                file_obj = self._client.files.upload(file=file_path, config=types.UploadFileConfig(mime_type=mime_type))
+            else:
+                file_obj = self._client.files.upload(file=file_path)
+
+            step_logger.info(f"[GeminiLLMProvider] File uploaded: {file_obj.name} ({file_obj.uri})")
+            return file_obj.name
+        except Exception as e:
+            step_logger.error(f"[GeminiLLMProvider] Failed to upload file: {e}")
+            raise
+

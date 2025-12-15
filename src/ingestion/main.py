@@ -80,6 +80,112 @@ async def fetch_law_ids_from_api(offset: int = 0, limit: int = 100) -> List[str]
         return law_ids
 
 
+def load_eu_celex_list(file_path: str = "config/eu_celex_top50.txt") -> List[str]:
+    """
+    Load EU CELEX numbers from a text file.
+    
+    Args:
+        file_path: Path to file with CELEX numbers (one per line)
+        
+    Returns:
+        List of CELEX numbers
+    """
+    import os
+    
+    # Handle relative path from project root
+    if not os.path.isabs(file_path):
+        # Try from current working directory first
+        if not os.path.exists(file_path):
+            # Try from project root based on this file's location
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            file_path = os.path.join(project_root, file_path)
+    
+    celex_list = []
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                # Strip whitespace and skip empty lines/comments
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                # Extract just the CELEX number (ignore inline comments)
+                celex = line.split('#')[0].split()[0] if line else ''
+                if celex:
+                    celex_list.append(celex)
+        
+        step_logger.info(f"[EU] Loaded {len(celex_list)} CELEX numbers from {file_path}")
+        return celex_list
+    except FileNotFoundError:
+        step_logger.warning(f"[EU] CELEX list file not found: {file_path}")
+        return []
+
+
+def run_eu_batch_ingestion(
+    celex_list: List[str],
+    language: str = "ES",
+    config: Optional[IngestionConfig] = None,
+    no_tracing: bool = False
+) -> dict:
+    """
+    Run EU ingestion for multiple documents sequentially.
+    
+    Args:
+        celex_list: List of CELEX numbers to ingest
+        language: Language code for documents
+        config: Optional configuration override
+        no_tracing: Whether to disable tracing
+        
+    Returns:
+        Dict with batch results: {successful, failed, total, results}
+    """
+    config = config or IngestionConfig.from_env()
+    
+    results = {
+        "successful": 0,
+        "failed": 0,
+        "total": len(celex_list),
+        "results": []
+    }
+    
+    step_logger.info(f"[EU Batch] Starting ingestion of {len(celex_list)} EU documents")
+    
+    for i, celex in enumerate(celex_list, 1):
+        step_logger.info(f"[EU Batch] Processing {i}/{len(celex_list)}: {celex}")
+        
+        try:
+            result = run_eu_ingestion(celex, language, config, dry_run=False)
+            
+            if result.status == IngestionStatus.SUCCESS:
+                results["successful"] += 1
+                step_logger.info(f"  ✓ {celex}: {result.nodes_created} nodes in {result.duration_seconds:.1f}s")
+            else:
+                results["failed"] += 1
+                step_logger.warning(f"  ✗ {celex}: {result.error_message}")
+            
+            results["results"].append({
+                "celex": celex,
+                "success": result.status == IngestionStatus.SUCCESS,
+                "nodes_created": result.nodes_created if result.status == IngestionStatus.SUCCESS else 0,
+                "duration": result.duration_seconds,
+                "error": result.error_message if result.status != IngestionStatus.SUCCESS else None
+            })
+            
+        except Exception as e:
+            results["failed"] += 1
+            step_logger.error(f"  ✗ {celex}: {e}")
+            results["results"].append({
+                "celex": celex,
+                "success": False,
+                "nodes_created": 0,
+                "duration": 0,
+                "error": str(e)
+            })
+    
+    step_logger.info(f"[EU Batch] Complete: {results['successful']}/{results['total']} successful")
+    return results
+
+
+
 @contextmanager
 def ingestion_lifecycle(config: Optional[IngestionConfig] = None):
     """
@@ -520,6 +626,22 @@ Examples:
         default="ES",
         help="Language for EU documents (default: ES)"
     )
+    parser.add_argument(
+        "--include-eu",
+        action="store_true",
+        help="Also ingest EU documents from config/eu_celex_top50.txt after BOE ingestion"
+    )
+    parser.add_argument(
+        "--eu-file",
+        type=str,
+        default="config/eu_celex_top50.txt",
+        help="Path to file with EU CELEX numbers (default: config/eu_celex_top50.txt)"
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable embedding cache (fresh embeddings, no cache reads/writes)"
+    )
     
     args = parser.parse_args()
     
@@ -555,14 +677,22 @@ Examples:
             # Batch mode: concurrent ingestion
             import asyncio
             
-            # Read law IDs from file
+            # Run EU ingestion FIRST if --include-eu is specified
+            eu_results = None
+            if args.include_eu:
+                step_logger.info("=== Starting EU Document Ingestion ===")
+                celex_list = load_eu_celex_list(args.eu_file)
+                if celex_list:
+                    eu_results = run_eu_batch_ingestion(celex_list, args.language, config)
+                    step_logger.info(f"EU ingestion: {eu_results['successful']}/{eu_results['total']} successful\n")
+            
+            # Read BOE law IDs from file
             with open(args.batch, 'r') as f:
                 law_ids = [line.strip() for line in f if line.strip() and not line.startswith('#')]
             
-            step_logger.info(f"Batch mode: {len(law_ids)} law IDs loaded from {args.batch}")
+            step_logger.info(f"=== Starting BOE Ingestion: {len(law_ids)} laws ===")
             
             # Always use Decoupled 3-pool producer-consumer mode
-            # (Legacy concurrent orchestrator has been deprecated)
             from src.ingestion.orchestrator import DecoupledIngestionOrchestrator
             
             step_logger.info(f"Decoupled mode: CPU={args.cpu_workers}, Network={args.network_workers}, Disk={args.disk_workers}")
@@ -578,6 +708,7 @@ Examples:
                 scatter_chunk_size=args.scatter_chunk_size,
                 skip_embeddings=args.skip_embeddings,
                 simulate_embeddings=args.simulate,
+                embedding_cache=not args.no_cache,
                 config=config
             )
             
@@ -609,19 +740,34 @@ Examples:
                 for doc in result.document_results:
                     if not doc.success:
                         step_logger.warning(f"    - {doc.law_id}: {doc.error_message}")
+            
+            # Show combined summary if EU was also ingested
+            if eu_results:
+                step_logger.info(f"\n✓ Combined ingestion complete:")
+                step_logger.info(f"  BOE: {result.successful}/{result.total_documents} documents")
+                step_logger.info(f"  EU:  {eu_results['successful']}/{eu_results['total']} documents")
         
         elif args.automatic:
             # Automatic mode: fetch law IDs from BOE API
             import asyncio
             
-            # Fetch law IDs from API
+            # Run EU ingestion FIRST if --include-eu is specified
+            eu_results = None
+            if args.include_eu:
+                step_logger.info("=== Starting EU Document Ingestion ===")
+                celex_list = load_eu_celex_list(args.eu_file)
+                if celex_list:
+                    eu_results = run_eu_batch_ingestion(celex_list, args.language, config)
+                    step_logger.info(f"EU ingestion: {eu_results['successful']}/{eu_results['total']} successful\n")
+            
+            # Fetch BOE law IDs from API
             law_ids = asyncio.run(fetch_law_ids_from_api(args.offset, args.limit))
             
             if not law_ids:
                 step_logger.error("No law IDs fetched from BOE API")
                 sys.exit(1)
             
-            step_logger.info(f"Automatic mode: {len(law_ids)} law IDs to process")
+            step_logger.info(f"=== Starting BOE Ingestion: {len(law_ids)} laws ===")
             
             # Use same orchestrator as batch mode
             from src.ingestion.orchestrator import DecoupledIngestionOrchestrator
@@ -639,6 +785,7 @@ Examples:
                 scatter_chunk_size=args.scatter_chunk_size,
                 skip_embeddings=args.skip_embeddings,
                 simulate_embeddings=args.simulate,
+                embedding_cache=not args.no_cache,
                 config=config
             )
             
@@ -670,6 +817,12 @@ Examples:
                 for doc in result.document_results:
                     if not doc.success:
                         step_logger.warning(f"    - {doc.law_id}: {doc.error_message}")
+            
+            # Show combined summary if EU was also ingested
+            if eu_results:
+                step_logger.info(f"\n✓ Combined ingestion complete:")
+                step_logger.info(f"  BOE: {result.successful}/{result.total_documents} documents")
+                step_logger.info(f"  EU:  {eu_results['successful']}/{eu_results['total']} documents")
         
         elif args.source == "eu" and args.celex:
             # EU document ingestion

@@ -314,18 +314,18 @@ def get_chat_service_with_collector(
     from src.domain.services.langgraph_chat_service import LangGraphChatService
     from src.ai.citations.citation_engine import CitationEngine
     from src.ai.prompts.prompt_builder import PromptBuilder
-    from src.infrastructure.sqlite.base import init_database
-    from src.infrastructure.sqlite.conversation_repository import ConversationRepository
-    from src.infrastructure.sqlite.checkpointer import get_checkpointer
+    from src.infrastructure.database import get_database_connection
+    from src.infrastructure.database.repository_factory import get_conversation_repository
+    from src.infrastructure.database.checkpointer import get_checkpointer
     
     config = get_config()
     adapter = Neo4jAdapter(connection)
     
-    # Initialize SQLite and get repositories
-    sqlite_conn = init_database()
-    conversation_repo = ConversationRepository(sqlite_conn)
+    # Get database connection and repositories (uses MariaDB or SQLite based on config)
+    db_conn = get_database_connection()
+    conversation_repo = get_conversation_repository(db_conn)
     
-    # Get SQLite checkpointer for LangGraph state persistence
+    # Get checkpointer for LangGraph state persistence (MariaDB or SQLite)
     checkpointer = get_checkpointer()
     
     # Create the appropriate context collector
@@ -371,18 +371,18 @@ def get_chat_service_with_user(
     from src.domain.services.langgraph_chat_service import LangGraphChatService
     from src.ai.citations.citation_engine import CitationEngine
     from src.ai.prompts.prompt_builder import PromptBuilder
-    from src.infrastructure.sqlite.base import init_database
-    from src.infrastructure.sqlite.conversation_repository import ConversationRepository
-    from src.infrastructure.sqlite.checkpointer import get_checkpointer
+    from src.infrastructure.database import get_database_connection
+    from src.infrastructure.database.repository_factory import get_conversation_repository
+    from src.infrastructure.database.checkpointer import get_checkpointer
     
     config = get_config()
     adapter = Neo4jAdapter(connection)
     
-    # Initialize SQLite and get repositories
-    sqlite_conn = init_database()
-    conversation_repo = ConversationRepository(sqlite_conn)
+    # Get database connection and repositories (uses MariaDB or SQLite based on config)
+    db_conn = get_database_connection()
+    conversation_repo = get_conversation_repository(db_conn)
     
-    # Get SQLite checkpointer for LangGraph state persistence
+    # Get checkpointer for LangGraph state persistence (MariaDB or SQLite)
     checkpointer = get_checkpointer()
     
     chat_service = LangGraphChatService(

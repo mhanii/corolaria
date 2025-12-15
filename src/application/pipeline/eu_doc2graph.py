@@ -75,6 +75,9 @@ class EUDoc2Graph(Pipeline):
         self.indexer.create_index()
         
         # 4. Build pipeline steps
+        # Create shared embedding cache
+        embedding_cache = SQLiteEmbeddingCache("data/embeddings_cache.db")
+        
         steps = [
             # Step 1: Fetch HTML from EUR-Lex
             EUDataRetriever(
@@ -93,9 +96,10 @@ class EUDoc2Graph(Pipeline):
                     provider="gemini",
                     model=self.embedding_config.model_name,
                     dimensions=self.embedding_config.dimensions,
-                    task_type=self.embedding_config.task_type
+                    task_type=self.embedding_config.task_type,
+                    cache=embedding_cache  # Pass cache to provider!
                 ),
-                cache=SQLiteEmbeddingCache("data/embeddings_cache.db")
+                cache=embedding_cache
             ),
             
             # Step 4: Persist to Neo4j

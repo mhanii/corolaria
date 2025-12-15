@@ -9,6 +9,12 @@ Usage:
 Examples:
     python scripts/create_user.py tester1 securepass123
     python scripts/create_user.py admin adminpass --tokens 5000
+    
+Note: Uses the configured database (MariaDB by default).
+      Set DATABASE_TYPE=sqlite to use SQLite instead.
+      
+      For local development, add to .env:
+      MARIADB_URI=mysql+pymysql://coloraria_user:coloraria_pass@localhost:3306/coloraria
 """
 import sys
 import os
@@ -17,8 +23,13 @@ import argparse
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.infrastructure.sqlite.base import init_database
-from src.infrastructure.sqlite.user_repository import UserRepository
+# Load .env file for local development
+from dotenv import load_dotenv
+load_dotenv()
+
+# Use the database abstraction layer
+from src.infrastructure.database import get_database_connection
+from src.infrastructure.database.repository_factory import get_user_repository
 
 
 def main():
@@ -58,12 +69,13 @@ Examples:
         print("Error: Password must be at least 6 characters")
         sys.exit(1)
     
-    # Initialize database
-    print("Initializing database...")
-    connection = init_database()
+    # Get database connection (uses DATABASE_TYPE env var or config)
+    db_type = os.getenv("DATABASE_TYPE", "mariadb")
+    print(f"Initializing database ({db_type})...")
+    connection = get_database_connection()
     
-    # Create repository
-    user_repo = UserRepository(connection)
+    # Create repository using the factory
+    user_repo = get_user_repository(connection)
     
     # Determine token allocation
     if args.tokens is not None:

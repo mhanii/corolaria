@@ -12,6 +12,7 @@ from src.api.v1 import chat_endpoints as v1_chat
 from src.api.v1 import article_endpoints as v1_article
 from src.api.v1 import auth_endpoints as v1_auth
 from src.api.v1 import beta_endpoints as v1_beta
+from src.api.v1 import analytics_endpoints as v1_analytics
 from src.utils.logger import step_logger
 from src.observability import setup_phoenix_tracing, shutdown_phoenix_tracing
 
@@ -149,6 +150,13 @@ app.include_router(
     tags=["Beta Testing"]
 )
 
+# Include v1 analytics router
+app.include_router(
+    v1_analytics.router,
+    prefix="/api/v1",
+    tags=["Analytics"]
+)
+
 
 # Root endpoint
 @app.get(
@@ -181,7 +189,10 @@ async def root():
             "article_versions": "/api/v1/article/{node_id}/versions",
             "beta_status": "/api/v1/beta/status",
             "beta_feedback": "/api/v1/beta/feedback",
-            "beta_survey": "/api/v1/beta/survey"
+            "beta_survey": "/api/v1/beta/survey",
+            "analytics_summary": "/api/v1/analytics/summary",
+            "analytics_daily": "/api/v1/analytics/daily",
+            "analytics_events": "/api/v1/analytics/events"
         }
     }
 

@@ -1,11 +1,57 @@
 # Coloraria Configuration
 # All parameters externalized for easy tuning
 
+# Database Configuration
+database:
+  type: "mariadb"  # "sqlite" | "mariadb" (override with DATABASE_TYPE env var)
+  
+  # SQLite (for local dev/fallback)
+  sqlite:
+    path: "data/coloraria.db"
+  
+  # MariaDB (for production & concurrent access)
+  mariadb:
+    host: "mariadb"  # Docker service name
+    port: 3306
+    database: "coloraria"
+    user: "coloraria_user"
+    password: ""  # Set via MARIADB_PASSWORD env var
+    pool_size: 10
+    pool_recycle: 3600  # Recycle connections after 1 hour
+    # Connection string can also be set via MARIADB_URI env var
+
 llm:
-  provider: "gemini"  # gemini | openai | anthropic
-  model: "gemini-2.5-flash"  # or gemini-2.5-pro for more capability
+  # Legacy single-provider config (used if resilient mode disabled)
+  provider: "gemini"
+  model: "gemini-2.0-flash"
   temperature: 1
   max_tokens: 10240000
+  
+  # Resilient multi-provider mode
+  resilient:
+    enabled: true  # Set to false to use single provider above
+    
+    # Main provider (most used, reliable)
+    main:
+      provider: "gemini"
+      model: "gemini-2.5-flash"
+      temperature: 1
+      retries: 3
+      delays: [2, 4, 8]  # seconds between retries
+    
+    # Backup provider (used if main fails)
+    backup:
+      provider: "gemini"
+      model: "gemini-2.0-flash"
+      temperature: 1
+      retries: 2
+      delays: [2, 4]
+    
+    # Fallback provider (last resort, most reliable)
+    fallback:
+      provider: "azure_openai"
+      model: "gpt-5-mini"
+      temperature: 1
 
 retrieval:
   top_k: 10
@@ -38,6 +84,20 @@ observability:
 # Workflow Configuration
 workflow:
   use_langgraph: true  # Use LangGraph for chat workflow orchestration
+
+# Agent Collector Configuration
+agent:
+  provider: "azure_openai"  # gemini | openai | azure_openai (can differ from main llm provider)
+  max_iterations: 5     # Maximum agent loop iterations
+  model: "gpt-5-mini"  # Model name for Gemini, or deployment name for Azure OpenAI
+  temperature: 1      # Lower temperature for more focused tool use
+  # azure_api_version: "2024-12-01-preview"  # For Azure OpenAI
+
+
+# Benchmark Configuration
+benchmark:
+  model: "gemini-2.5-flash" # Independent model for benchmarks
+  temperature: 1          # Benchmarks usually require lower temperature
 
 # Beta Testing Configuration
 beta_testing:

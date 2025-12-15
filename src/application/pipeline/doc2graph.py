@@ -40,6 +40,9 @@ class Doc2Graph(Pipeline):
         self.indexer = IndexerFactory.create("neo4j", self.embedding_config, adapter=self._adapter)
         self.indexer.create_index()
         
+        # 4. Create shared embedding cache
+        embedding_cache = SQLiteEmbeddingCache("data/embeddings_cache.db")
+        
         steps = [
             DataRetriever(name="data_retriever", search_criteria=law_id),
             DataProcessor(name="data_processor"),
@@ -49,9 +52,10 @@ class Doc2Graph(Pipeline):
                     provider="gemini", 
                     model=self.embedding_config.model_name,
                     dimensions=self.embedding_config.dimensions,
-                    task_type=self.embedding_config.task_type
+                    task_type=self.embedding_config.task_type,
+                    cache=embedding_cache  # Pass cache to provider!
                 ),
-                cache=SQLiteEmbeddingCache("data/embeddings_cache.db")
+                cache=embedding_cache
             ),
             # Share adapter with GraphConstruction (single connection)
             GraphConstruction(name="graph_construction", adapter=self._adapter),

@@ -1,0 +1,35 @@
+# Coloraria API Service
+# Python 3.12 (standard) with uv package manager
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+LABEL org.opencontainers.image.description="Coloraria API - FastAPI with Python 3.12"
+
+WORKDIR /app
+
+# Copy dependency files first (Docker layer caching)
+COPY pyproject.toml uv.lock ./
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies (inference group for LangGraph, Phoenix, etc.)
+RUN uv sync --frozen --no-dev --group inference
+
+# Copy application code
+COPY src/ ./src/
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+
+# Create data directory for SQLite databases
+RUN mkdir -p /app/data
+
+# Environment
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Expose API port
+EXPOSE 8000
+
+# Run FastAPI with uvicorn (10 workers for production concurrency)
+ENTRYPOINT ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "10"]

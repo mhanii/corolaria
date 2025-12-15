@@ -1,45 +1,36 @@
-# Use uv base image
+# Coloraria Ingestion Pipeline
+# Python 3.14t (free-threaded) with uv package manager
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
-# Enable Docker BuildKit features
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
-# Install build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    python3-dev \
-    libxml2-dev \
-    libxslt-dev \
-    && rm -rf /var/lib/apt/lists/*
+LABEL org.opencontainers.image.description="Coloraria Ingestion Pipeline - Python 3.14t No-GIL"
 
 WORKDIR /app
 
-# 1. Install Python 3.14t
-RUN uv python install 3.14t
-
-# 2. Copy only configuration files first to protect dependency cache
+# Copy dependency files first (Docker layer caching)
 COPY pyproject.toml uv.lock ./
 
-# 3. Mount the uv cache and sync dependencies
-# --no-install-project skips installing the current package (src), 
-# caching only the heavy dependencies like lxml.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --group ingestion --no-install-project --python 3.14t
+# -----------------------------------------------------------
+# 🛠️ THE FIX IS HERE:
+# 1. Explicitly install the Free-Threaded (t) version
+# -----------------------------------------------------------
+RUN uv python install 3.14t
 
-# 4. Copy application code (changes here won't trigger re-compilation of lxml)
+# -----------------------------------------------------------
+# 2. Tell 'uv sync' to use that specific "t" version
+#    (Otherwise it defaults to the standard system python)
+# -----------------------------------------------------------
+RUN uv sync --frozen --no-dev --group ingestion --python 3.14t
+
+# Copy application code
 COPY src/ ./src/
 COPY config/ ./config/
 
-# 5. Final sync to include the project itself (very fast)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --group ingestion --python 3.14t
-
-# Create data directory
+# Create data directory for SQLite cache
 RUN mkdir -p /app/data
 
-# Environment setup
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+# Environment
 ENV PATH="/app/.venv/bin:$PATH"
+# Now this variable is safe because the python binary supports it!
+ENV PYTHON_GIL=0
 
 ENTRYPOINT ["python", "-m", "src.ingestion.main"]

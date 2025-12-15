@@ -58,30 +58,42 @@ class EUHTMLProcessor(Step):
     
     def process(self, data: dict) -> Tuple[Optional[EUNormativa], List]:
         """
-        Process EU HTML document into domain models.
+        Process EU document into domain models.
+        
+        Supports two formats:
+        1. HTML from EUR-Lex public endpoint
+        2. Text format from local cached files ([TITULO], [ARTICULO] markers)
         
         Args:
             data: Dictionary with keys:
-                - 'html': HTML content string
+                - 'html': HTML/text content string
                 - 'celex': CELEX number
                 - 'language': Language code (optional)
+                - 'source': 'local' or 'eurlex' (optional)
                 
         Returns:
             Tuple of (EUNormativa, change_events)
         """
-        html_content = data.get('html') or data.get('content')
+        content = data.get('html') or data.get('content')
         celex = data.get('celex', '')
+        source = data.get('source', 'eurlex')
         
-        if not html_content:
+        if not content:
             logger.warning("No HTML content provided")
             return None, []
         
         # Handle bytes
-        if isinstance(html_content, bytes):
-            html_content = html_content.decode('utf-8')
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
         
+        # Detect format: text format uses [TITULO], [ARTICULO] markers
+        if self._is_text_format(content):
+            logger.info(f"Detected text format for {celex}, using text parser")
+            return self._parse_text_format(content, celex)
+        
+        # HTML format
         try:
-            doc = lhtml.fromstring(html_content.encode('utf-8'))
+            doc = lhtml.fromstring(content.encode('utf-8'))
         except Exception as e:
             logger.error(f"Failed to parse HTML: {e}")
             return None, []
@@ -106,6 +118,151 @@ class EUHTMLProcessor(Step):
         logger.info(f"Parsed EU HTML document: {celex} with {article_count} articles")
         
         return normativa, []
+    
+    def _is_text_format(self, content: str) -> bool:
+        """Check if content is in local text format (not HTML)."""
+        # Text format starts with header or has [TITULO]/[ARTICULO] markers
+        if content.strip().startswith('=' * 10):
+            return True
+        if '[TITULO]' in content[:1000] or '[ARTICULO]' in content[:2000]:
+            return True
+        # HTML typically starts with < and has html/body tags
+        if content.strip().startswith('<') and ('<html' in content[:500].lower() or '<body' in content[:500].lower()):
+            return False
+        return '[ARTICULO]' in content  # Fallback check
+    
+    def _parse_text_format(self, content: str, celex: str) -> Tuple[Optional[EUNormativa], List]:
+        """Parse local cached text format into domain models."""
+        lines = content.split('\n')
+        
+        # Extract header metadata
+        title = ""
+        doc_type = None
+        
+        for line in lines[:10]:
+            if line.startswith('TÍTULO:'):
+                title = line.replace('TÍTULO:', '').strip()
+            elif line.startswith('TIPO:'):
+                type_str = line.replace('TIPO:', '').strip()
+                if 'TREATY' in type_str:
+                    doc_type = EUDocumentType.TREATY
+                elif 'REGULATION' in type_str:
+                    doc_type = EUDocumentType.REGULATION
+                elif 'DIRECTIVE' in type_str:
+                    doc_type = EUDocumentType.DIRECTIVE
+        
+        # Build metadata
+        metadata = EUMetadata(
+            celex_number=celex,
+            document_type=doc_type or celex_to_document_type(celex),
+            title=title or f"EU Document {celex}",
+            url_eurlex=f"https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:{celex}"
+        )
+        
+        # Build content tree from text markers
+        root_node = Node(
+            id="root",
+            name=title or "EU Document",
+            level=0,
+            node_type=NodeType.ROOT
+        )
+        
+        current_titulo = None
+        current_capitulo = None
+        article_counter = 0
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            if line.startswith('[TITULO]'):
+                titulo_name = line.replace('[TITULO]', '').strip()
+                current_titulo = StructureNode(
+                    id=f"titulo_{titulo_name[:20]}",
+                    name=titulo_name,
+                    level=1,
+                    node_type=NodeType.TITULO,
+                    text=""
+                )
+                root_node.add_child(current_titulo)
+                current_capitulo = None  # Reset chapter
+                
+            elif line.startswith('[CAPITULO]'):
+                capitulo_name = line.replace('[CAPITULO]', '').strip()
+                current_capitulo = StructureNode(
+                    id=f"capitulo_{capitulo_name[:20]}",
+                    name=capitulo_name,
+                    level=2,
+                    node_type=NodeType.CAPITULO,
+                    text=""
+                )
+                if current_titulo:
+                    current_titulo.add_child(current_capitulo)
+                else:
+                    root_node.add_child(current_capitulo)
+                    
+            elif line.startswith('[ARTICULO]'):
+                article_counter += 1
+                # Parse article header: "Artículo N: Title"
+                article_header = line.replace('[ARTICULO]', '').strip()
+                
+                # Extract article number and title
+                match = re.match(r'Artículo\s+(\d+)(?:\s*:\s*(.+))?', article_header, re.IGNORECASE)
+                if match:
+                    art_num = match.group(1)
+                    art_title = match.group(2) or ""
+                else:
+                    art_num = str(article_counter)
+                    art_title = article_header
+                
+                # Collect article content until next marker
+                article_text_lines = []
+                i += 1
+                while i < len(lines):
+                    next_line = lines[i].strip()
+                    if next_line.startswith('[') and next_line.endswith(']'):
+                        # Don't consume this line, break
+                        i -= 1
+                        break
+                    if next_line.startswith('[TITULO]') or next_line.startswith('[CAPITULO]') or next_line.startswith('[ARTICULO]'):
+                        i -= 1
+                        break
+                    if next_line:
+                        article_text_lines.append(next_line)
+                    i += 1
+                
+                article_text = '\n'.join(article_text_lines)
+                
+                article_node = ArticleNode(
+                    id=f"{celex}_art_{art_num}",
+                    name=f"Artículo {art_num}" + (f": {art_title}" if art_title else ""),
+                    level=3,
+                    node_type=NodeType.ARTICULO,
+                    text=article_text
+                )
+                
+                # Add to appropriate parent
+                if current_capitulo:
+                    current_capitulo.add_child(article_node)
+                elif current_titulo:
+                    current_titulo.add_child(article_node)
+                else:
+                    root_node.add_child(article_node)
+            
+            i += 1
+        
+        normativa = EUNormativa(
+            id=celex,
+            metadata=metadata,
+            analysis=EUAnalysis(),
+            content_tree=root_node
+        )
+        
+        article_count = self._count_articles(root_node)
+        logger.info(f"Parsed EU text document: {celex} with {article_count} articles")
+        
+        return normativa, []
+
     
     def _build_metadata(self, doc, celex: str) -> EUMetadata:
         """Extract metadata from HTML document."""

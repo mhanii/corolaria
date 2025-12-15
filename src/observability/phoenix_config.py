@@ -95,6 +95,14 @@ def setup_phoenix_tracing(
         GoogleGenAIInstrumentor().instrument(tracer_provider=_tracer_provider)
         step_logger.info("[Phoenix] Google GenAI (Gemini) instrumented")
         
+        # Instrument OpenAI / Azure OpenAI
+        try:
+            from openinference.instrumentation.openai import OpenAIInstrumentor
+            OpenAIInstrumentor().instrument(tracer_provider=_tracer_provider)
+            step_logger.info("[Phoenix] OpenAI/Azure OpenAI instrumented")
+        except ImportError:
+            step_logger.debug("[Phoenix] OpenAI instrumentation not available (optional)")
+        
         _is_initialized = True
         step_logger.info(f"[Phoenix] ✓ Tracing enabled → {base_endpoint} (project: {project_name})")
         return True

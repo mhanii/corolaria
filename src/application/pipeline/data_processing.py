@@ -222,10 +222,18 @@ class DataProcessor(Step):
 
         for block in blocks:
             id = block.get("@id", None)
-            type = BlockType(block.get("@tipo", None).lower())
+            tipo_str = block.get("@tipo", "")
+            
+            # Skip blocks with unknown types
+            try:
+                block_type = BlockType(tipo_str.lower() if tipo_str else "")
+            except ValueError:
+                output_logger.warning(f"  ⚠️  Skipping unknown block type: '{tipo_str}'")
+                continue
+            
             title = block.get("@titulo", None)
 
-            if type in self.prohibited_types:
+            if block_type in self.prohibited_types:
                 continue
             
             versions = [self.process_version(version) for version in block.get("version", [])]

@@ -27,4 +27,4 @@ echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000 --workers 10

@@ -78,19 +78,28 @@ def convert_pdf_if_needed(file_path: str, output_dir: str = None) -> str:
 def create_llm_provider(model_name: str = None):
     """Create the LLM provider using the factory pattern."""
     from src.ai.llm.factory import LLMFactory
+    from src.config import get_llm_config, get_benchmark_config
     
-    # Default to env var if not provided, else generic default
+    llm_config = get_llm_config()
+    bench_config = get_benchmark_config()
+    
+    # Default selection priority:
+    # 1. explicit model_name arg
+    # 2. benchmark.model from config
+    # 3. llm.model from config
+    # 4. hardcoded fallback
+    
     if not model_name:
-        model_name = os.getenv("LLM_MODEL", "gemini-2.0-flash")
+        model_name = bench_config.get("model") or llm_config.get("model", "gemini-2.5-flash")
         
     return LLMFactory.create(
-        provider=os.getenv("LLM_PROVIDER", "gemini"),
+        provider=llm_config.get("provider", "gemini"), # Use main provider config
         model=model_name,
-        temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+        temperature=float(bench_config.get("temperature") or llm_config.get("temperature", 0.3)),
         # IMPORTANT: Gemini 2.5 Flash has a "thinking budget" that consumes output tokens
         # before generating the actual response. We need a large buffer to prevent
         # MAX_TOKENS errors with empty content.
-        max_tokens=int(os.getenv("LLM_MAX_TOKENS", "8192"))
+        max_tokens=int(llm_config.get("max_tokens", 8192))
     )
 
 def create_embedding_provider(cache_path: str = None):
@@ -277,6 +286,12 @@ def main():
         help="Disable embedding cache",
     )
     
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Run in batch mode (async) using Gemini Batch API",
+    )
+    
     args = parser.parse_args()
     
     # Setup Phoenix tracing if requested
@@ -311,6 +326,81 @@ def main():
     
     results_collection = []
     
+    # BATCH MODE EXECUTION
+    if args.batch:
+        from src.benchmarks.services.batch_runner import BatchBenchmarkRunner
+        
+        step_logger.info("Running in BATCH mode.")
+        
+        # Create dependencies
+        # TODO: Allow model selection for batch
+        from src.config import get_llm_config, get_benchmark_config
+        model_name = get_benchmark_config().get("model") or get_llm_config().get("model", "gemini-2.5-flash")
+        
+        llm_provider = create_llm_provider(model_name)
+        
+        context_collector = None
+        if not args.no_rag:
+             context_collector = create_context_collector(None if args.no_cache else args.cache_path)
+             
+        runner = BatchBenchmarkRunner(llm_provider, context_collector)
+        
+        # Prepare file
+        jsonl_path = f"{Path(text_file).stem}_batch_input.jsonl"
+        runner.prepare_batch_file(exam, jsonl_path, use_rag=not args.no_rag, top_k=args.top_k)
+        
+        # Submit
+        step_logger.info(f"Submitting batch job for {model_name}...")
+        job = runner.submit_batch(jsonl_path, display_name=f"bench-{exam.name}-{int(time.time())}")
+        
+        print("\n" + "=" * 80)
+        print(f"BATCH JOB SUBMITTED: {job.name}")
+        print("=" * 80)
+        print(f"Exam: {exam.name}")
+        print(f"Model: {model_name}")
+        print("-" * 80)
+        print("Waiting for completion (this may take a while)...")
+        
+        # Polling loop
+        while True:
+            job_status = llm_provider.get_batch_job(job.name)
+            state = getattr(job_status, 'state', 'UNKNOWN')
+            step_logger.info(f"Job State: {state}")
+            
+            if str(state) == "JobState.JOB_STATE_SUCCEEDED":
+                print("\nJob Succeeded! Retrieving results...")
+                try:
+                    results = runner.process_results(job.name, exam)
+                    
+                    # Print Summary Table
+                    print("\n" + "=" * 80)
+                    print(f"BATCH BENCHMARK RESULTS: {exam.name}")
+                    print("=" * 80)
+                    score = results.get('score_percent', 0.0)
+                    print(f"Score: {score:.1f}%")
+                    print(f"Correct: {results.get('correct_count')}/{results.get('total_questions')}")
+                    print("=" * 80)
+                    
+                    # Save results
+                    if args.output:
+                        with open(args.output, "w", encoding="utf-8") as f:
+                            json.dump([results], f, ensure_ascii=False, indent=2)
+                        step_logger.info(f"Results saved to {args.output}")
+                        
+                except Exception as e:
+                    step_logger.error(f"Failed to process results: {e}")
+                    import traceback
+                    traceback.print_exc()
+                break
+                
+            elif str(state) in ["JobState.JOB_STATE_FAILED", "JobState.JOB_STATE_CANCELLED"]:
+                print(f"\nJob Failed/Cancelled: {getattr(job_status, 'error', 'Unknown error')}")
+                break
+                
+            time.sleep(30) # Poll every 30 seconds
+            
+        return
+
     if args.matrix:
         # Matrix Configuration
         models = [
@@ -369,7 +459,8 @@ def main():
         
     else:
         # Standard Single Run
-        model_name = os.getenv("LLM_MODEL", "gemini-2.0-flash")
+        from src.config import get_llm_config, get_benchmark_config
+        model_name = get_benchmark_config().get("model") or get_llm_config().get("model", "gemini-2.5-flash")
         cache_path = None if args.no_cache else args.cache_path
         res = run_single_benchmark(
             exam, 

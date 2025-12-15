@@ -10,6 +10,7 @@ class CollectorType(str, Enum):
     """Available context collector types for RAG retrieval."""
     RAG = "rag"
     QRAG = "qrag"
+    AGENT = "agent"
 
 
 class ChatRequest(BaseModel):

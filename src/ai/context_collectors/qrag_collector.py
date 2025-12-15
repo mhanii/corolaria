@@ -43,49 +43,7 @@ class QRAGCollector(ContextCollector):
         max_results: Final limit on results after merging (lowest scores trimmed)
     """
     
-    QUERY_GENERATION_PROMPT = '''Eres un generador de consultas de búsqueda para un sistema RAG de documentos legales españoles.
 
-TU ÚNICO PROPÓSITO: Generar consultas para buscar leyes españolas.
-
-ENTRADA: Una pregunta del usuario sobre derecho español
-SALIDA: Un JSON array de strings con consultas de búsqueda optimizadas
-
-REGLAS ESTRICTAS:
-1. Las consultas deben hablar con conceptos jurídicos mencionados en la pregunta
-2. Si la pregunta es simple (un tema), genera UNA sola consulta
-3. Si tiene múltiples temas legales, genera consultas separadas (máximo {max_queries})
-4. Si hay más de un concepto jurídico, como preguntas tipo test, cada consulta debe hablar sobre un concepto
-5. Las consultas deben usar TERMINOLOGÍA JURÍDICA precisa, pero al mismo modo deben ser preguntas.
-6. Solo menciona leyes especificos si esta en la pregunta.
-7. Responde SOLO con el JSON array, sin explicaciones
-
-PROHIBIDO - NO generes consultas para:
-- Búsquedas tipo Google ("cómo hacer...", "pasos para...", "redactar documento")
-- Servicios o trámites administrativos
-- Consejos prácticos o tutoriales
-- Temas no relacionados con legislación española
-
-Si la pregunta NO es sobre legislación española o no se puede convertir en búsqueda de artículos legales, responde: ["consulta no válida para RAG legal"]
-
-EJEMPLOS CORRECTOS:
-Usuario: "¿Qué dice la constitución sobre igualdad?"
-Salida: ["¿Qué dice la constitución sobre igualdad?"]
-
-Usuario: "Obligaciones del arrendador y arrendatario"
-Salida: ["¿Qué obligaciones tiene el arrendador?", "¿Qué obligaciones tiene el arrendatario?"]
-
-Usuario: "¿Cuál es el plazo de prescripción de deudas?"
-Salida: ["¿Cuál es el plazo de prescripción de deudas?", "¿Cuál es son los tipos de deudas?", "¿El plazo de prescripción varía según el tipo de deuda?"]
-
-Usuario: "Derechos fundamentales y libertad de expresión"
-Salida: ["Cuales son los derechos fundamentales?", "Libertad de expresión"]
-
-EJEMPLOS INCORRECTOS (no generar):
-Usuario: "Cómo redactar un contrato" → NO es búsqueda de artículos
-Usuario: "Pasos para divorciarse" → NO es búsqueda de artículos (buscar "¿Cuales son los pasos para divorciarse?" sí sería válido)
-
-Usuario: "{user_query}"
-Salida:'''
 
     def __init__(
         self, 
@@ -118,6 +76,23 @@ Salida:'''
         self._max_results = max_results
         self._enrich = enrich
         self._enricher = ChunkEnricher(neo4j_adapter) if enrich else None
+        
+        # Load prompt from config
+        from src.config import get_prompt
+        # Fallback provided here just in case, but intended to be loaded from prompts.yaml
+        DEFAULT_QRAG_PROMPT = '''Eres un generador de consultas de búsqueda para un sistema RAG de documentos legales españoles.
+TU ÚNICO PROPÓSITO: Generar consultas para buscar leyes españolas.
+ENTRADA: Una pregunta del usuario sobre derecho español
+SALIDA: Un JSON array de strings con consultas de búsqueda optimizadas
+REGLAS ESTRICTAS:
+1. Las consultas deben hablar con conceptos jurídicos mencionados en la pregunta
+2. Si la pregunta es simple (un tema), genera UNA sola consulta
+3. Si tiene múltiples temas legales, genera consultas separadas (máximo {max_queries})
+4. Responde SOLO con el JSON array, sin explicaciones
+Usuario: "{user_query}"
+Salida:'''
+        
+        self._generation_prompt = get_prompt("qrag_query_generation_prompt", DEFAULT_QRAG_PROMPT)
         
         step_logger.info(
             f"[QRAGCollector] Initialized with index '{index_name}', "
@@ -321,7 +296,7 @@ Salida:'''
             List of generated search query strings
         """
         # Build prompt with max_queries injected
-        prompt = self.QUERY_GENERATION_PROMPT.format(
+        prompt = self._generation_prompt.format(
             max_queries=max_queries,
             user_query=user_query
         )

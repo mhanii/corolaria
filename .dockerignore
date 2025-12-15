@@ -17,7 +17,6 @@ stats/
 docs/
 documentation/
 exams/
-scripts/
 
 # Test data (keep data/ for embedding cache)
 output/
