@@ -18,9 +18,11 @@ from src.api.v1.chat_schemas import (
     CollectorType
 )
 from src.api.v1.auth import get_current_user_from_token, TokenPayload
-from src.infrastructure.sqlite.base import init_database
-from src.infrastructure.sqlite.user_repository import UserRepository
-from src.infrastructure.sqlite.conversation_repository import ConversationRepository
+from src.infrastructure.database import get_database_connection
+from src.infrastructure.database.repository_factory import (
+    get_user_repository as get_user_repo,
+    get_conversation_repository as get_conv_repo
+)
 from src.api.v1.dependencies import (
     get_chat_service_with_user,
     get_chat_service_with_collector,
@@ -34,11 +36,11 @@ router = APIRouter()
 
 
 def get_repositories():
-    """Get SQLite repositories."""
-    connection = init_database()
+    """Get database repositories using abstraction layer."""
+    connection = get_database_connection()
     return {
-        "user": UserRepository(connection),
-        "conversation": ConversationRepository(connection)
+        "user": get_user_repo(connection),
+        "conversation": get_conv_repo(connection)
     }
 
 

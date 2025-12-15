@@ -17,12 +17,13 @@ from src.api.v1.beta_schemas import (
     TestModeStatusResponse, ConfigMatrixResponse
 )
 from src.api.v1.chat_schemas import CitationResponse
-from src.infrastructure.sqlite.base import init_database
-from src.infrastructure.sqlite.user_repository import UserRepository
-from src.infrastructure.sqlite.beta_repository import (
-    FeedbackRepository, SurveyRepository
+from src.infrastructure.database import get_database_connection
+from src.infrastructure.database.repository_factory import (
+    get_user_repository as get_user_repo,
+    get_feedback_repository as get_feedback_repo,
+    get_survey_repository as get_survey_repo,
+    get_conversation_repository as get_conv_repo
 )
-from src.infrastructure.sqlite.conversation_repository import ConversationRepository
 from src.domain.models.beta_testing import (
     Feedback, FeedbackType as FeedbackTypeModel,
     ConfigMatrix, Survey
@@ -46,13 +47,13 @@ def get_beta_config() -> dict:
 
 
 def get_repositories():
-    """Get SQLite repositories."""
-    connection = init_database()
+    """Get database repositories using abstraction layer."""
+    connection = get_database_connection()
     return {
-        "user": UserRepository(connection),
-        "feedback": FeedbackRepository(connection),
-        "survey": SurveyRepository(connection),
-        "conversation": ConversationRepository(connection)
+        "user": get_user_repo(connection),
+        "feedback": get_feedback_repo(connection),
+        "survey": get_survey_repo(connection),
+        "conversation": get_conv_repo(connection)
     }
 
 

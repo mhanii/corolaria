@@ -11,8 +11,8 @@ from src.api.v1.auth import (
     get_current_user_from_token,
     TokenPayload
 )
-from src.infrastructure.sqlite.base import init_database
-from src.infrastructure.sqlite.user_repository import UserRepository
+from src.infrastructure.database import get_database_connection
+from src.infrastructure.database.repository_factory import get_user_repository as get_user_repo_from_connection
 from src.utils.logger import step_logger
 
 
@@ -20,10 +20,10 @@ from src.utils.logger import step_logger
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def get_user_repository() -> UserRepository:
-    """Get user repository dependency."""
-    connection = init_database()
-    return UserRepository(connection)
+def get_user_repository():
+    """Get user repository dependency using database abstraction layer."""
+    connection = get_database_connection()
+    return get_user_repo_from_connection(connection)
 
 
 @router.post(
