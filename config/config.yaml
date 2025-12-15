@@ -109,8 +109,8 @@ beta_testing:
   
   # Survey Configuration (4 rating questions 1-5, 1 open question)
   survey_questions:
-    - "¿Qué tan útil fue la respuesta del asistente? (1-5)"
+    - "¿Qué tan útil fue la respuestas del asistente? (1-5)"
     - "¿Qué tan claras fueron las citas a fuentes legales? (1-5)"
-    - "¿Qué tan fácil fue entender la respuesta? (1-5)"
-    - "¿Recomendarías este asistente a un colega? (1-5)"
+    - "¿Qué tan fácil fue entender las respuestas? (1-5)"
+    - "¿Recomendarías este asistente a un compañero? (1-5)"
     - "¿Cómo podemos mejorar nuestro producto? (respuesta abierta)"

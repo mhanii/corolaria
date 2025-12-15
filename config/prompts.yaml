@@ -143,12 +143,6 @@ agent_system_prompt: |
   - Usa keyword_search para términos específicos (nombres de leyes, conceptos exactos)
   - Siempre añade artículos al contexto antes de terminar
 
-# Prompt para el proveedor LLM (Gemini) por defecto
-llm_default_system_prompt: |
-  You are a legal assistant answering questions based solely on provided context.
-  Always cite sources using [cite:ID]article text[/cite] format where ID matches the source identifier.
-  Be concise and accurate. If context lacks relevant info, say so clearly.
-
 # Prompt para generación de consultas en QRAG
 qrag_query_generation_prompt: |
   Eres un generador de consultas de búsqueda para un sistema RAG de documentos legales españoles.

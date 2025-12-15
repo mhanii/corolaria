@@ -13,8 +13,9 @@ Examples:
 Note: Uses the configured database (MariaDB by default).
       Set DATABASE_TYPE=sqlite to use SQLite instead.
       
-      For local development, add to .env:
-      MARIADB_URI=mysql+pymysql://coloraria_user:coloraria_pass@localhost:3306/coloraria
+      Environment variables (for MariaDB):
+        - MARIADB_URI: Full connection string (preferred)
+        - Or individual: MARIADB_HOST, MARIADB_PORT, MARIADB_USER, MARIADB_PASSWORD, MARIADB_DATABASE
 """
 import sys
 import os
@@ -26,6 +27,34 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # Load .env file for local development
 from dotenv import load_dotenv
 load_dotenv()
+
+
+def ensure_mariadb_uri():
+    """
+    Build MARIADB_URI from individual env vars if not already set.
+    This is useful for deployments (like Dokploy) that set individual vars.
+    """
+    if os.getenv("MARIADB_URI"):
+        return  # Already set, nothing to do
+    
+    # Check if we have the individual components
+    host = os.getenv("MARIADB_HOST")
+    if not host:
+        return  # No host set, let the connection factory handle defaults
+    
+    port = os.getenv("MARIADB_PORT", "3306")
+    user = os.getenv("MARIADB_USER", "coloraria_user")
+    password = os.getenv("MARIADB_PASSWORD", "")
+    database = os.getenv("MARIADB_DATABASE", "coloraria")
+    
+    # Build and set the URI
+    uri = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+    os.environ["MARIADB_URI"] = uri
+    print(f"[create_user] Built MARIADB_URI from env vars (host: {host})")
+
+
+# Build URI from individual env vars if needed
+ensure_mariadb_uri()
 
 # Use the database abstraction layer
 from src.infrastructure.database import get_database_connection

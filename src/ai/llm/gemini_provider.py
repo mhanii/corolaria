@@ -122,10 +122,10 @@ class GeminiLLMProvider(LLMProvider):
         from src.config import get_llm_config, get_prompt
         config = get_llm_config()
         
-        self.default_system_prompt = get_prompt(
-            "llm_default_system_prompt",
-            "You are a legal assistant. Cite sources."
-        )
+        self.default_system_prompt = get_prompt("system_prompt")
+        if not self.default_system_prompt:
+            step_logger.error("[GeminiLLMProvider] CRITICAL: 'system_prompt' not found in prompts.yaml config!")
+            self.default_system_prompt = ""  # Will cause issues, but error is logged
         
         model = model or config.get("model", "gemini-2.5-flash")
         temperature = temperature if temperature is not None else config.get("temperature", 0.3)

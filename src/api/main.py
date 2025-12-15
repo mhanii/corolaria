@@ -115,17 +115,70 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Handle unexpected exceptions."""
+    """
+    Handle unexpected exceptions with proper sanitization.
+    
+    SECURITY: Never expose internal error details (SQL queries, stack traces, etc.)
+    to the client. Log full details server-side, return generic message to client.
+    """
+    import os
+    from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
+    from pymysql.err import MySQLError
+    
+    # Log full error details server-side (for debugging)
     step_logger.error(f"[API] Unhandled exception: {exc}", exc_info=True)
     
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "InternalServerError",
-            "message": "An unexpected error occurred",
-            "details": {"exception": str(exc)}
-        }
-    )
+    # Check if it's a database error - sanitize for security
+    is_db_error = isinstance(exc, (SQLAlchemyError, MySQLError)) or \
+                  "pymysql" in str(type(exc).__module__).lower() or \
+                  "sqlalchemy" in str(type(exc).__module__).lower()
+    
+    if is_db_error:
+        # Determine user-friendly message based on error type
+        if isinstance(exc, IntegrityError) or "IntegrityError" in str(type(exc)):
+            # Foreign key, unique constraint violations
+            user_message = "The requested operation could not be completed. Please ensure all referenced data exists."
+            error_type = "DataIntegrityError"
+        elif isinstance(exc, OperationalError) or "OperationalError" in str(type(exc)):
+            # Connection issues, server unavailable
+            user_message = "Unable to connect to the database. Please try again later."
+            error_type = "ServiceUnavailable"
+        else:
+            # Other database errors
+            user_message = "A database error occurred. Please try again later."
+            error_type = "DatabaseError"
+        
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": error_type,
+                "message": user_message
+            }
+        )
+    
+    # For non-database errors in production, still sanitize
+    # In development, can show more details
+    is_development = os.getenv("ENVIRONMENT", "development").lower() == "development"
+    
+    if is_development:
+        # Show more details in development
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": "InternalServerError",
+                "message": "An unexpected error occurred",
+                "details": str(exc) if len(str(exc)) < 200 else str(exc)[:200] + "..."
+            }
+        )
+    else:
+        # Production: completely generic message
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": "InternalServerError",
+                "message": "An unexpected error occurred. Please try again later."
+            }
+        )
 
 
 # Health check endpoint

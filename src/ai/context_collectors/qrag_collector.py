@@ -295,18 +295,18 @@ Salida:'''
         Returns:
             List of generated search query strings
         """
-        # Build prompt with max_queries injected
-        prompt = self._generation_prompt.format(
+        # Build system prompt with max_queries injected
+        system_prompt = self._generation_prompt.format(
             max_queries=max_queries,
             user_query=user_query
         )
         
         try:
-            # Call LLM for query generation
+            # Call LLM for query generation with QRAG-specific system prompt
             response = self._llm_provider.generate(
-                messages=[Message(role="user", content=prompt)],
+                messages=[Message(role="user", content=user_query)],
                 context=None,
-                system_prompt=None
+                system_prompt=system_prompt
             )
             
             # Parse JSON response
@@ -334,3 +334,4 @@ Salida:'''
         except Exception as e:
             step_logger.error(f"[QRAGCollector] Query generation failed: {e}")
             return []
+

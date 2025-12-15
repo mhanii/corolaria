@@ -118,10 +118,10 @@ class AzureOpenAILLMProvider(LLMProvider):
         from src.config import get_llm_config, get_prompt
         config = get_llm_config()
         
-        self.default_system_prompt = get_prompt(
-            "llm_default_system_prompt",
-            "You are a legal assistant. Cite sources."
-        )
+        self.default_system_prompt = get_prompt("system_prompt")
+        if not self.default_system_prompt:
+            step_logger.error("[AzureOpenAILLMProvider] CRITICAL: 'system_prompt' not found in prompts.yaml config!")
+            self.default_system_prompt = ""  # Will cause issues, but error is logged
         
         # Use config defaults if not provided
         model = model or config.get("model") or "gpt-4o"
