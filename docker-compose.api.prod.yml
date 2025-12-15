@@ -28,6 +28,7 @@ services:
 
       # Google AI
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      AZURE_API_KEY: ${AZURE_API_KEY}
 
       # Observability (Phoenix on infrastructure network)
       PHOENIX_ENABLED: ${PHOENIX_ENABLED:-true}
